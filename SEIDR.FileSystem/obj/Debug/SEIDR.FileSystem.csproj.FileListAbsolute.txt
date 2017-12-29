@@ -1,0 +1,17 @@
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.FileSystem.dll
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.FileSystem.pdb
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.dll
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.pdb
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.xml
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\obj\Debug\SEIDR.FileSystem.dll
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\obj\Debug\SEIDR.FileSystem.pdb
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR.FileSystem\obj\Debug\SEIDR.FileSystem.csprojResolveAssemblyReference.cache
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.FileSystem.dll
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.FileSystem.pdb
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.dll
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.pdb
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\bin\Debug\SEIDR.xml
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\obj\Debug\SEIDR.FileSystem.csprojResolveAssemblyReference.cache
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\obj\Debug\SEIDR.FileSystem.csproj.CoreCompileInputs.cache
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\obj\Debug\SEIDR.FileSystem.dll
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.FileSystem\obj\Debug\SEIDR.FileSystem.pdb

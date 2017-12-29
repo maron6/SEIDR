@@ -1,0 +1,6 @@
+﻿CREATE TABLE [SEIDR].[DM_Test] (
+    [ID] INT      IDENTITY (1, 1) NOT NULL,
+    [DC] DATETIME NULL,
+    PRIMARY KEY CLUSTERED ([ID] ASC)
+);
+

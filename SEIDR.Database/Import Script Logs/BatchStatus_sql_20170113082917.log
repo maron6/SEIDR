@@ -1,0 +1,10 @@
+1/13/2017 12:29:17 AM	This log contains information about the import operation of the script 'BatchStatus.sql' into project 'SEIDR.Database' on computer 'OWNER-PC' by user'Owner.
+1/13/2017 12:29:17 AM	Started importing file: C:\Users\Owner\AppData\Local\Temp\tmp1CCD.tmp 
+1/13/2017 12:29:17 AM	File name C:\Users\Owner\AppData\Local\Temp\tmp1CCD.tmp (size: 1799)
+1/13/2017 12:29:17 AM	Parsing import script
+1/13/2017 12:29:17 AM	Total number of batches in script: 2
+1/13/2017 12:29:17 AM	Total number of statements in script: 0
+1/13/2017 12:29:17 AM	The script was successfully imported into the project.
+1/13/2017 12:29:17 AM	In the script that you provided to the import operation, one or more statements were not fully understood. These statements were moved to the ScriptsIgnoredOnImport.sql file. Review the file contents for additional information.
+1/13/2017 12:29:17 AM	A summary of the import was saved to the following location: C:\Users\Owner\Dropbox\DS_Loader\SEIDR.Database\Import Script Logs\BatchStatus_sql_20170113082917.log
+1/13/2017 12:29:17 AM	Click Finish to continue...

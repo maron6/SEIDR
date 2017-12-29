@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Name>MIMIR</Name>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>4.1</ProjectVersion>
+    <ProjectGuid>{2de6ee17-ef36-4755-b8c0-85a547dab6c5}</ProjectGuid>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql130DatabaseSchemaProvider</DSP>
+    <OutputType>Database</OutputType>
+    <RootPath>
+    </RootPath>
+    <RootNamespace>SEIDR.MIMIR</RootNamespace>
+    <AssemblyName>SEIDR.MIMIR</AssemblyName>
+    <ModelCollation>1033,CI</ModelCollation>
+    <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
+    <DeployToDatabase>True</DeployToDatabase>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetLanguage>CS</TargetLanguage>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <SqlServerVerification>False</SqlServerVerification>
+    <IncludeCompositeObjects>True</IncludeCompositeObjects>
+    <TargetDatabaseSet>True</TargetDatabaseSet>
+    <DefaultCollation>SQL_Latin1_General_CP1_CI_AS</DefaultCollation>
+    <DefaultFilegroup>PRIMARY</DefaultFilegroup>
+    <DefaultSchema>SEIDR</DefaultSchema>
+    <IncludeSchemaNameInFileName>True</IncludeSchemaNameInFileName>
+    <DacApplicationName>SEIDR.MIMIR</DacApplicationName>
+    <TargetDatabase>MIMIR</TargetDatabase>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineDebug>false</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <TreatTSqlWarningsAsErrors>True</TreatTSqlWarningsAsErrors>
+    <SqlTargetName>SEIDR</SqlTargetName>
+  </PropertyGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
+    <!-- Default to the v11.0 targets path if the targets file for the current VS version is not found -->
+    <SSDTExists Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets')">True</SSDTExists>
+    <VisualStudioVersion Condition="'$(SSDTExists)' == ''">11.0</VisualStudioVersion>
+  </PropertyGroup>
+  <Import Condition="'$(SQLDBExtensionsRefPath)' != ''" Project="$(SQLDBExtensionsRefPath)\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <Import Condition="'$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <ItemGroup>
+    <Folder Include="Properties" />
+    <Folder Include="SEIDR\" />
+    <Folder Include="SEIDR\Tables\" />
+    <Folder Include="SEIDR\Views\" />
+    <Folder Include="SEIDR\Stored Procedures\" />
+    <Folder Include="SEIDR\User Defined Types\" />
+    <Folder Include="Security\" />
+    <Folder Include="Scripts\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Build Include="SEIDR\Tables\RepetitionIntervalType.sql" />
+    <Build Include="SEIDR\Tables\Batch.sql" />
+    <Build Include="SEIDR\Tables\Batch_File.sql" />
+    <Build Include="SEIDR\Tables\Batch_File_History.sql" />
+    <Build Include="SEIDR\Tables\Batch_BatchStatus.sql" />
+    <Build Include="SEIDR\Tables\Profile_Operation.sql" />
+    <Build Include="SEIDR\Tables\BatchProfile_Queue.sql" />
+    <Build Include="SEIDR\Tables\DM_Test.sql" />
+    <Build Include="SEIDR\Tables\Batch_Error.sql" />
+    <Build Include="SEIDR\Tables\Operation.sql" />
+    <Build Include="SEIDR\Tables\BatchProfile_Profile.sql" />
+    <Build Include="SEIDR\Tables\BatchStatus.sql" />
+    <Build Include="SEIDR\Tables\Schedule.sql" />
+    <Build Include="SEIDR\Tables\RepetitionGroup.sql" />
+    <Build Include="SEIDR\Tables\Schedule_RepetitionGroup.sql" />
+    <Build Include="SEIDR\Tables\Repetition.sql" />
+    <Build Include="SEIDR\Tables\BatchType.sql" />
+    <Build Include="SEIDR\Tables\BatchProfile.sql" />
+    <Build Include="SEIDR\Views\vw_Repetition.sql" />
+    <Build Include="SEIDR\Views\vw_Batch.sql" />
+    <Build Include="SEIDR\Views\vw_Batch_Runnable.sql" />
+    <Build Include="SEIDR\Views\vw_Batch_File.sql" />
+    <Build Include="SEIDR\Views\vw_Batch_ParentBatch.sql" />
+    <Build Include="SEIDR\Views\vw_Schedule_BatchProfile.sql" />
+    <Build Include="SEIDR\Views\vw_Schedule_BatchProfile_RepetitionGroup.sql" />
+    <Build Include="SEIDR\Views\vw_BatchProfile.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Batch_Error_i.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_batch_U.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Operation_Validate.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_CheckStopRequests.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Batch_sl_Cancel.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_BatchProfile_sl_FileWatch.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Batch_BulkRegister.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Batch_SL_Work.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_DatamanagerTest.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_DataManagerTest2.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Batch_CleanLocks.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Batch_StartWork.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_BatchProfile_InvalidFolder.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Profile_CheckSchedules.sql" />
+    <Build Include="SEIDR\User Defined Types\udt_Operation.sql" />
+    <Build Include="Security\SEIDR.sql" />
+    <None Include="Scripts\ScriptsIgnoredOnImport.sql" />
+    <Build Include="SEIDR\Views\SEIDR.vw_Batch_NotRunnable.sql" />
+  </ItemGroup>
+</Project>

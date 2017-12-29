@@ -1,0 +1,5 @@
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR\bin\Release\SEIDR.dll
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR\bin\Release\SEIDR.pdb
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR\obj\Release\SEIDR.csprojResolveAssemblyReference.cache
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR\obj\Release\SEIDR.dll
+C:\Users\Owner\Dropbox\DS_Loader\SEIDR\obj\Release\SEIDR.pdb

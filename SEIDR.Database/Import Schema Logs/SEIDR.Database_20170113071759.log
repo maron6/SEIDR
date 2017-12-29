@@ -1,0 +1,73 @@
+1/12/2017 11:17:59 PM	This log contains information about the import schema operation into project 'SEIDR.Database' on computer 'OWNER-PC' by user 'Owner'.
+1/12/2017 11:17:59 PM	Import of database schema has started.
+1/12/2017 11:18:10 PM	Gathering database options
+1/12/2017 11:18:10 PM	Gathering users
+1/12/2017 11:18:10 PM	Gathering roles
+1/12/2017 11:18:10 PM	Gathering application roles
+1/12/2017 11:18:10 PM	Gathering role memberships
+1/12/2017 11:18:10 PM	Gathering filegroups
+1/12/2017 11:18:10 PM	Gathering full-text catalogs
+1/12/2017 11:18:10 PM	Gathering assemblies
+1/12/2017 11:18:10 PM	Gathering certificates
+1/12/2017 11:18:10 PM	Gathering asymmetric keys
+1/12/2017 11:18:10 PM	Gathering symmetric keys
+1/12/2017 11:18:10 PM	Gathering encrypted symmetric keys
+1/12/2017 11:18:10 PM	Gathering schemas
+1/12/2017 11:18:10 PM	Gathering XML schema collections
+1/12/2017 11:18:10 PM	Gathering user-defined data types
+1/12/2017 11:18:10 PM	Gathering user-defined types
+1/12/2017 11:18:10 PM	Gathering table types
+1/12/2017 11:18:10 PM	Gathering unique keys for table types
+1/12/2017 11:18:10 PM	Gathering primary keys for table types
+1/12/2017 11:18:10 PM	Gathering check constraints for table types
+1/12/2017 11:18:10 PM	Gathering default constraints for table types
+1/12/2017 11:18:10 PM	Gathering partition functions
+1/12/2017 11:18:10 PM	Gathering partition schemes
+1/12/2017 11:18:10 PM	Gathering functions
+1/12/2017 11:18:10 PM	Gathering encrypted functions
+1/12/2017 11:18:10 PM	Gathering aggregates
+1/12/2017 11:18:10 PM	Gathering procedures
+1/12/2017 11:18:11 PM	Gathering encrypted procedures
+1/12/2017 11:18:11 PM	Gathering tables
+1/12/2017 11:18:11 PM	Gathering primary keys
+1/12/2017 11:18:11 PM	Gathering unique constraints
+1/12/2017 11:18:11 PM	Gathering foreign keys
+1/12/2017 11:18:12 PM	Gathering default constraints
+1/12/2017 11:18:12 PM	Gathering check constraints
+1/12/2017 11:18:12 PM	Gathering views
+1/12/2017 11:18:12 PM	Gathering encrypted views
+1/12/2017 11:18:12 PM	Gathering indexes
+1/12/2017 11:18:12 PM	Gathering statistics
+1/12/2017 11:18:12 PM	Gathering full-text index stoplists
+1/12/2017 11:18:12 PM	Gathering search property lists
+1/12/2017 11:18:12 PM	Gathering search properties
+1/12/2017 11:18:12 PM	Gathering full-text indexes
+1/12/2017 11:18:12 PM	Gathering column store indexes
+1/12/2017 11:18:12 PM	Gathering spatial indexes
+1/12/2017 11:18:12 PM	Gathering XML indexes
+1/12/2017 11:18:12 PM	Gathering Selective XML indexes
+1/12/2017 11:18:12 PM	Gathering encrypted triggers
+1/12/2017 11:18:12 PM	Gathering triggers
+1/12/2017 11:18:12 PM	Gathering encrypted and clr ddl triggers
+1/12/2017 11:18:12 PM	Gathering ddl triggers
+1/12/2017 11:18:12 PM	Gathering synonyms
+1/12/2017 11:18:12 PM	Gathering defaults
+1/12/2017 11:18:12 PM	Gathering data constraint uddt bindings
+1/12/2017 11:18:12 PM	Gathering rules
+1/12/2017 11:18:12 PM	Gathering data constraint uddt bindings
+1/12/2017 11:18:12 PM	Gathering message types
+1/12/2017 11:18:12 PM	Gathering queues
+1/12/2017 11:18:12 PM	Gathering contracts
+1/12/2017 11:18:12 PM	Gathering services
+1/12/2017 11:18:12 PM	Gathering event notifications
+1/12/2017 11:18:12 PM	Gathering remote service bindings
+1/12/2017 11:18:12 PM	Gathering broker priorities
+1/12/2017 11:18:12 PM	Gathering signatures
+1/12/2017 11:18:12 PM	Gathering data compression options
+1/12/2017 11:18:12 PM	Gathering sequence types
+1/12/2017 11:18:12 PM	Gathering extended properties
+1/12/2017 11:18:13 PM	Scanning project for duplicate elements
+1/12/2017 11:18:22 PM	Finished duplicate element processing
+1/12/2017 11:18:26 PM	Finished importing database.
+1/12/2017 11:18:26 PM	A summary of the import was saved to the following location: C:\Users\Owner\Dropbox\DS_Loader\SEIDR.Database\Import Schema Logs\SEIDR.Database_20170113071759.log
+1/12/2017 11:18:27 PM	Click Finish to continue...

@@ -1,0 +1,10 @@
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\obj\Debug\SEIDR.JobExecutor.csprojResolveAssemblyReference.cache
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\obj\Debug\SEIDR.JobExecutor.csproj.CoreCompileInputs.cache
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\bin\Debug\SEIDR.JobExecutor.exe.config
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\bin\Debug\SEIDR.JobExecutor.exe
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\bin\Debug\SEIDR.JobExecutor.pdb
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\bin\Debug\SEIDR.dll
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\bin\Debug\SEIDR.pdb
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\bin\Debug\SEIDR.xml
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\obj\Debug\SEIDR.JobExecutor.exe
+C:\Users\rlanger\Dropbox\DS_Loader\SEIDR.JobExecutor\obj\Debug\SEIDR.JobExecutor.pdb

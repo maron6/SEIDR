@@ -1,0 +1,1 @@
+﻿CREATE PROCEDURE SEIDR.usp_CheckStopRequests as SELECT 1
