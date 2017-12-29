@@ -15,7 +15,7 @@ namespace SEIDR.Doc.DocQuery
         Dictionary<ulong, AggregationInfo> AggInfo;
         public void Aggregate(DocRecord add)
         {
-            ulong hash = add.GetPartialHash(true, false, GroupBy.ToArray()).Value;
+            ulong hash = add.GetPartialHash(true, false, true, GroupBy.ToArray()).Value;
             AggregationInfo aggregate;
             if (!AggInfo.TryGetValue(hash, out aggregate))
             {
@@ -42,7 +42,7 @@ namespace SEIDR.Doc.DocQuery
         {
             Dictionary<DocRecordColumnInfo, Aggregation> g;
             //Aggregation g;
-            var h = compare.GetPartialHash(true, false, GroupBy.ToArray()) ?? 0;
+            var h = compare.GetPartialHash(true, false, true, GroupBy.ToArray()) ?? 0;
             if (!records.TryGetValue(h, out g))
             {
                 return null;

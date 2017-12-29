@@ -139,7 +139,6 @@ namespace SEIDR.Doc
         {
             if (content == null || content.Length == 0)
                 return null;
-            const string boundary = "_____";
             StringBuilder work = new StringBuilder();            
             if (columnsToHash.Length == 0)
                 work.Append(ToString());
@@ -158,7 +157,7 @@ namespace SEIDR.Doc
             else
                 return unchecked((ulong)work.ToString().GetHashCode());
         }
-
+        const string boundary = "\0__\0__";
         /// <summary>
         /// Returns an unsigned long hash code, using either a rolling hash or string's GetHashCode.
         /// If any of the column values are null or empty strings, will return null instead of a value
@@ -167,11 +166,10 @@ namespace SEIDR.Doc
         /// <param name="ExcludeEmpty">If true, will treat empty strings as a null</param>
         /// <param name="columnsToHash"></param>
         /// <returns></returns>
-        public ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, params DocRecordColumnInfo[] columnsToHash)
+        public ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, bool includeNull, params DocRecordColumnInfo[] columnsToHash)
         {
             if (_header == null || _header.Count == 0)
                 return null;
-            const string boundary = "_____";
             StringBuilder work = new StringBuilder();
             if (columnsToHash.Length == 0)
                 work.Append(ToString());
@@ -180,8 +178,10 @@ namespace SEIDR.Doc
                 foreach (var col in columnsToHash)
                 {
                     string x = this[col];
-                    if (x == null || (ExcludeEmpty && x == string.Empty))
+                    if (ExcludeEmpty && x == string.Empty) x = null;
+                    if (x == null && !includeNull)
                         return null;
+
                     work.Append(x + boundary);
                 }
             }

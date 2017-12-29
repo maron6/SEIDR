@@ -46,7 +46,7 @@ namespace SEIDR.Doc.DocQuery
             if (LeftSideColumns == null)
                 LeftSideColumns = toJoin.HeaderList;
             if (doHashJoin)
-                jh = toJoin.GetPartialHash(true, myContent.EmptyIsNull, JoinConditions.LeftHashColumns);
+                jh = toJoin.GetPartialHash(true, myContent.EmptyIsNull, false, JoinConditions.LeftHashColumns);
             else jh = null;
         }
         bool CheckHash(DelimitedRecord check)
@@ -54,7 +54,7 @@ namespace SEIDR.Doc.DocQuery
             //Do HashJoin will only  be true if the root of the condition tree is able to do a hash join after optimization.
             if (!doHashJoin || jh == null)
                 return false;
-            var rh = check.GetPartialHash(true, myContent.EmptyIsNull, JoinConditions.RightHashColumns);
+            var rh = check.GetPartialHash(true, myContent.EmptyIsNull, false, JoinConditions.RightHashColumns);
             return jh == rh;
         }
         /// <summary>

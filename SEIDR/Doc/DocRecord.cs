@@ -39,7 +39,7 @@ namespace SEIDR.Doc
             //get { return unchecked((ulong)ToString().GetHashCode()); }
             get
             {
-                return GetPartialHash(true, true, Columns.Columns) ?? 0;
+                return GetPartialHash(true, true, true, Columns.Columns.ToArray()) ?? 0;
             }
         }
         /// <summary>
@@ -59,8 +59,7 @@ namespace SEIDR.Doc
         public ulong? GetPartialHash(bool RollingHash, params string[] columnsToHash)
         {
             if (Content == null || Content.Count == 0)
-                return null;
-            const string boundary = "_____";
+                return null; 
             StringBuilder work = new StringBuilder();
             if (columnsToHash.Length == 0)
                 work.Append(ToString());
@@ -71,7 +70,7 @@ namespace SEIDR.Doc
                     string x = this[col];
                     if (x == null)
                         return null;
-                    work.Append(x + boundary);
+                    work.Append(x + _hash_boundary);
                 }
             }
             if (RollingHash)
@@ -79,55 +78,19 @@ namespace SEIDR.Doc
             else
                 return unchecked((ulong)work.ToString().GetHashCode());
         }
+        const string _hash_boundary = "_\0_\0_";
         /// <summary>
-        /// Returns an unsigned long hash code, using either a rolling hash or string's GetHashCode.
-        /// <para>If any of the column values are null, will return null.</para>
+        /// Returns an unsigned long hash code, using either a rolling hash method or string's GetHashCode.
         /// </summary>
         /// <param name="RollingHash"></param>
-        /// <param name="includeNull">If true, will replace null with empty string.</param>
-        /// <param name="ColumnsToHash"></param>
-        /// <returns></returns>
-        public ulong? GetPartialHash(bool RollingHash, bool includeNull, IList<DocRecordColumnInfo> ColumnsToHash)
-        {
-            if (Content == null || Content.Count == 0)
-                return null;
-            const string boundary = "_____";
-            StringBuilder work = new StringBuilder();
-            if (ColumnsToHash.Count == 0)
-                work.Append(ToString());
-            else
-            {
-                foreach (var col in ColumnsToHash)
-                {
-                    string x = this[col];
-                    if(x == null)
-                    {
-                        if (includeNull)
-                            x = string.Empty;
-                        else
-                            return null;
-                    }
-                    work.Append(x + boundary);
-                }
-            }
-            if (RollingHash)
-                return GetRollingHash(work.ToString());
-            else
-                return unchecked((ulong)work.ToString().GetHashCode());
-        }
-        /// <summary>
-        /// Returns an unsigned long hash code, using either a rolling hash or string's GetHashCode.
-        /// If any of the column values are null or empty strings, will return null instead of a value
-        /// </summary>
-        /// <param name="RollingHash"></param>
-        /// <param name="ExcludeEmpty">If true, will treat empty strings as a null</param>
+        /// <param name="ExcludeEmpty">If true, will treat empty strings the same as null</param>
+        /// <param name="includeNull">If true, will not return null if the column value is null</param>
         /// <param name="columnsToHash"></param>
         /// <returns></returns>
-        public ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, params DocRecordColumnInfo[] columnsToHash)
+        public ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, bool includeNull, params DocRecordColumnInfo[] columnsToHash)
         {
             if (Columns == null || Columns.Count == 0)
                 return null;
-            const string boundary = "_____";
             StringBuilder work = new StringBuilder();
             if (columnsToHash.Length == 0)
                 work.Append(ToString());
@@ -136,9 +99,10 @@ namespace SEIDR.Doc
                 foreach (var col in columnsToHash)
                 {
                     string x = this[col];
-                    if (x == null || (ExcludeEmpty && x == string.Empty))
-                        return null;
-                    work.Append(x + boundary);
+                    if (ExcludeEmpty && x == string.Empty) x = null;
+                    if (x == null && !includeNull)
+                        return null;                    
+                    work.Append((x ?? "\0") + _hash_boundary);
                 }
             }
             if (RollingHash)

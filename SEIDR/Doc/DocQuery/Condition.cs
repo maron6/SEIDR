@@ -193,10 +193,10 @@ namespace SEIDR.Doc.DocQuery
                 throw new InvalidOperationException("Cannot do a hash match when join type is not a Hash join");
             
             if (Left == null)
-                Left = left.GetPartialHash(true, ExcludeEmpty, leftHashColumns.ToArray());
+                Left = left.GetPartialHash(true, ExcludeEmpty, true, leftHashColumns.ToArray());
             if (Left == null)
                 return null;
-            Right =  Right ?? right.GetPartialHash(true, ExcludeEmpty, rightHashColumns.ToArray());
+            Right =  Right ?? right.GetPartialHash(true, ExcludeEmpty, true, rightHashColumns.ToArray());
             if (Right == null)
                 return null;
             return Left == Right;

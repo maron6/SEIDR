@@ -12,6 +12,6 @@ namespace SEIDR.Doc
         string this[string alias, string column] { get; set; }
         string this[int index] { get; set; }
 
-        ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, params DocRecordColumnInfo[] columnsToHash);
+        ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, bool includeNull, params DocRecordColumnInfo[] columnsToHash);
     }
 }
