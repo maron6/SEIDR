@@ -4,7 +4,7 @@ using SEIDR.META;
 
 namespace SEIDR.JobBase
 {
-    public class JobProfile: DatabaseObject
+    public class JobProfile: DatabaseObject<JobProfile>
     {        
         public int? JobProfileID { get; private set; }
         public string Description { get; set; }
@@ -22,7 +22,7 @@ namespace SEIDR.JobBase
         /// </summary>
         public int? SequenceScheduleID { get; set; }
     }
-    public class JobExecution : DatabaseObject
+    public class JobExecution : DatabaseObject<JobExecution>
     {
         public int JobExecutionID { get; private set; }
         public int JobProfileID { get; private set; }
@@ -31,7 +31,7 @@ namespace SEIDR.JobBase
         public string FilePath { get; set; }
         public string FileName => System.IO.Path.GetFileName(FilePath);
     }
-    public class ExecutionStatus : DatabaseObject
+    public class ExecutionStatus : DatabaseObject<ExecutionStatus>
     {        
         public string ExecutionStatusCode { get; set; }
         public bool IsComplete { get; set; }
