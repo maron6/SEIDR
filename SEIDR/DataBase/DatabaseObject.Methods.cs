@@ -7,8 +7,17 @@ using System.Data;
 
 namespace SEIDR.DataBase
 {
-    public partial class DatabaseObject
+    /// <summary>
+    /// Base class inheriting from <see cref="DatabaseObject"/>, which adds basic method functionality.
+    /// Use with a recursive generic.
+    /// </summary>
+    /// <typeparam name="RT">Recursive generic. Ex: class myObject: DatabaseObject&lt;myObject> </typeparam>
+    public abstract class DatabaseObject<RT>: DatabaseObject where RT:DatabaseObject<RT>, new()
     {
+        /// <summary>
+        /// A Connection manager utility object. Auto populated when calling <see cref="ExecuteProcedure(string)"/>  or <see cref="PassToProcedure(string)"/>
+        /// </summary>
+        protected DatabaseManager _DBManager;
         public void ExecuteProcedure(string QualifiedProcedure)
         {
             string Schema = "dbo";
@@ -16,8 +25,9 @@ namespace SEIDR.DataBase
             if (split.Length > 1)
                 Schema = split[0];
             //obj.GetDefaultManager(Schema).ExecuteNonQuery(QualifiedProcedure, obj);
-            DatabaseManager dm = new DatabaseManager(Connection, Schema);
-            dm.ExecuteNonQuery(QualifiedProcedure, this);
+            if(_DBManager == null)
+                _DBManager = new DatabaseManager(Connection, Schema);
+            _DBManager.ExecuteNonQuery(QualifiedProcedure, this);            
         }
         public void ExecuteProcedure(string Schema, string Procedure) => ExecuteProcedure($"[{Schema}].{Procedure}");
 
@@ -27,15 +37,12 @@ namespace SEIDR.DataBase
             string[] split = QualifiedProcedure.Split('.');
             if (split.Length > 1)
                 Schema = split[0];
-            DatabaseManager dm = new DatabaseManager(Connection, Schema);
-            return dm.Execute(QualifiedProcedure, this);
+            if(_DBManager == null)
+                _DBManager = new DatabaseManager(Connection, Schema);
+            return _DBManager.Execute(QualifiedProcedure, this);
         }
         public DataSet PassToProcedure( string Schema, string Procedure) => PassToProcedure($"[{Schema}].{Procedure}");
 
-        public DatabaseManager GetDefaultManager(string Schema = "dbo")
-        {
-            return new DatabaseManager(Connection, Schema);
-        }
 
         public DataTable GetTable( string QualifiedProcedure)
         {
@@ -46,20 +53,20 @@ namespace SEIDR.DataBase
         }
         public DataTable GetTable(string Schema, string Procedure) => GetTable($"[{Schema}].{Procedure}");
 
-        public RT GetRecord<RT>(string QualifiedProcedure) where RT : new()
+        public RT GetRecord(string QualifiedProcedure)
         {
             DataRow r = GetRow(QualifiedProcedure);
             return r.ToContentRecord<RT>();
         }
-        public RT GetRecord<RT>(string Schema, string Procedure)
-            where RT : new() => GetRecord<RT>($"[{Schema}].{Procedure}");        
-        public List<RT> GetList<RT>(string QualifiedProcedure) where RT : new()
+        public RT GetRecord(string Schema, string Procedure)
+             => GetRecord($"[{Schema}].{Procedure}");        
+        public List<RT> GetList(string QualifiedProcedure)
         {
             DataTable dt = GetTable(QualifiedProcedure);
             return dt.ToContentList<RT>();
         }
-        public List<RT> GetList<RT>(string Schema, string Procedure)
-            where RT : new() => GetList<RT>($"[{Schema}].{Procedure}");
+        public List<RT> GetList(string Schema, string Procedure)
+            => GetList($"[{Schema}].{Procedure}");
         public DataRow GetRow(string QualifiedProcedure)
         {
             DataTable dt = GetTable(QualifiedProcedure);

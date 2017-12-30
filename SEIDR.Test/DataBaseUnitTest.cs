@@ -5,6 +5,11 @@ using System.Data;
 
 namespace SEIDR.DataBase.Test
 {
+    public class Inheritor : DatabaseObject<Inheritor>
+    {
+
+    }
+
     [TestClass]
     public class DataBaseUnitTest
     {
@@ -58,6 +63,7 @@ EXEC (@SQL)
         {
             m.ExecuteText(CHECK_FIRST_PROC);
             m.ExecuteTextNonQuery(CHECK_SECOND_PROC);
+            Inheritor i = new Inheritor();
         }
         public class TestClass
         {

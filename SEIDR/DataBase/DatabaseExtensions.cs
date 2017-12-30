@@ -32,7 +32,12 @@ namespace SEIDR.DataBase
                 return rl;
             RT work = new RT();
             Type tInfo = work.GetType();
-            Dictionary<string, PropertyInfo> md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p);
+            Dictionary<string, PropertyInfo> md;
+            if (!mapCache.TryGetValue(tInfo, out md))
+            {
+                md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p);
+                mapCache[tInfo] = md;
+            }
             foreach(DataRow r in dt.Rows)
             {
                 Map(work, r, md, dt.Columns);
@@ -79,13 +84,19 @@ namespace SEIDR.DataBase
                 return default(RT);
             RT work = new RT();
             if (row.Table.Columns.Count == 0)
-                return work;            
+                return work;                        
             Type tInfo = work.GetType();
-            Dictionary<string, PropertyInfo> md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
+            Dictionary<string, PropertyInfo> md;
+            if (!mapCache.TryGetValue(tInfo, out md))
+            {
+                md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
+                mapCache[tInfo] = md; //don't worry about cached values becoming innacurate, since the TypeInfo isn't going to change after compilation.
+                                        //Even dynamic class matching is based on definition matching
+            }
             Map(work, row, md, row.Table.Columns);
             return work;
         }
-
+        static Dictionary<Type, Dictionary<string, PropertyInfo>> mapCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
         public static DataRowView CreateDataRowView<RT>(RT Record) where RT: new()
         {
             DataTable dt = Record.ToTable();
@@ -120,7 +131,7 @@ namespace SEIDR.DataBase
                             nValue = Enum.Parse(underType, nValue.ToString(), true);
                         }
                         else if (underType.IsArray)
-                            continue; //Skip arrays...
+                            continue; //Skip arrays...doesn't really make sense for coming from a dataRow, although it might be possible to do dynamically..
                         /*else
                         {
                             nValue = p.GetValue(map);

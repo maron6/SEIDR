@@ -146,7 +146,7 @@ namespace SEIDR.DataBase
             clone._Parameters = toClone._Parameters;
             clone.DefaultRetryOnDeadlock = toClone.DefaultRetryOnDeadlock;
             clone.RethrowException = reThrowException;
-            clone.ProgramName = programName ?? ProgramName;
+            clone.ProgramName = programName ?? ProgramName;            
             return clone;
         }
         #endregion
@@ -383,7 +383,12 @@ namespace SEIDR.DataBase
             }
             return ds;            
         }
-
+        /// <summary>
+        /// Executes the stored procedure. 
+        /// </summary>
+        /// <param name="QualifiedProcedureName"></param>
+        /// <param name="mapObj">Object to use for populating parameters from properties</param>
+        /// <returns></returns>
         public DataSet Execute (string QualifiedProcedureName, object mapObj = null)
         {
             CheckQualified( ref QualifiedProcedureName);
@@ -535,6 +540,7 @@ namespace SEIDR.DataBase
         /// Executes the fully Qualified procedure.
         /// </summary>
         /// <param name="QualifiedProcedureName">Procedure name. If not actually fully qualified, use the default schema.</param>
+        /// <param name="ReturnCode">The SQL Return code from calling the stored procedure</param>
         /// <param name="mapObj"></param>
         /// <param name="RetryDeadlock">Priority for determining whether to retry on deadlock</param>
         /// <returns>RowCount from ExecuteNonQuery</returns>

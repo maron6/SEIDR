@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SEIDR;
 
 namespace SEIDR.Doc.DocQuery
 {
@@ -135,12 +136,12 @@ namespace SEIDR.Doc.DocQuery
             if (!content.Content.HasValue)
                 return;
             var d = content.Content.Value;
+            Counter++;
             if (valueD == null)
             {
                 valueD = d;
                 return;
             }
-            Counter++;
             switch (op)
             {
                 case AggregationType.MIN:
@@ -157,9 +158,10 @@ namespace SEIDR.Doc.DocQuery
                 case AggregationType.MOVING_AVERAGE:
                     {
                         double work = d.ToOADate();
-                        double work2 = (work - Counter) / Counter;
-                        work /= Counter;
-                        calc = calc + work - work2;                        
+                        calc = calc.Average(Counter -1, work, 1);
+                        //double work2 = (work - Counter) / Counter;
+                        //work /= Counter;
+                        //calc = calc + work - work2;                        
                         //rolling average?
                         break;
                     }
@@ -192,10 +194,8 @@ namespace SEIDR.Doc.DocQuery
                 case AggregationType.SUM:
                     money += work;
                     break;
-                case AggregationType.MOVING_AVERAGE:
-                    decimal work2 = (work - Counter) / Counter;
-                    work /= Counter;
-                    money = money + work - work2;
+                case AggregationType.MOVING_AVERAGE: 
+                    money = money.Value.Average(Counter - 1, work, 1);
                     break;
             }
         }
@@ -237,7 +237,8 @@ namespace SEIDR.Doc.DocQuery
                     money += work;
                     return;
                 case AggregationType.MOVING_AVERAGE:                    
-                    {                        
+                    {
+                        calc = calc.Average(Counter - 1, work);
                         double work2 = (work - Counter) / Counter;
                         work /= Counter;
                         calc = calc + work - work2;
