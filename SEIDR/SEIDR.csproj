@@ -55,6 +55,7 @@
     <Compile Include="DataBase\ParamStore.cs" />
     <Compile Include="DataBase\Schema.cs" />
     <Compile Include="DateFormatter.cs" />
+    <Compile Include="NumExtensions.cs" />
     <Compile Include="Doc\ColumnDateFormatter.cs" />
     <Compile Include="Doc\DelimitedDocumentReader.cs" />
     <Compile Include="Doc\DelimitedDocumentWriter.cs" />
