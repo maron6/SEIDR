@@ -1,0 +1,13 @@
+
+*.bak
+*.cache
+*.suo
+*.cache
+SEIDR.JobBase/Properties/AssemblyInfo.cs
+SEIDR.JobBase/obj/Debug/TemporaryGeneratedFile_036C0B5B-1481-4323-8D20-8F5ADCB23D92.cs
+SEIDR/obj/
+SEIDR/bin/
+SEIDR.Test/obj/
+SEIDR.Test/bin/
+bin/
+obj/
