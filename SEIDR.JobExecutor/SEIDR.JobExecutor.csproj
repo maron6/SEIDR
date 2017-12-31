@@ -46,9 +46,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CancellationExecutor.cs" />
+    <Compile Include="Executor.cs" />
+    <Compile Include="JobExecutor.cs" />
     <Compile Include="OperationExecutor.cs" />
     <Compile Include="OperationLibrary.cs" />
-    <Compile Include="JobExecutor.cs">
+    <Compile Include="JobExecutorService.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Queue.cs" />
@@ -58,6 +60,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\SEIDR.JobBase\SEIDR.JobBase.csproj">
+      <Project>{364639c6-a8bb-4a53-8023-02f023a8dfcd}</Project>
+      <Name>SEIDR.JobBase</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SEIDR\SEIDR.csproj">
       <Project>{81417f92-b840-4476-96b7-6d87d224fd78}</Project>
       <Name>SEIDR</Name>
