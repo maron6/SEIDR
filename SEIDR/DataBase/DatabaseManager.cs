@@ -149,6 +149,23 @@ namespace SEIDR.DataBase
             clone.ProgramName = programName ?? ProgramName;            
             return clone;
         }
+        /// <summary>
+        /// Returns a cloned copy of the connection associated with this manager.
+        /// </summary>
+        /// <param name="programName">If non null, changes the application name. If null, maintains</param>
+        /// <returns></returns>
+        public DatabaseConnection CloneConnection(string programName = null)
+        {
+            var conn = DatabaseConnection.FromString(_conn.ConnectionString);
+            if (programName != null)
+            {
+                if (string.IsNullOrWhiteSpace(programName))
+                    conn.ApplicationName = null;
+                else
+                    conn.ApplicationName = programName;
+            }
+            return conn;
+        }
         #endregion
         #region Connection properties
         /// <summary>

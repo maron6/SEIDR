@@ -15,7 +15,7 @@ namespace SEIDR.JobExecutor
     class OperationExecutor : Operator
     {
         public static DatabaseManager ExecutionManager; // Difference from the DbManager - this one will throw exceptions and have to be caught in here.
-        static OperationLibrary Library;
+        static JobLibrary Library;
         static DateTime LastLibraryCheck = new DateTime(1, 1, 1);
         /// <summary>
         /// Timeout increase on deadlock.
@@ -26,7 +26,7 @@ namespace SEIDR.JobExecutor
         public static Mailer ExecutionAlerts { private get; set; }
         public static void SetLibrary(string Location)
         {
-            Library = new OperationLibrary(Location);
+            Library = new JobLibrary(Location);
             CheckLibrary();
         }        
         

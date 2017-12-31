@@ -1,41 +1,139 @@
 ﻿using System;
 using SEIDR.DataBase;
 using SEIDR.META;
+using System.ComponentModel;
 
 namespace SEIDR.JobBase
 {
-    public class JobProfile: DatabaseObject<JobProfile>
+    public interface IJobMetaData
+    {        
+        string JobName { get; }
+        [DefaultValue(null)]
+        string Description { get; }        
+        string NameSpace { get;  }
+        /// <summary>
+        /// If a Job cannot share the same thread as other jobs, it should share a name. 
+        /// <para>When the job is picked up, the Executor thread will take on the name from the current job if this is specified.</para>
+        /// <para>If a job is queued and then ready while another thread is already running with this threadName, the jobExecution will either be held or moved to the other thread's queue.</para>
+        /// </summary>
+        [DefaultValue(null)]
+        string ThreadName { get; }
+        [DefaultValue(false)]
+        bool SingleThreaded { get; }
+    }
+    public interface IJob
+    {
+        /// <summary>
+        /// Executor will pass self to this variable.
+        /// </summary>
+        iJobExecutor jobExecutor { set; }
+        /// <summary>
+        /// Called by the jobExecutor.
+        /// </summary>
+        /// <param name="execution"></param>        
+        /// <param name="status">Optional status set, to allow a more detailed status.</param>        
+        /// <returns>True for success, false for failure.</returns>
+        bool Execute(JobExecution execution, ref ExecutionStatus status);
+
+    }
+    public class JobProfile//: DatabaseObject<JobProfile>
     {        
         public int? JobProfileID { get; private set; }
         public string Description { get; set; }
         public string Creator { get; set; }
-        public DateTime CreationDate { get; set; } = DateTime.Now;
-        public DateTime ModifiedDate { get; set; } = DateTime.Now;
-        public string Folder { get; set; }
+        public DateTime DC { get; set; } = DateTime.Now;
+        public DateTime LU { get; set; } = DateTime.Now;
+        public DateTime? DD { get; set; } = null;
+        public string RegistrationFolder { get; set; }
+        public string FileDateMask { get; set; }
+        public string FileFilter { get; set; }
 
+        public int UserKey { get; set; }
+        public string UserKey1 { get; set; }
+        public string UserKey2 { get; set; }
+
+        /// <summary>
+        /// Allows specifying that a JobProfile needs to run a specific thread number. Can be overridden at execution level.
+        /// </summary>
+        public byte? RequiredThreadID { get; private set; }
         /// <summary>
         /// For creating JobExecutions without folder monitoring
         /// </summary>
         public int? ScheduleID { get; set; }
-        /// <summary>
-        /// For checking if jobExecution is eligible to run.
-        /// </summary>
-        public int? SequenceScheduleID { get; set; }
     }
-    public class JobExecution : DatabaseObject<JobExecution>
+    public class JobExecution //: DatabaseObject<JobExecution>
     {
-        public int JobExecutionID { get; private set; }
+        public JobExecution() { }        
+        public long? JobExecutionID { get; private set; }
+        
         public int JobProfileID { get; private set; }
-        public DateTime ProcessingDate { get; set; }
-        public string ExecutionStatusCode { get; set; }
+
+        public int JobProfile_JobID { get; private set; }
+        public int StepNumber { get; private set; }
+        public int JobID { get; private set; }
+
+        public string JobName { get; private set; }
+        public string JobNameSpace { get; private set; }
+        public string JobThreadName { get; private set; }
+        /// <summary>
+        /// Allows specifying that an Execution needs to run a specific thread number. 
+        /// </summary>
+        public byte? RequiredThreadID { get; private set; }
+
+        public int UserKey { get; private set; }
+        public string UserKey1 { get; private set; }
+        public string UserKey2 { get; set; }
+
+        public DateTime ProcessingDate { get; private set; }
+        public string ExecutionStatusCode { get; private set; }
         public string FilePath { get; set; }
+        public long FileSize { get; set; }
         public string FileName => System.IO.Path.GetFileName(FilePath);
+
+        public int RetryCount { get; private set; } = 0;
+        public bool ForceSequence { get; private set; }
+        /// <summary>
+        /// Used for requeueing.
+        /// </summary>
+        public DateTime? DelayStart;
+        public const string REGISTERED = "R";
+        public const string SCHEDULED = "S";
+        public const string WORKING = "W";
+        public const string COMPLETE = "C";
+        public const string CANCELLED = "CX";
+        public const string FAILURE = "F";
+        public const string STEP_COMPLETE = "SC";
     }
-    public class ExecutionStatus : DatabaseObject<ExecutionStatus>
-    {        
+    public class ExecutionStatus //: DatabaseObject<ExecutionStatus>
+    {                
         public string ExecutionStatusCode { get; set; }
         public bool IsComplete { get; set; }
         public bool IsError { get; set; }
-        public bool Description { get; set; }
+        /// <summary>
+        /// Indicates that the status should not get picked up for queueing.
+        /// </summary>
+        public bool IsWorking { get; set; } = false;
+        /// <summary>
+        /// Used to populate ExecutionStatus table when first added. Should be descriptive for users.
+        /// </summary>
+        public string Description { get; set; }
+        /// <summary>
+        /// Specify for non default to prevent overlap. If not set, the Namespace from JobMetaData will be used.
+        /// </summary>
+        public string NameSpace { get; set; }
+        /// <summary>
+        /// Status allows being picked for queueing.
+        /// </summary>
+        public bool Queueable => !IsComplete && !IsError && !IsWorking;
+        public static ExecutionStatus REQUEUE
+            => new ExecutionStatus
+            {
+                ExecutionStatusCode = "RQ",
+                IsComplete = false,
+                IsError = false,
+                IsWorking = true,
+                Description = "Requeue the job without updating the status. Was not ready to run.",
+                NameSpace ="SEIDR"
+            };        
     }
 }

@@ -8,18 +8,19 @@ using System.Threading.Tasks;
 using SEIDR.OperationServiceModels;
 using System.Data;
 using SEIDR.DataBase;
+using SEIDR.JobBase;
 
 namespace SEIDR.JobExecutor
 {
-    class OperationLibrary
+    class JobLibrary
     {
         public bool IsValidState { get { return maps != null; } }
         CompositionContainer _container = null;
-        public readonly string LibraryLocation = @"C:\SEIDR.Operator\Plugin_Library\";
-        [ImportMany(typeof(iOperation), AllowRecomposition = true)]
-        IEnumerable<Lazy<iOperation, iOperationMetaData>> maps = null;
+        public readonly string LibraryLocation = @"C:\SEIDR.JobExecutor\Plugin_Library\";
+        [ImportMany(typeof(IJob), AllowRecomposition = true)]
+        IEnumerable<Lazy<IJob, IJobMetaData>> maps = null;
         #region gets
-        public iOperation GetOperation(string OperationName, string Schema, int Version, out iOperationMetaData MetaData)
+        public IJob GetOperation(string OperationName, string Schema, out IJobMetaData MetaData)
         {
             MetaData = null;
             if (maps == null || maps.Count() == 0)
@@ -28,10 +29,8 @@ namespace SEIDR.JobExecutor
                 return null;
             foreach (var kv in maps)
             {
-                iOperationMetaData md = kv.Metadata;
-                if (md.Operation == OperationName
-                    && (md.OperationSchema ?? "SEIDR") == (Schema ?? "SEIDR")
-                    && md.Version == Version)                    
+                IJobMetaData md = kv.Metadata;
+                if (md.JobName == OperationName && (md.NameSpace ?? "SEIDR") == (Schema ?? "SEIDR"))                    
                 {
                     MetaData = md;
                     return kv.Value;
@@ -39,8 +38,24 @@ namespace SEIDR.JobExecutor
             }
             return null;
         }
+        public IJobMetaData GetJobMetaData(string jobName, string NameSpace)
+        {            
+            if (maps == null || maps.Count() == 0)
+                RefreshLibrary();
+            if (maps == null)
+                return null;
+            foreach (var kv in maps)
+            {
+                IJobMetaData md = kv.Metadata;
+                if (md.JobName == jobName && (md.NameSpace ?? "SEIDR") == (NameSpace ?? "SEIDR"))
+                {                    
+                    return md;
+                }
+            }
+            return null;
+        }
         #endregion
-        ~OperationLibrary()
+        ~JobLibrary()
         {
             CheckDispose();
         }
@@ -52,21 +67,24 @@ namespace SEIDR.JobExecutor
                 _container.Dispose();
             }
         }
-        public OperationLibrary(string location)
+        public JobLibrary(string location)
         {
             LibraryLocation = location;
             Compose();
         }
         public void ValidateOperationTable(DatabaseManager mgr)
         {
-            var model = new DatabaseManagerHelperModel("usp_Operation_Validate")
+            var model = new DatabaseManagerHelperModel("usp_Job_Validate")
             {
                 RetryOnDeadlock = true,                
+                Schema = "SEIDR"
             };            
-            DataTable dt = new DataTable("SEIDR.udt_Operation");
-            dt.AddColumns<iOperationMetaData>();
+            DataTable dt = new DataTable("SEIDR.udt_Job");
+            dt.AddColumns<IJob>();
+            //dt.AddColumns<iOperationMetaData>();
             maps.ForEach(m => dt.AddRow(m.Metadata));
-            model.SetKey("OperationList", dt);
+            //model.SetKey("OperationList", dt);
+            model.SetKey("JobList", dt);
             mgr.ExecuteNonQuery(model);
         }
         /// <summary>
@@ -90,7 +108,7 @@ namespace SEIDR.JobExecutor
                 _container = new CompositionContainer(catalog);
                 _container.ComposeParts(this);
 
-                maps = _container.GetExports<iOperation, iOperationMetaData>();
+                maps = _container.GetExports<IJob, IJobMetaData>();
             }
             catch
             {                
