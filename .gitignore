@@ -12,3 +12,4 @@ SEIDR.Test/bin/
 bin/
 obj/
 properties/
+*.dbmdl
