@@ -9,8 +9,18 @@ using System.Data.SqlClient;
 
 namespace SEIDR.DataBase
 {
+    /// <summary>
+    /// Extensions to System.Data objects
+    /// </summary>
     public static class DatabaseExtensions
     {
+        /// <summary>
+        /// Converts the DataTable from the specified index of the dataset into a List of <typeparamref name="RT"/>
+        /// </summary>
+        /// <typeparam name="RT"></typeparam>
+        /// <param name="ds"></param>
+        /// <param name="TableIndex"></param>
+        /// <returns></returns>
         public static List<RT> ToContentList<RT>(this DataSet ds, int TableIndex = 0) where RT: new()
         {
             if (ds == null || ds.Tables.Count < TableIndex)
@@ -30,19 +40,18 @@ namespace SEIDR.DataBase
             List<RT> rl = new List<RT>();
             if (dt.Rows.Count == 0)
                 return rl;
-            RT work = new RT();
-            Type tInfo = work.GetType();
-            Dictionary<string, PropertyInfo> md;
-            if (!mapCache.TryGetValue(tInfo, out md))
+            
+            Type tInfo = typeof(RT);// work.GetType();
+            if (!mapCache.TryGetValue(tInfo, out Dictionary<string, PropertyInfo> md))
             {
                 md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p);
                 mapCache[tInfo] = md;
             }
-            foreach(DataRow r in dt.Rows)
+            foreach (DataRow r in dt.Rows)
             {
+                RT work = new RT();
                 Map(work, r, md, dt.Columns);
-                rl.Add(work);
-                work = new RT();
+                rl.Add(work);                
             }
             return rl;
         }

@@ -11,15 +11,26 @@ namespace SEIDR.DataBase
     /// <para>Inherit generically with your type as the generic to get basic method functionality as well.</para>
     /// </summary>
     public abstract class DatabaseObject
-    {
-        public DatabaseConnection Connection { get; protected set; } = null;
-        public DatabaseObject() { Connection = null; }
-        public DatabaseObject(DatabaseConnection conn) { Connection = conn; }
-
-
-        public DatabaseManager GetDefaultManager(string Schema = "dbo")
-        {
-            return new DatabaseManager(Connection, Schema);
-        }
+    {        
+        /// <summary>
+        /// Used for 
+        /// </summary>
+        public DatabaseManager Manager { get; protected set; }        
+        /// <summary>
+        /// Base constructor for DatabaseObject.
+        /// </summary>
+        /// <param name="manager"></param>
+        public DatabaseObject(DatabaseManager manager) { Manager = manager; }
+        /// <summary>
+        /// Basic constructor, to allow constructing from reflection
+        /// </summary>
+        public DatabaseObject() { }
+        /// <summary>
+        /// Clones the connection
+        /// </summary>
+        /// <param name="programName"></param>
+        /// <returns></returns>
+        public DatabaseConnection CloneConnection(string programName = null)
+            => Manager.CloneConnection(programName);        
     }
 }

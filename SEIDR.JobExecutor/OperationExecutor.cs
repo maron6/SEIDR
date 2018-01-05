@@ -87,11 +87,11 @@ namespace SEIDR.JobExecutor
         }
         void WorkBatch(Batch cb)
         {
-            iOperationMetaData md;
-            iOperation op;
+            iOperationMetaData md = null;
+            iOperation op = null;
             //lock (libraryLock)
             {
-                 op = Library.GetOperation(cb.Operation, cb.OperationSchema, cb.Version, out md);
+                 //op = Library.GetOperation(cb.Operation, cb.OperationSchema, cb.Version, out md);
             }
             #region invalid operation
             if (op == null)

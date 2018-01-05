@@ -13,3 +13,5 @@ bin/
 obj/
 properties/
 *.dbmdl
+*.jfm
+.vs/SEIDR.Loader/v15/.suo

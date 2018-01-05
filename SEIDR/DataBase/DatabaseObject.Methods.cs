@@ -12,68 +12,120 @@ namespace SEIDR.DataBase
     /// Use with a recursive generic.
     /// </summary>
     /// <typeparam name="RT">Recursive generic. Ex: class myObject: DatabaseObject&lt;myObject> </typeparam>
-    public abstract class DatabaseObject<RT>: DatabaseObject where RT:DatabaseObject<RT>, new()
+    public abstract class DatabaseObject<RT> : DatabaseObject where RT : DatabaseObject<RT>, new()
     {
         /// <summary>
-        /// A Connection manager utility object. Auto populated when calling <see cref="ExecuteProcedure(string)"/>  or <see cref="PassToProcedure(string)"/>
+        /// Constructor for the Generic base class inheriting from <see cref="DatabaseObject"/>
         /// </summary>
-        protected DatabaseManager _DBManager;
+        /// <param name="dbm"></param>
+        public DatabaseObject(DatabaseManager dbm):base(dbm){}
+        /// <summary>
+        /// Basic, parameterless constructor to allow constructing from reflection.
+        /// </summary>
+        public DatabaseObject() { }
+        /// <summary>
+        /// Executes the non query procedure by passing to the DatabaseManager
+        /// </summary>
+        /// <param name="QualifiedProcedure"></param>
         public void ExecuteProcedure(string QualifiedProcedure)
         {
-            string Schema = "dbo";
-            string[] split = QualifiedProcedure.Split('.');
-            if (split.Length > 1)
-                Schema = split[0];
+            //string Schema = "dbo";
+            //string[] split = QualifiedProcedure.Split('.');
+            //if (split.Length > 1)
+            //    Schema = split[0];
             //obj.GetDefaultManager(Schema).ExecuteNonQuery(QualifiedProcedure, obj);
-            if(_DBManager == null)
-                _DBManager = new DatabaseManager(Connection, Schema);
-            _DBManager.ExecuteNonQuery(QualifiedProcedure, this);            
+            if (!QualifiedProcedure.Contains('.'))
+                QualifiedProcedure = "dbo." + QualifiedProcedure;
+            Manager.ExecuteNonQuery(QualifiedProcedure, this);            
         }
+        /// <summary>
+        /// Executes the non query procedure by passing to the DatabaseManager
+        /// </summary>
+        /// <param name="Schema"></param>
+        /// <param name="Procedure"></param>
         public void ExecuteProcedure(string Schema, string Procedure) => ExecuteProcedure($"[{Schema}].{Procedure}");
-
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning any result set.
+        /// </summary>
+        /// <param name="QualifiedProcedure"></param>
+        /// <returns></returns>
         public DataSet PassToProcedure( string QualifiedProcedure)
         {
-            string Schema = "dbo";
-            string[] split = QualifiedProcedure.Split('.');
-            if (split.Length > 1)
-                Schema = split[0];
-            if(_DBManager == null)
-                _DBManager = new DatabaseManager(Connection, Schema);
-            return _DBManager.Execute(QualifiedProcedure, this);
+            //string Schema = "dbo";
+            //string[] split = QualifiedProcedure.Split('.');
+            //if (split.Length > 1)
+            //    Schema = split[0];
+            if (!QualifiedProcedure.Contains('.'))
+                QualifiedProcedure = "dbo." + QualifiedProcedure;
+            //if(_DBManager == null)
+            //    _DBManager = new DatabaseManager(Connection, Schema);
+            return Manager.Execute(QualifiedProcedure, this);
         }
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning any result set.
+        /// </summary>
+        /// <param name="Schema"></param>
+        /// <param name="Procedure"></param>
+        /// <returns></returns>
         public DataSet PassToProcedure( string Schema, string Procedure) => PassToProcedure($"[{Schema}].{Procedure}");
 
-
-        public DataTable GetTable( string QualifiedProcedure)
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning the first table of any result set.
+        /// </summary>
+        /// <param name="QualifiedProcedure"></param>
+        /// <returns></returns>
+        public DataTable PassToProcedureForTable(string QualifiedProcedure) => PassToProcedure(QualifiedProcedure).GetFirstTableOrNull();        
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning the first table of any result set.
+        /// </summary>
+        /// <param name="Schema"></param>
+        /// <param name="Procedure"></param>
+        /// <returns></returns>
+        public DataTable PassToProcedureForTable(string Schema, string Procedure) => PassToProcedureForTable($"[{Schema}].{Procedure}");
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning the first record of the first table of any result set.
+        /// <para>Result record is converted to a <see cref="RT"/>. </para>
+        /// </summary>
+        /// <param name="manager"></param>
+        /// <param name="model">Model for the query to be executed</param>
+        /// <returns></returns>
+        public static RT GetRecord(DatabaseManager manager, DatabaseManagerHelperModel model)
         {
-            DataSet ds = PassToProcedure(QualifiedProcedure);
-            if (ds == null || ds.Tables.Count == 0)
-                return null;
-            return ds.Tables[0];
-        }
-        public DataTable GetTable(string Schema, string Procedure) => GetTable($"[{Schema}].{Procedure}");
-
-        public RT GetRecord(string QualifiedProcedure)
+            DataRow r = manager.Execute(model).GetFirstRowOrNull();
+            var ret = r?.ToContentRecord<RT>();
+            if (ret != null)
+                ret.Manager = manager;
+            return ret;
+        }     
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning the first table of any result set, converted to a list of <see cref="RT"/>
+        /// </summary>        
+        /// <returns></returns>
+        public static List<RT> GetList(DatabaseManager manager, DatabaseManagerHelperModel model)
         {
-            DataRow r = GetRow(QualifiedProcedure);
-            return r.ToContentRecord<RT>();
+            DataTable dt = manager.Execute(model).GetFirstTableOrNull();
+            if (dt == null)
+                return new List<RT>();
+            var l = dt.ToContentList<RT>();
+            foreach(var i in l)
+            {
+                i.Manager = manager;
+            }
+            return l;
         }
-        public RT GetRecord(string Schema, string Procedure)
-             => GetRecord($"[{Schema}].{Procedure}");        
-        public List<RT> GetList(string QualifiedProcedure)
-        {
-            DataTable dt = GetTable(QualifiedProcedure);
-            return dt.ToContentList<RT>();
-        }
-        public List<RT> GetList(string Schema, string Procedure)
-            => GetList($"[{Schema}].{Procedure}");
-        public DataRow GetRow(string QualifiedProcedure)
-        {
-            DataTable dt = GetTable(QualifiedProcedure);
-            if (dt == null || dt.Rows.Count == 0)
-                return null;
-            return dt.Rows[0];
-        }
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning the first row of the first table of any result set.
+        /// </summary>
+        /// <param name="QualifiedProcedure"></param>
+        /// <returns></returns>
+        public DataRow GetRow(string QualifiedProcedure) => Manager.Execute(QualifiedProcedure, mapObj: this).GetFirstRowOrNull();
+        
+        /// <summary>
+        /// Executes the procedure by passing to the DatabaseManager and returning the first row of the first table of any result set.
+        /// </summary>
+        /// <param name="Schema"></param>
+        /// <param name="Procedure"></param>
+        /// <returns></returns>
         public DataRow GetRow( string Schema, string Procedure) => GetRow($"[{Schema}].{Procedure}");
 
     }

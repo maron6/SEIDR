@@ -46,6 +46,7 @@ namespace SEIDR.OperationServiceModels
         }
         public void ValdiateDB(DatabaseManager dbm)
         {            
+            /*
             DataBase.Schema.TABLE table = DataBase.Schema.TABLE.FromObject(Parameters, ComputedTableName, "SEIDR");
             var m = new
             {
@@ -68,7 +69,7 @@ namespace SEIDR.OperationServiceModels
                 Parameters
             };
             dbm.ExecuteNonQuery("SEIDR.usp_Operation_Parameter_Validate", m2);
-            dbm.RethrowException = t;
+            dbm.RethrowException = t;*/
         }
         public static string AsXML(List<OperationModel> Operations)
         {

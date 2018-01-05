@@ -57,6 +57,7 @@
     <Compile Include="DataBaseUnitTest.cs" />
     <Compile Include="DelimitedRecordHashTest.cs" />
     <Compile Include="DocReaderTest.cs" />
+    <Compile Include="FileName.cs" />
     <Compile Include="LIKE.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringExtensionTest.cs" />

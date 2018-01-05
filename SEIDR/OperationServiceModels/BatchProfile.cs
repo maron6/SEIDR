@@ -12,7 +12,7 @@ namespace SEIDR.OperationServiceModels
     public class BatchProfile: DatabaseObject
     {
         #region Base constructors
-        public BatchProfile(DatabaseConnection db) : base(db) { }
+        public BatchProfile(DatabaseConnection db) : base(new DatabaseManager(db)) { }
         public BatchProfile():base(){ }
 #endregion
 

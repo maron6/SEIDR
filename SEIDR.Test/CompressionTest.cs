@@ -1,6 +1,6 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SEIDR.Doc.Compression;
+//using SEIDR.Doc.Compression;
 using System.IO;
 
 namespace SEIDR.Test
