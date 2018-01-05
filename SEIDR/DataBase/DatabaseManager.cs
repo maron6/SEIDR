@@ -331,7 +331,7 @@ namespace SEIDR.DataBase
                         }
                         else if (i.Transaction != null)
                         {
-                            i.RollbackTran();
+                            i.RollbackTran(i.Savepoint); //if Savepoint is empty or null, will be the same as calling without a Savepoint string
                             return null;
                         }
                         if (CommitSuccess && i.Transaction != null)
@@ -346,7 +346,7 @@ namespace SEIDR.DataBase
                         {
                             try
                             {
-                                i.RollbackTran();
+                                i.RollbackTran(i.Savepoint);
                             }
                             catch { }
                         }                        
@@ -480,7 +480,7 @@ namespace SEIDR.DataBase
                         }
                         else if (i.Transaction != null)
                         {
-                            i.RollbackTran();
+                            i.RollbackTran(i.Savepoint); //if Savepoint is null or empty, will be the same as calling without a Savepoint parameter
                             return rc;
                         }
                         if (CommitSuccess && i.Transaction != null)
@@ -494,7 +494,7 @@ namespace SEIDR.DataBase
                         {
                             try
                             {
-                                i.RollbackTran();
+                                i.RollbackTran(i.Savepoint);
                             }
                             catch { }
                         }
@@ -547,12 +547,16 @@ namespace SEIDR.DataBase
             }
             return rc;
         }
-
+        /// <summary>
+        /// Executes the non query specified by the Qualified procedure name (Schema + Procedure Name)
+        /// </summary>
+        /// <param name="QualifiedProcedureName"></param>
+        /// <param name="mapObj"></param>
+        /// <param name="RetryDeadlock"></param>
+        /// <returns></returns>
         public int ExecuteNonQuery(string QualifiedProcedureName, object mapObj = null, bool? RetryDeadlock = null)
-        {
-            int rc;
-            return ExecuteNonQuery(QualifiedProcedureName, out rc, mapObj, RetryDeadlock);
-        }        
+           => ExecuteNonQuery(QualifiedProcedureName, out int rc, mapObj, RetryDeadlock);
+                
         /// <summary>
         /// Executes the fully Qualified procedure.
         /// </summary>
@@ -584,7 +588,7 @@ namespace SEIDR.DataBase
                     if (ex.ErrorCode == 1205 && (RetryDeadlock ?? DefaultRetryOnDeadlock ?? DatabaseManagerHelperModel.DefaultRetryOnDeadlock))
                     {
                         System.Threading.Thread.Sleep(3000);
-                        return ExecuteNonQuery(QualifiedProcedureName, out rv, mapObj, RetryDeadlock);                        
+                        return ExecuteNonQuery(QualifiedProcedureName, out ReturnCode, mapObj, RetryDeadlock);                        
                     }
                     if (ex.Message.ToUpper().Contains("PARAMETER"))
                         _Parameters.Remove(cmd);
@@ -736,7 +740,7 @@ namespace SEIDR.DataBase
                     if (i.Transaction != null)
                         try
                         {
-                            i.RollbackTran();
+                            i.RollbackTran(i.Savepoint);
                         }
                         catch { }
                     else if (ex.ErrorCode == 1205 && i.RetryOnDeadlock)

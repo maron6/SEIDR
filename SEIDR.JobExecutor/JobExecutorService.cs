@@ -12,11 +12,12 @@ using System.ServiceProcess;
 using System.ComponentModel.Composition;
 using System.Configuration;
 using SEIDR.JobBase;
+using SEIDR.JobBase.Status;
 
 namespace SEIDR.JobExecutor
 {
     [Export(typeof(IOperatorManager))]
-    public class JobExecutorService : ServiceBase, IOperatorManager
+    public class JobExecutorService : ServiceBase//, IOperatorManager
     {
         /// <summary>
         /// Called if job meta data indicates single threaded. Makes sure there isn't another thread running the job.
@@ -34,7 +35,7 @@ namespace SEIDR.JobExecutor
                     return true;
             }
             var exec = (from ex in list
-                     where ex.executorType == ExecutorType.Job
+                     where ex.ExecutorType == ExecutorType.Job
                      && ex.ThreadID != checkID
                      && job.JobThreadName == ex.ThreadName                     
                      && (reqThread == null || reqThread == ex.ThreadID)
@@ -46,14 +47,14 @@ namespace SEIDR.JobExecutor
                 return false;
             }
             return true;
-        }
+        }        
         public void QueueExecution(JobExecution newJob)
         {
             JobExecutor jobExecutor;
             if (newJob.RequiredThreadID != null)
             {
                 jobExecutor = (from ex in list
-                                where ex.executorType == ExecutorType.Job
+                                where ex.ExecutorType == ExecutorType.Job
                                 && ex.ThreadID % newJob.RequiredThreadID == 0
                                 && ex.ThreadID <= newJob.RequiredThreadID
                                 orderby ex.ThreadID
@@ -65,7 +66,7 @@ namespace SEIDR.JobExecutor
             if (!string.IsNullOrWhiteSpace(newJob.JobThreadName))
             {
                 jobExecutor = (from ex in list
-                                where ex.executorType == ExecutorType.Job
+                                where ex.ExecutorType == ExecutorType.Job
                                 && ex.ThreadName == newJob.JobThreadName
                                 orderby ex.Workload
                                 select ex as JobExecutor
@@ -77,7 +78,7 @@ namespace SEIDR.JobExecutor
                 }
             }
             jobExecutor = (from ex in list
-                            where ex.executorType == ExecutorType.Job                                       
+                            where ex.ExecutorType == ExecutorType.Job                                       
                             orderby ex.Workload
                             select ex as JobExecutor
                                 ).First();
@@ -99,9 +100,8 @@ namespace SEIDR.JobExecutor
         public const byte CANCEL_ID = 201;
         //public const int QUEUE_ID = 1;
         public byte QueueThreadCount = 1;
-        public byte ExecutionThreadCount = 4; //Default
-        public OperationServiceModels.Status.ServiceStatus _MyStatus = new OperationServiceModels.Status.ServiceStatus();
-        public OperationServiceModels.Status.ServiceStatus MyStatus { get { return _MyStatus; } }
+        public byte ExecutionThreadCount = 4; //Default        
+        public ServiceStatus MyStatus { get; private set; } = new ServiceStatus();
         List<Operator> MyOperators;
         void SetupFromConfig()
         {

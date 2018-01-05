@@ -28,7 +28,7 @@ namespace SEIDR.FileSystem
 
         public bool Execute(Batch b, DataSet parameters, ref string BatchStatus)
         {
-
+            
             if (b.Files.Count() == 0)
             {
                 BatchStatus = BATCHSTATUS.SKIP_STEP;

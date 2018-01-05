@@ -9,7 +9,7 @@ using System.ComponentModel.Composition;
 
 namespace SEIDR.JobBase
 {    
-    public interface iJobExecutor
+    public interface IJobExecutor
     {
         /// <summary>
         /// Readonly copy of the database connection being used by the Executor

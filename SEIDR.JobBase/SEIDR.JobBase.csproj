@@ -47,6 +47,9 @@
     <Compile Include="iJobExecutor.cs" />
     <Compile Include="JobBase.cs" />
     <Compile Include="RegistrationFile.cs" />
+    <Compile Include="Status\ServiceStatus.cs" />
+    <Compile Include="Status\ThreadInfo.cs" />
+    <Compile Include="Status\ThreadStatus.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

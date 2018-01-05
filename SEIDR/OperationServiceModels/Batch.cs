@@ -11,11 +11,11 @@ using SEIDR;
 
 namespace SEIDR.OperationServiceModels
 {
-    public class Batch: DatabaseObject
+    public class Batch: DatabaseObject<Batch>
     {        
         public Batch():base() { }
-        public Batch(DatabaseConnection db) : base(db) { }
-        public Batch(int BatchProfileID, DatabaseConnection db = null) : base(db) { this.BatchProfileID = BatchProfileID; }
+        public Batch(DatabaseManager db) : base(db) { }
+        public Batch(int BatchProfileID, DatabaseManager db = null) : base(db) { this.BatchProfileID = BatchProfileID; }
         public int? BatchID { get; private set; } = null;
         /// <summary>
         /// For some thread control stuff. And file limiting, etc. 
@@ -123,7 +123,7 @@ namespace SEIDR.OperationServiceModels
                 return bList;
             }
         }
-        List<Batch_File> _Files = null;
+        List<Batch_File> _Files = null;/*
         public IEnumerable<Batch_File> Files
         {
             get
@@ -132,15 +132,15 @@ namespace SEIDR.OperationServiceModels
                     _Files = GetList<Batch_File>("SEIDR.usp_Batch_File_sl");                
                 return _Files;
             }
-        }
+        }*/
 
-        public string FileXML
+        public string FileXML => null;/*
         {
             get
             {
                 return Batch_File.ToXML(Files);
             }
-        }
+        }*/
         /// <summary>
         /// If the file exists and is not already in the batch, add it to the batch.
         /// </summary>
@@ -154,7 +154,7 @@ namespace SEIDR.OperationServiceModels
         /// <param name="FileDate">Specifies file date - file creation time will be used if not provided</param>
         public Batch_File AddFile(FileInfo file, DateTime? FileDate = null)
         {
-            if (!file.Exists || Files.Exists(a => a.FilePath == file.FullName) )
+            if (!file.Exists || _Files.Exists(a => a.FilePath == file.FullName) )
                 return null;            
             Batch_File f = Batch_File.FromFileInfo(file, FileDate);
             _Files.Add(f);
@@ -166,7 +166,7 @@ namespace SEIDR.OperationServiceModels
         /// <param name="FilePath"></param>
         public void DeleteFile(string FilePath)
         {
-            if (Files.Count() == 0)
+            //if (Files.Count() == 0)
                 return;
             _Files.RemoveAll(f => f.FilePath == FilePath);
         }

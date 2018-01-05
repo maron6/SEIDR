@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
 namespace SEIDR.Doc
@@ -130,7 +131,196 @@ namespace SEIDR.Doc
                 return null;
             return f.Length;
         }
+        /// <summary>
+        /// Generates a file name using the dateFormat and passed FileDate. Multiple date offsets can be used by offsetting with an alias.
+        /// <para>E.g., &lt;a:0YYYY0MM-1D>test_&lt;a:YY>_&lt;a:MM>_&lt;a:DD>_&lt;DD>.txt for date 2017/12/2 should lead to test_17_12_01_02.txt</para>
+        /// </summary>
+        /// <param name="dateFormat"></param>
+        /// <param name="fileDate"></param>
+        /// <returns></returns>
+        public static string GetFileName(this string dateFormat, DateTime fileDate)
+        {
+            string offsetPattern = @"[<][a-zA-Z]+[:](\+|-)?\d+(YYYY|YY)(\+|-)?\d+M{1,2}(\+|-)?\d+D{1,2}[>]";
+            var r = new Regex(offsetPattern, RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
+            var m = r.Matches(dateFormat); //get formats to use.
+            DateTime td = fileDate;
+            var maps = new System.Collections.Generic.Dictionary<string, DateTime>();
+            foreach (Match dateMatch in m)
+            {
+                dateFormat = dateFormat.Replace(dateMatch.Value, ""); //remove the offset value.
+                string s = dateMatch.Value;
+                s = s.Substring(1, s.Length - 2); //Remove starting '<' and '>'
+                if (s.Contains(":"))
+                {
+                    var s2 = s.Split(':');
+                    string k = s2[0];
+                    s = s2[1].ToUpper();
+                    int yOffset = 4;
+                    int yy = s.IndexOf("YYYY");
+                    if (yy < 0)
+                    {
+                        yy = s.IndexOf("YY");
+                        yOffset = 2;
+                    }
+                    int mOffset = 2;
+                    int mm = s.IndexOf("MM");
+                    if (mm < 0)
+                    {
+                        mm = s.IndexOf("M");
+                        mOffset = 1;
+                    }
+                    int dOffset = 2;
+                    int dd = s.IndexOf("DD");
+                    if (dd < 0)
+                    {
+                        dd = s.IndexOf("D");
+                        dOffset = 1;
+                    }
+                    int year = Int32.Parse(s.Substring(0, yy));
+                    int month = Int32.Parse(s.Substring(yy + yOffset, mm - yy - yOffset));
+                    int day = Int32.Parse(s.Substring(mm + mOffset, dd - mm - mOffset));
+                    if (!maps.TryGetValue(k, out DateTime d))
+                        d = fileDate;
+                    d = d.AddDays(day);
+                    d = d.AddMonths(month);
+                    d = d.AddYears(year);
+                    maps[k] = d;
+                }
+                else
+                {
+                    int yOffset = 4;
+                    int yy = s.IndexOf("YYYY");
+                    if (yy < 0)
+                    {
+                        yy = s.IndexOf("YY");
+                        yOffset = 2;
+                    }
+                    int mOffset = 2;
+                    int mm = s.IndexOf("MM");
+                    if (mm < 0)
+                    {
+                        mm = s.IndexOf("M");
+                        mOffset = 1;
+                    }
+                    int dOffset = 2;
+                    int dd = s.IndexOf("DD");
+                    if (dd < 0)
+                    {
+                        dd = s.IndexOf("D");
+                        dOffset = 1;
+                    }
+                    int year = Int32.Parse(s.Substring(0, yy));
+                    int month = Int32.Parse(s.Substring(yy + yOffset, mm - yy - yOffset));
+                    int day = Int32.Parse(s.Substring(mm + mOffset, dd - mm - mOffset));
 
+                    td.AddDays(day);
+                    td.AddMonths(month);
+                    td.AddYears(year);
+                }
+            }            
+            foreach(var kv in maps)
+            {
+                dateFormat = dateFormat
+                                .Replace("<" + kv.Key + ":YYYY>", kv.Value.Year.ToString())
+                                .Replace("<" + kv.Key + ":YY>", kv.Value.Year.ToString().Substring(2))
+                                .Replace("<" + kv.Key + ":CC>", kv.Value.Year.ToString().Substring(0, 2))
+                                .Replace("<" + kv.Key + ":MM>", kv.Value.Month.ToString().PadLeft(2, '0'))
+                                .Replace("<" + kv.Key + ":M>", kv.Value.Month.ToString())
+                                .Replace("<" + kv.Key + ":DD>", kv.Value.Day.ToString().PadLeft(2, '0'))
+                                .Replace("<" + kv.Key + ":D>", kv.Value.Day.ToString())
+                                ;
+            }
+            return dateFormat
+                                .Replace("<YYYY>", td.Year.ToString())
+                                .Replace("<YY>", td.Year.ToString().Substring(2))
+                                .Replace("<CC>", td.Year.ToString().Substring(0, 2))
+                                .Replace("<MM>", td.Month.ToString().PadLeft(2, '0'))
+                                .Replace("<M>", td.Month.ToString())
+                                .Replace("<DD>", td.Day.ToString().PadLeft(2, '0'))
+                                .Replace("<D>", td.Day.ToString())
+                                ;            
+        }
+        /// <summary>
+        /// Parses the file date out of a file.
+        /// <para>Example: file_&lt;YYYY>_&lt;MM>_&lt;DD>_*&lt;0YYYY0MM1DD>.txt might be used for file_2017_12_01_through_2017_12_04.txt to get 2017/12/02</para>
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <param name="dateFormat"></param>
+        /// <param name="fileDate">File date from parsing the fileName with dateFormat. Will be unchanged if the method returns false. 
+        /// <para>Note: if the format has an offset for Month/Year, this could potentially lead to some unexpected behavior due to months having different numbers of days, or leap years.
+        /// </para>
+        /// </param>
+        /// <returns></returns>
+        public static bool ParseDateRegex(this string fileName, string dateFormat, ref DateTime fileDate)
+        {
+            fileDate = fileDate.Date;
+            //System.Text.RegularExpressions.Regex r = new System.Text.RegularExpressions.Regex(@"<[+-\dDMY]?>");
+            string offsetPattern = @"[<](\+|-)?\d+(YYYY|YY)(\+|-)?\d+M{1,2}(\+|-)?\d+D{1,2}[>]";
+            var r = new Regex(offsetPattern, RegexOptions.IgnoreCase|RegexOptions.IgnorePatternWhitespace);
+            var m = r.Match(dateFormat); //get formats to use.
+            int offset = 0;            
+            if(m.Success)
+            {
+                string s = m.Value;
+                s = s.Substring(1, s.Length - 2); //Remove starting '<' and '>'
+                dateFormat = dateFormat.Replace(m.Value, "");
+                DateTime td = fileDate;
+                int yOffset = 4;
+                int yy = s.IndexOf("YYYY");
+                if (yy < 0)
+                {
+                    yy = s.IndexOf("YY");
+                    yOffset = 2;
+                }
+                int mOffset = 2;
+                int mm = s.IndexOf("MM");
+                if (mm < 0)
+                {
+                    mm = s.IndexOf("M");
+                    mOffset = 1;
+                }
+                int dOffset = 2;
+                int dd = s.IndexOf("DD");
+                if (dd < 0)
+                {
+                    dd = s.IndexOf("D");
+                    dOffset = 1;
+                }
+                int year = Int32.Parse(s.Substring(0, yy));
+                int month = Int32.Parse(s.Substring(yy + yOffset, mm - yy - yOffset));
+                int day = Int32.Parse(s.Substring(mm + mOffset, dd - mm - mOffset));
+
+                td = td.AddDays(day);
+                td = td.AddMonths(month);
+                td = td.AddYears(year);
+                offset = (int)fileDate.Subtract(td).TotalDays;
+            }
+            //DateTime dfd = fileDate;
+            bool x;
+            if (x = fileName.ParseDate(dateFormat, out fileDate))
+                fileDate = fileDate.AddDays(offset);
+            /*else
+            {
+                //dfd = dfd.AddDays(offset);
+                fileDate = new DateTime(1, 1, 1);
+            }*/
+            return x;
+        }        
+        /// <summary>
+        /// Gets the file date
+        /// </summary>
+        /// <param name="metaData"></param>
+        /// <param name="dateFormat"></param>
+        /// <returns></returns>
+        public static DateTime GetFileDate(this DocMetaData metaData, string dateFormat)
+        {
+            FileInfo fi = new FileInfo(metaData.FilePath);
+            if (!fi.Exists)
+                throw new FileNotFoundException("Could not find file at specified path: " + metaData.FilePath);
+            DateTime date = fi.CreationTime.Date;
+            fi.Name.ParseDateRegex(dateFormat, ref date);
+            return date;
+        }
         /// <summary>
         /// Parses the filename to determine a date that should be associated with it. 
         /// <para>If a date can be determined, the FileDate out parameter will be set and usable</para>
@@ -142,6 +332,7 @@ namespace SEIDR.Doc
         /// <returns>True if able to parse a date from the file name using specified format.</returns>
         public static bool ParseDate(this string fileName, string dateFormat, out DateTime FileDate)
         {
+            //ToDo: Regex approach: <[+-]\d+YY>, <[+-]\d+MM>offset months, <[+-]\d+DD> offset days, <YYYY>, <MM> padded month, <YY>, <CC>, <CCYY>, <DD> padded day, <M>, <D> 
             FileDate = new DateTime();
             char[] fDel = new char[] { '<', '>' };
             if (dateFormat.IndexOfAny(fDel) < 0)
@@ -183,14 +374,21 @@ namespace SEIDR.Doc
                     if (check < 0)
                         return false;
                     fileName = fileName.Substring(check);
-                    if (search == "YYYY")
+                    if (search == "YYYY" || year == "CCYY")
                     {
                         year = fileName.Substring(0, 4);
                         fileName = fileName.Substring(4);
                     }
+                    else if(search == "CC")
+                    {
+                        year = fileName.Substring(0, 2);
+                        fileName = fileName.Substring(2);
+                    }
                     else if (search == "YY")
                     {
-                        year = "20" + fileName.Substring(0, 2);
+                        if (year == null)
+                            year = DateTime.Today.Year.ToString().Substring(0, 2);
+                        year += fileName.Substring(0, 2);
                         fileName = fileName.Substring(2);
                     }
                     else if (search == "MM")
@@ -198,10 +396,20 @@ namespace SEIDR.Doc
                         month = fileName.Substring(0, 2);
                         fileName = fileName.Substring(2);
                     }
+                    else if(search == "M")
+                    {
+                        month = fileName.Substring(0, 1).PadLeft(2, '0');
+                        fileName = fileName.Substring(1);
+                    }
                     else if (search == "DD")
                     {
                         day = fileName.Substring(0, 2);
                         fileName = fileName.Substring(2);
+                    }
+                    else if(search == "D")
+                    {
+                        day = fileName.Substring(0, 1).PadLeft(2, '0');
+                        fileName = fileName.Substring(1);
                     }
                     else
                         return false;
@@ -210,7 +418,7 @@ namespace SEIDR.Doc
                     if (year != null && month != null && day != null)
                     {
                         try
-                        {
+                        {                            
                             FileDate = DateTime.ParseExact(year + month + day, "yyyyMMdd", new System.Globalization.CultureInfo("EN-US"));
                             return true;
                         }

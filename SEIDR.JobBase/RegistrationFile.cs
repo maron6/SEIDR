@@ -23,10 +23,8 @@ namespace SEIDR.JobBase
             JobProfileID = profile.JobProfileID.Value;
             FilePath = file.FullName;
             FileSize = file.Length;
-            if(!FileName.ParseDate(profile.FileDateMask, out _FileDate))
-            {
-                _FileDate = file.CreationTime;
-            }
+            _FileDate = file.CreationTime.Date;
+            file.FullName.ParseDateRegex(profile.FileDateMask, ref _FileDate);            
         }
         public JobExecution Register(DatabaseManager manager)
         {            

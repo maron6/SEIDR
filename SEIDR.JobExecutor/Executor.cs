@@ -3,27 +3,70 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SEIDR.JobBase.Status;
+using System.Threading;
 
 namespace SEIDR.JobExecutor
 {
     public abstract class Executor
     {
         public int ThreadID { get; private set; }
-        public string ThreadName { get; protected set; }
+        public string ThreadName { get; private set; }
         public DataBase.DatabaseManager _Manager { get; private set; }
-        protected JobExecutorService callerService { get; private set; }
-        public ExecutorType executorType { get; private set; }
+        protected JobExecutorService CallerService { get; private set; }
+        public ExecutorType ExecutorType { get; private set; }
+        protected ThreadInfo Info { get; private set; }
+        public ThreadStatus Status { get; private set; }
         public Executor(int id, DataBase.DatabaseManager manager, JobExecutorService caller, ExecutorType type)
         {
             ThreadID = id;
-            callerService = caller;
-            executorType = type;
-            _Manager = manager.Clone(true, type.GetDescription() + ": Thread #" + id);            
-        }
-        public abstract int Workload { get; }
-        protected virtual void Work()
-        {
+            CallerService = caller;
+            ExecutorType = type;
+            string logName = type.GetDescription() + ": Thread #" + id;
+            _Manager = manager.Clone(true, logName);
 
+            Info = new ThreadInfo(logName, type.ToString(), id);
+            Status = new ThreadStatus(Info) { MyStatus = ThreadStatus.StatusType.Unknown };
+            caller.MyStatus.Add(Status);            
+        }
+        public void SetThreadName(string newName)
+        {
+            string mgrName = ExecutorType.GetDescription() + ": Thread #" + ThreadID;
+            if (!string.IsNullOrWhiteSpace(newName))
+            {
+                mgrName += " - " + newName;
+            }
+            ThreadName = newName;
+            _Manager.ProgramName = mgrName;            
+        }
+        public virtual bool IsWorking => true;
+        public abstract int Workload { get; }
+        protected abstract void Work();
+        protected abstract string HandleAbort();
+        protected void SetStatus(string message, ThreadStatus.StatusType status = ThreadStatus.StatusType.General)
+        {
+            Status.SetStatus(message, status);
+        }
+        public void Call()
+        {
+            while (CallerService.ServiceAlive)
+            {
+                try
+                {
+
+                }
+                catch(ThreadAbortException ab)
+                {
+                    var m = HandleAbort();
+                    if (!string.IsNullOrWhiteSpace(m))
+                        SetStatus(m, ThreadStatus.StatusType.Unknown);
+
+                }
+                catch(Exception ex)
+                {
+                    CallerService.LogError(null, ex.Message);
+                }
+            }
         }
     }
     public enum ExecutorType

@@ -8,14 +8,27 @@ using System.Data.SqlClient;
 
 namespace SEIDR.DataBase
 {
-    public class DatabaseManagerHelperModel : IDisposable
+    /// <summary>
+    /// Disposable helper class for use with DatabaseManager
+    /// </summary>
+    public sealed class DatabaseManagerHelperModel : IDisposable
     {
+        /// <summary>
+        /// Default value for <see cref="RetryOnDeadlock"/> when creating new HelperModels
+        /// </summary>
         public static bool DefaultRetryOnDeadlock { get; set; } = false;
+        /// <summary>
+        /// If the DatabaseManager executes the HelperModel and the error code is a deadlock, will try to rerun.
+        /// </summary>
         public bool RetryOnDeadlock { get; set; } = DefaultRetryOnDeadlock;
         /// <summary>
         /// Provide a value to override the value from DatabaseManager
         /// </summary>
         public bool? RethrowException { get; set; } = null;
+        /// <summary>
+        /// Set when calling <see cref="SaveTran(string)"/>. Used when the DatabaseManager has to rollback.
+        /// </summary>
+        public string Savepoint { get; private set; } = null;
         /// <summary>
         /// Allow maintaining a SQL Connection across commands until the HelperModel is disposed
         /// </summary>
@@ -272,7 +285,7 @@ namespace SEIDR.DataBase
         public void SetConnection(DatabaseConnection db)
         {
             if (db == null)
-                throw new ArgumentNullException("db");            
+                throw new ArgumentNullException(nameof(db));            
             Dispose();
             connection = new SqlConnection(db.ConnectionString);
             IsRolledBack = false;
@@ -280,10 +293,30 @@ namespace SEIDR.DataBase
         public void SetConnection(DatabaseManager dm)
         {
             if (dm == null)
-                throw new ArgumentNullException("dm");
+                throw new ArgumentNullException(nameof(dm));
             Dispose();
             connection = dm.GetConnection();
             IsRolledBack = false;
+        }
+        public void OpenConnection()
+        {
+            if (connection == null)
+                throw new InvalidOperationException("Connection not set");
+            if (connection.State == ConnectionState.Closed)
+            {
+                connection.Open();
+                IsRolledBack = false;
+            }
+        }
+        public void OpenConnection(DatabaseConnection db)
+        {
+            SetConnection(db);
+            OpenConnection();
+        }
+        public void OpenConnection(DatabaseManager dm)
+        {
+            SetConnection(dm);
+            OpenConnection();
         }
         /// <summary>
         /// Begins a transaction on the set connection
@@ -312,8 +345,49 @@ namespace SEIDR.DataBase
                 throw new InvalidOperationException("No transaction to roll back");            
             Transaction.Rollback();
             Transaction.Dispose();
+            Savepoint = null;
             Transaction = null;
             IsRolledBack = true;
+        }
+        /// <summary>
+        /// Partially rolls back the transaction, to the save point. Does not dispose the transaction.
+        /// <para>Requires an open transaction/connection</para>
+        /// </summary>
+        /// <param name="savePoint"></param>
+        public void RollbackTran(string savePoint)
+        {
+            if(string.IsNullOrWhiteSpace(savePoint))
+            {
+                RollbackTran();
+                return;
+            }
+            if (connection == null)
+                throw new InvalidOperationException("Connection not set");
+            if (connection.State == ConnectionState.Closed)
+                throw new InvalidOperationException("Connection is closed.");
+            if (Transaction == null)
+                throw new InvalidOperationException("No Transaction to roll back");
+            Transaction.Rollback(savePoint);
+            Savepoint = savePoint;
+            IsRolledBack = true;
+        }
+        /// <summary>
+        /// Saves the transaction to allow partial rollback.
+        /// <para>Requires an open transaction/connection</para>
+        /// </summary>
+        /// <param name="savePoint"></param>
+        public void SaveTran(string savePoint)
+        {
+            if (connection == null)
+                throw new InvalidOperationException("Connection not set");
+            if (connection.State == ConnectionState.Closed)
+                throw new InvalidOperationException("Connection is closed.");
+            if (string.IsNullOrWhiteSpace(savePoint))
+                throw new ArgumentException("SavePoint is empty", nameof(savePoint));
+            if (Transaction == null)
+                throw new InvalidOperationException("No transaction to Save");
+            Transaction.Save(savePoint);
+            Savepoint = savePoint;
         }
         /// <summary>
         /// Commits the transaction and then disposes it. Requires open transaction/connection.
@@ -332,6 +406,10 @@ namespace SEIDR.DataBase
         }
         
         public bool HasOpenTran { get { return Transaction != null; } }
+        /// <summary>
+        /// If true, there's an open connection which had a Transaction started, but has since rolled back.
+        /// <para>If the transaction was rolled back to a savepoint, you may need to set this back to false before passing the model to a DatabaseManager again.</para>
+        /// </summary>
         public bool IsRolledBack { get; set; } = false;
         public void ClearConnection()
         {
@@ -356,8 +434,7 @@ namespace SEIDR.DataBase
         }
         public void Dispose()
         {
-            if (Transaction != null)
-                Transaction.Dispose();
+            ClearTran();
             if (connection != null)
                 connection.Dispose();
         }

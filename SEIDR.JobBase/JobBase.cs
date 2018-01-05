@@ -22,18 +22,14 @@ namespace SEIDR.JobBase
         bool SingleThreaded { get; }
     }
     public interface IJob
-    {
-        /// <summary>
-        /// Executor will pass self to this variable.
-        /// </summary>
-        iJobExecutor jobExecutor { set; }
+    {        
         /// <summary>
         /// Called by the jobExecutor.
         /// </summary>
         /// <param name="execution"></param>        
         /// <param name="status">Optional status set, to allow a more detailed status.</param>        
         /// <returns>True for success, false for failure.</returns>
-        bool Execute(JobExecution execution, ref ExecutionStatus status);
+        bool Execute(IJobExecutor jobExecutor, JobExecution execution, ref ExecutionStatus status);
 
     }
     public class JobProfile//: DatabaseObject<JobProfile>
@@ -75,6 +71,15 @@ namespace SEIDR.JobBase
         public string JobName { get; private set; }
         public string JobNameSpace { get; private set; }
         public string JobThreadName { get; private set; }
+        public bool JobSingleThreaded { get; private set; }
+        /// <summary>
+        /// Total job completion notification.
+        /// </summary>
+        public string SuccessNotificationMail { get; private set; }
+        /// <summary>
+        /// Step failure notification.
+        /// </summary>
+        public string FailureNotificationMail { get; private set; }
         /// <summary>
         /// Allows specifying that an Execution needs to run a specific thread number. 
         /// </summary>
