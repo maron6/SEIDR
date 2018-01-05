@@ -12,6 +12,7 @@ namespace SEIDR.JobExecutor
     {
         public int ThreadID { get; private set; }
         public string ThreadName { get; private set; }
+        public string LogName { get; private set; }
         public DataBase.DatabaseManager _Manager { get; private set; }
         protected JobExecutorService CallerService { get; private set; }
         public ExecutorType ExecutorType { get; private set; }
@@ -23,6 +24,7 @@ namespace SEIDR.JobExecutor
             CallerService = caller;
             ExecutorType = type;
             string logName = type.GetDescription() + ": Thread #" + id;
+            LogName = $"{type}_{id}";
             _Manager = manager.Clone(true, logName);
 
             Info = new ThreadInfo(logName, type.ToString(), id);

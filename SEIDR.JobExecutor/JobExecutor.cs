@@ -56,19 +56,20 @@ namespace SEIDR.JobExecutor
             {
                 currentExecution = CheckWork();
                 currentJob = _Manager.SelectSingle<JobProfile>(currentExecution);
+                SetExecutionStatus(false, true, statusCode: "W");
                 IJob job = Library.GetOperation(currentExecution.JobName, currentExecution.JobNameSpace, out IJobMetaData data);
                 ExecutionStatus status = null;
                 bool success = job.Execute(this, currentExecution, ref status);
-                SetStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
+                SetExecutionStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
                 //if(!success)
             }
             catch(Exception ex)
             {
-                SetStatus(false, false);
+                SetExecutionStatus(false, false);
                 LogError("JobExecutor.Work()", ex);
             }
         }
-        void SetStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
+        void SetExecutionStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
         {
             if (currentExecution == null)
                 return;            
@@ -193,18 +194,31 @@ namespace SEIDR.JobExecutor
         List<JobExecution> workQueue;
         public override int Workload => workQueue.Count;
         public void Wait(int sleepSeconds, string logReason)
-        {            
+        {
+            CallerService.LogFileError(this, currentExecution, "Sleep Requested: " + logReason);
+            SetStatus("Sleep requested:" + logReason, JobBase.Status.ThreadStatus.StatusType.Sleep_JobRequest);
             Thread.Sleep(sleepSeconds * 1000);
+            SetStatus("Wake from Job Sleep Request");
         }
 
         public void LogError(string message, Exception ex)
         {
-            throw new NotImplementedException();
+            int count = 10;
+            while(!CallerService.LogExecutionError(this, currentExecution, message, ex.Message + Environment.NewLine + ex.StackTrace) &&  count > 0)
+            {
+                count--;
+                Thread.Sleep(5 * 1000);
+            }
         }
 
         public void LogInfo(string message)
         {
-            throw new NotImplementedException();
+            int count = 10;
+            while(!CallerService.LogFileError(this, currentExecution, message) && count > 0)
+            {
+                count--;
+                Thread.Sleep(5 * 1000);
+            }
         }
 
         protected override string HandleAbort()
@@ -212,7 +226,7 @@ namespace SEIDR.JobExecutor
             if (currentExecution == null)
                 return null;
             string msg = "JobExecutionID: " + currentExecution.JobExecutionID;
-            SetStatus(false, false, "CX");
+            SetExecutionStatus(false, false, "CX");
             return msg;
             
         }

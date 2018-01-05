@@ -376,16 +376,15 @@ namespace SEIDR.JobExecutor
             }
         }
         #region Logging
-        public bool LogBatchError(Batch errBatch, string Message, string ExtraInfo, byte? ThreadID, int? Batch_FileID = default(int?))
+        public bool LogExecutionError(JobExecution execution, string Message, string ExtraInfo, int? CallerThread = null)
         {
-            const string sproc = "SEIDR.usp_Batch_Error_i";
+            const string sproc = "SEIDR.usp_JobExecution_Error_i";
             var m = new
             {
-                errBatch.BatchID,
+                execution.JobExecutionID,
                 Message,
-                Extra = ExtraInfo,
-                Batch_FileID,
-                ThreadID
+                Extra = ExtraInfo,                
+                Job = execution.JobNameSpace + "." + execution.JobName
             };
             try
             {
@@ -396,30 +395,28 @@ namespace SEIDR.JobExecutor
                 return false;
             }
             return true;
-        }
-        public bool LogBatchError(Batch errBatch, string Message, string ExtraInfo, int? Batch_FileID = default(int?))
-            => LogBatchError(errBatch, Message, ExtraInfo, errBatch.ThreadID, Batch_FileID);
-        public bool LogBatchError(Operator caller, Batch errBatch, string Message, string Extra, int? Batch_FileID = default(int?))
+        }        
+        public bool LogExecutionError(Executor caller, JobExecution errBatch, string Message, string Extra)
         {
-            caller.MyStatus.SetStatus(Message, OperationServiceModels.Status.ThreadStatus.StatusType.Error);
-            bool a = LogBatchError(errBatch, Message, Extra, (byte)caller.ID, Batch_FileID);
-            bool b = LogFileError(caller, errBatch, Message);
+            caller.Status.SetStatus(Message, ThreadStatus.StatusType.Error);
+            bool a = LogExecutionError(errBatch, Message, Extra, caller.ThreadID);
+            bool b = LogFileError(caller, errBatch, Message + Environment.NewLine + Extra);
             return a && b;
         }
-        public bool LogFileError(Operator callingOperator, Batch b, string Message)
+        public bool LogFileError(Executor callingOperator, JobExecution b, string Message)
         {
             string tempMessage = CurrentTimeMessage;
             if (b != null)
-                tempMessage += $"BatchProfile {b.BatchProfileID}, BatchID: [{b.BatchID}], Step: {b.CurrentStep}, BatchDate: [{b.BatchDate.ToString("MM dd yyyy")}] ";
+                tempMessage += $"JobProfile {b.JobProfileID}, JobExecutionID: [{b.JobExecutionID}], Step: {b.StepNumber}, BatchDate: [{b.ProcessingDate.ToString("MM dd yyyy")}] ";
             tempMessage += Message;
-            string File = Path.Combine(DailyLogDirectory, string.Format(LogFileFormat, callingOperator.Name, callingOperator.ID));
+            string File = Path.Combine(DailyLogDirectory, string.Format(LogFileFormat, callingOperator.LogName));
             try
             {
                 System.IO.File.AppendAllText(File, tempMessage);
             }
             catch
             {                
-                callingOperator.MyStatus.SetStatus("Could not set error!", OperationServiceModels.Status.ThreadStatus.StatusType.Error);                
+                callingOperator.Status.SetStatus("Could not log error!", ThreadStatus.StatusType.Error);                
                 return false;
             }
             return true;
@@ -436,14 +433,14 @@ namespace SEIDR.JobExecutor
         {
             string tempMessage = CurrentTimeMessage;
             tempMessage += Message;
-            string File = Path.Combine(DailyLogDirectory, "SEIDR.OperatorManager.txt");
+            string File = Path.Combine(DailyLogDirectory, "SEIDR.JobExecutor.txt");
             try
             {
                 System.IO.File.AppendAllText(File, tempMessage);
             }
             catch { }
         }
-        public bool LogError(Operator caller, string Message)
+        public bool LogError(JobExecutor caller, string Message)
         {
             return LogFileError(caller, null, Message);
         }
@@ -457,7 +454,7 @@ namespace SEIDR.JobExecutor
                 return Path.Combine(LogDirectory, DateTime.Now.ToString("yyyy_MM_dd"));
             }
         }
-        string LogFileFormat = "SEIDR.{0}_{1}.txt";
+        string LogFileFormat = "SEIDR.{0}.txt";
         #endregion
         #region File Information helpers
         public long GetFileSize(string FilePath)
