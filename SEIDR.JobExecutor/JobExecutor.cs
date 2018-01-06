@@ -6,17 +6,21 @@ using System.Threading.Tasks;
 using SEIDR.DataBase;
 using SEIDR.JobBase;
 using System.Threading;
+using SEIDR.ThreadManaging;
 
 namespace SEIDR.JobExecutor
 {
     public class JobExecutor: Executor, IJobExecutor
     {
         static JobLibrary Library { get; set; }
+        static DateTime LastLibraryCheck = new DateTime(1, 1, 1);
+        LockManager libraryLock = new LockManager(nameof(JobExecutor.Library)); //NOT static.
         static void ConfigureLibrary(string location)
         {
             Library = new JobLibrary(location);
         }
         static object lockObj = new object();
+
         public JobExecutor(int id, DatabaseManager manager, JobExecutorService caller)
             :base(id, manager, caller, ExecutorType.Job)
         {
@@ -52,21 +56,42 @@ namespace SEIDR.JobExecutor
         }
         protected override void Work()
         {            
+
             try
             {
                 currentExecution = CheckWork();
                 currentJob = _Manager.SelectSingle<JobProfile>(currentExecution);
                 SetExecutionStatus(false, true, statusCode: "W");
-                IJob job = Library.GetOperation(currentExecution.JobName, currentExecution.JobNameSpace, out IJobMetaData data);
+                IJobMetaData data;
                 ExecutionStatus status = null;
-                bool success = job.Execute(this, currentExecution, ref status);
+                bool success = false;
+                using (new LockHelper(libraryLock, Lock.Shared))
+                {
+
+                    IJob job = Library.GetOperation(currentExecution.JobName, currentExecution.JobNameSpace, out data);
+                    success = job.Execute(this, currentExecution, ref status);
+                }
                 SetExecutionStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
+                SendNotifications(currentExecution, success);
                 //if(!success)
             }
             catch(Exception ex)
             {
                 SetExecutionStatus(false, false);
                 LogError("JobExecutor.Work()", ex);
+            }
+        }
+        void SendNotifications(JobExecution executedJob, bool success)
+        {
+            if (success)
+            {
+                if (string.IsNullOrWhiteSpace(executedJob.SuccessNotificationMail))
+                    return;
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(executedJob.FailureNotificationMail))
+                    return;
             }
         }
         void SetExecutionStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
@@ -109,6 +134,46 @@ namespace SEIDR.JobExecutor
             }
         }
         /// <summary>
+        /// Called by Service during startup, before setting up individual jobexecutors.
+        /// </summary>
+        /// <param name="Manager"></param>
+        public static void CheckLibrary(DatabaseManager Manager)
+        {
+            Library.RefreshLibrary();
+            try
+            {
+                Library.ValidateOperationTable(Manager);
+            }
+            finally
+            {
+                LastLibraryCheck = DateTime.Now;
+            }
+
+        }
+        void CheckLibrary()
+        {
+            if (LastLibraryCheck.AddMinutes(15) >= DateTime.Now)
+                return;
+            //libraryLock.Acquire(Lock.Exclusive);
+
+            //lock (libraryLock)
+            using (new LockHelper(libraryLock, Lock.Exclusive))
+            {
+                //  Don't care so much if validate has an exception, 
+                //  but don't care errors from loading library itself         
+                Library.RefreshLibrary();
+                try
+                {
+
+                    Library.ValidateOperationTable(_Manager);
+                }
+                finally
+                {
+                    LastLibraryCheck = DateTime.Now;
+                }
+            }
+        }
+        /// <summary>
         /// Goes through the work queue. If something workable is found, removes it from the queue and returns it
         /// </summary>
         /// <returns></returns>
@@ -116,6 +181,7 @@ namespace SEIDR.JobExecutor
         {
             if (Workload > 0)
             {
+                CheckLibrary();
                 lock (lockObj)
                 {
                     JobExecution je = null;
@@ -136,7 +202,10 @@ namespace SEIDR.JobExecutor
                             }
                         }
                         workQueue.RemoveAt(i);
-                        SetThreadName(je.JobThreadName ?? je.JobName);
+                        string threadName = je.JobThreadName;
+                        if (string.IsNullOrWhiteSpace(je.JobThreadName))
+                            threadName = je.JobName;
+                        SetThreadName(threadName);
                     }                                        
                     return je;
                 }

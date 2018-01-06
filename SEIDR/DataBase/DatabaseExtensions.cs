@@ -42,7 +42,8 @@ namespace SEIDR.DataBase
                 return rl;
             
             Type tInfo = typeof(RT);// work.GetType();
-            if (!mapCache.TryGetValue(tInfo, out Dictionary<string, PropertyInfo> md))
+            Dictionary<string, PropertyInfo> md;
+            if (!mapCache.TryGetValue(tInfo, out md))
             {
                 md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p);
                 mapCache[tInfo] = md;

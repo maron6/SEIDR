@@ -10,6 +10,11 @@ namespace SEIDR.JobExecutor
 {
     public abstract class Executor
     {
+
+
+        protected const int DEADLOCK_TIME_INCREASE = 45;
+        protected const int MAX_TIMEOUT = 1200;
+
         public int ThreadID { get; private set; }
         public string ThreadName { get; private set; }
         public string LogName { get; private set; }
@@ -55,14 +60,14 @@ namespace SEIDR.JobExecutor
             {
                 try
                 {
-
+                    CallerService.PauseEvent.WaitOne();
+                    Work();
                 }
-                catch(ThreadAbortException ab)
+                catch(ThreadAbortException)
                 {
                     var m = HandleAbort();
                     if (!string.IsNullOrWhiteSpace(m))
                         SetStatus(m, ThreadStatus.StatusType.Unknown);
-
                 }
                 catch(Exception ex)
                 {

@@ -111,7 +111,10 @@ namespace SEIDR.DataBase
             string SaveFormat = DEFAULT_SAVE, string UpdateFormat = DEFAULT_UPDATE, string InsertFormat = DEFAULT_INSERT,
             string DeleteFormat = DEFAULT_DELETE, string SelectRowFormat = DEFAULT_SELECT_ROW, string SelectListFormat = DEFAULT_SELECT_LIST)
         {
-            _conn = Connection ?? throw new ArgumentNullException("Connection");
+            //_conn = Connection ?? throw new ArgumentNullException("Connection"); //Requires higher version of C# language spec
+            if (Connection == null)
+                throw new ArgumentNullException(nameof(Connection));
+            _conn = Connection;
             //_Schema = DefaultSchema;
             this.DefaultSchema = DefaultSchema;
             _Parameters = new ParamStore();
@@ -127,8 +130,12 @@ namespace SEIDR.DataBase
         /// </summary>
         public string ProgramName
         {
+            get { return _conn.ApplicationName; }
+            set { _conn.ApplicationName = value; }
+            /*
             get => _conn.ApplicationName;
             set => _conn.ApplicationName = value;
+            */
         }
 
         /// <summary>
@@ -555,7 +562,11 @@ namespace SEIDR.DataBase
         /// <param name="RetryDeadlock"></param>
         /// <returns></returns>
         public int ExecuteNonQuery(string QualifiedProcedureName, object mapObj = null, bool? RetryDeadlock = null)
-           => ExecuteNonQuery(QualifiedProcedureName, out int rc, mapObj, RetryDeadlock);
+        {
+            //=> ExecuteNonQuery(QualifiedProcedureName, out int rc, mapObj, RetryDeadlock); //higher c# version...
+            int rc;
+            return ExecuteNonQuery(QualifiedProcedureName, out rc, mapObj, RetryDeadlock);
+        }
                 
         /// <summary>
         /// Executes the fully Qualified procedure.

@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="SEIDR.JobExecutor.Executor">
+    <Position X="1" Y="0.5" Width="2" />
+    <TypeIdentifier>
+      <HashCode>AAgAQQEEAAAAAAAAAAABAIAAcAAgAAAAAAAAQkAAABA=</HashCode>
+      <FileName>Executor.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SEIDR.JobExecutor.Queue" Collapsed="true">
+    <Position X="8.5" Y="3.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>gAAIEAAAAAQAAAAAAAghAAAAAAAAABAAAIAAAgAABAA=</HashCode>
+      <FileName>Queue.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SEIDR.JobExecutor.CancellationExecutor">
+    <Position X="6.25" Y="0.75" Width="2.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACQAAAAAAAABAAAAAAAAAAAAAAgAAAAABAA=</HashCode>
+      <FileName>CancellationExecutor.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SEIDR.JobExecutor.JobExecutor">
+    <Position X="3.75" Y="0.75" Width="2" />
+    <TypeIdentifier>
+      <HashCode>AAgQQAAACAAEAAgAC4ABAAIAYAQJAAAAAAAAQAIABAA=</HashCode>
+      <FileName>JobExecutor.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="SEIDR.JobExecutor.ReDistributor">
+    <Position X="1.25" Y="5.25" Width="2" />
+    <TypeIdentifier>
+      <HashCode>AAgAAgAAAAAAAAAQAAABAAAAAAAAAAAAAAAAQAAAABA=</HashCode>
+      <FileName>ReDistributor.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SEIDR.JobExecutor.JobLibrary">
+    <Position X="6" Y="3.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AIAAAAAAEAAAAAAAAAAQCiAQAACAAAAAAAAIAAIAAAA=</HashCode>
+      <FileName>OperationLibrary.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Enum Name="SEIDR.JobExecutor.ExecutorType">
+    <Position X="9" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAACAAAAAAA=</HashCode>
+      <FileName>Executor.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

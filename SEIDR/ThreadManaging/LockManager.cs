@@ -156,8 +156,9 @@
                 return _MyLock;
             }
             set
-            {
-                if (_MyLock > Lock.Unlocked || value == Lock.Unlocked)
+            {                
+                if ((_MyLock > Lock.Unlocked || value == Lock.Unlocked) 
+                    && !(_MyLock == Lock.Exclusive_Intent && value == Lock.Exclusive)) //Exclusive_Intent -> Exclusive is allowed
                     return;
                 Acquire(value);   
             }
@@ -235,8 +236,10 @@
                 {
                     lock (_LockTargets[_myTarget])
                     {
-                        _ExclusiveHolder[_myTarget] = null;
-                        _IntentHolder[_myTarget] = null;
+                        if(_ExclusiveHolder[_myTarget] == LockID)
+                            _ExclusiveHolder[_myTarget] = null;
+                        if(_IntentHolder[_myTarget] == LockID)
+                            _IntentHolder[_myTarget] = null;
                     }
                 }
             } 
@@ -280,7 +283,8 @@
                 Release();
                 return;
             }
-            if (_MyLock >= LockBoundary)
+            if (_MyLock >= LockBoundary 
+                && (_MyLock != Lock.Exclusive_Intent || _MyLock < Lock.Exclusive)) //ExclusiveIntent is allowed to call again for acquiring Exclusive.
             {
                 throw new LockManagerException("Tried to Acquire a new lock on a manager that already holds a lock.");
             }
@@ -300,8 +304,9 @@
             }
             #endregion
             #region SHARE LOCKING
-            if ((int)level < ShareBoundary)
+            if ((int)level < ShareBoundary) 
             {
+                //Note that this is skipped for Exclusive/Exclusive intent (level is abvoe ShareBoundary)
                 while (true)
                 {                    
                     lock (_LockTargets[_myTarget])
@@ -336,6 +341,8 @@
                     {                    
                         _IntentHolder[_myTarget] = LockID;
                         matched = true;
+                        if (level < Lock.Exclusive)
+                            return; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
                     }
                 }
                 if (!matched)

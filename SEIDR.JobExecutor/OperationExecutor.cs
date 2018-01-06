@@ -251,7 +251,7 @@ namespace SEIDR.JobExecutor
                 {
                     string FormattedMessage = $"<p>Batch Profile: {cb.BatchProfileID}    Batch ID: {cb.BatchID}</p><p>Batch Date: {cb.BatchDate.ToString("MM/dd/yyyy")}</p>";                    
                     FormattedMessage += "<p>Batch StatusCode '" + cb.BatchStatus + "'    ";                    
-                    FormattedMessage += "Batch FileCount: " + cb.Files.Count() 
+                    FormattedMessage += "Batch FileCount: " //+ cb.Files.Count() 
                         + "</p><p>Attempts: " + cb.AttemptCount 
                         + "</p><p>Success Time: " + DateTime.Now.ToString("MMM dd, yyyy hh:ss")
                         + "    ThreadID: " + ID + "</p><br /><br />" + Message;
@@ -265,7 +265,7 @@ namespace SEIDR.JobExecutor
                 {
                     string FormattedMessage = $"<p>Batch Profile: {cb.BatchProfileID}    Batch ID: {cb.BatchID}</p><p>Batch Date: {cb.BatchDate.ToString("MM/dd/yyyy")}</p>";
                     FormattedMessage += "<p>Batch StatusCode '" + cb.BatchStatus + "'    ";
-                    FormattedMessage += "Batch FileCount: " + cb.Files.Count()
+                    FormattedMessage += "Batch FileCount: " //+ cb.Files.Count()
                         + "</p><p>Attempts: " + cb.AttemptCount
                         + "</p><p>Failure Time: " + DateTime.Now.ToString("MMM dd, yyyy hh:ss")
                         + "    ThreadID: " + ID + "</p><br /><br />" + Message;
@@ -302,7 +302,8 @@ namespace SEIDR.JobExecutor
             {
                 string FormattedMessage = $"<p>Batch Profile: {b.BatchProfileID}    Batch ID: {b.BatchID}</p><p>Batch Date: {b.BatchDate.ToString("MM/dd/yyyy")}</p>";
                 FormattedMessage += "<p>Batch StatusCode '" + b.BatchStatus + "'    ";
-                FormattedMessage += "Batch FileCount: " + b.Files.Count() + "</p><p>Failure Time: " + DateTime.Now.ToString("MMM dd, yyyy hh:ss") + "    ThreadID: " + ID + "</p><br /><br />" + Message;
+                FormattedMessage += "Batch FileCount: "// + b.Files.Count() 
+                    + "</p><p>Failure Time: " + DateTime.Now.ToString("MMM dd, yyyy hh:ss") + "    ThreadID: " + ID + "</p><br /><br />" + Message;
 
                 ExecutionAlerts.SendMailAlert("Batch Failure", FormattedMessage, recipient: b.FailureNotification);
             }

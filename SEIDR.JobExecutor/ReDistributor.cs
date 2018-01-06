@@ -18,7 +18,7 @@ namespace SEIDR.JobExecutor
                     select ex as JobExecutor);
         }
         IEnumerable<JobExecutor> list;
-        public override int Workload => throw new NotImplementedException();
+        public override int Workload => list.Count();
 
         protected override string HandleAbort()
         {

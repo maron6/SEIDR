@@ -243,8 +243,16 @@ namespace SEIDR.Doc
         /// </summary>
         public static bool NullIfTruncated { get; set; } = false;
 
-        string IRecord.this[int index] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        string IRecord.this[string alias, string column] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        string IRecord.this[int index]
+        {
+            get { throw new NotImplementedException(); }
+            set { throw new NotImplementedException(); }
+        }
+        string IRecord.this[string alias, string column]
+        {
+            get { throw new NotImplementedException(); }
+            set { throw new NotImplementedException(); }
+        }
 
         /// <summary>
         /// Gets the value of the record at the provided index. For use when Headers are not being used.

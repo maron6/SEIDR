@@ -133,7 +133,7 @@ namespace SEIDR.DataBase
         /// </summary>
         public bool ReadOnlyIntent
         {
-            get => _readonly;
+            get { return _readonly; }
             set
             {
                 if (value != _readonly)

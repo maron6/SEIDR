@@ -221,18 +221,20 @@ namespace SEIDR.JobExecutor
         {            
             SetupFromConfig();
             LogFileMessage("STARTING UP");
+            JobExecutor.CheckLibrary(DataManager);
+            LogFileMessage("Job Library configured");
             #region Operator Set up
             MyOperators = new List<Operator>();
             for (byte i = 1; i <= ExecutionThreadCount; i++)
             {
-                MyOperators.Add(new OperationExecutor(this, i));
+                //MyOperators.Add(new OperationExecutor(this, i));
             }
             //MyOperators.Add(new Queue(this, QUEUE_ID));
             for(byte i= 1; i <= QueueThreadCount; i++)
             {
-                MyOperators.Add(new Queue(this, i));
+                //MyOperators.Add(new Queue(this, i));
             }
-            MyOperators.Add(new CancellationExecutor(this, CANCEL_ID));
+            //MyOperators.Add(new CancellationExecutor(this, CANCEL_ID));
 
             _ServiceAlive = true;
             #endregion
@@ -255,9 +257,6 @@ namespace SEIDR.JobExecutor
 
             while (ServiceAlive)
             {
-                _mre.WaitOne();
-                //Make sure library is up to date and table data sync'd
-                OperationExecutor.CheckLibrary(); 
                 _mre.WaitOne();
 
                 DateTime n = DateTime.Now;
@@ -324,6 +323,7 @@ namespace SEIDR.JobExecutor
             return Message + BREAK + BREAK;
         }
         ManualResetEvent _mre = new ManualResetEvent(true);
+
         bool _Paused = false;
         public bool Paused { get { return _Paused; } }
         protected override void OnPause()
