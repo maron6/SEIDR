@@ -76,6 +76,9 @@
         /// The identifier for the default lock manager target
         /// </summary>
         public const string DefaultTarget = "DEFAULT";
+        /// <summary>
+        /// Check if this LockManager is holding any lock 
+        /// </summary>
         public bool HasLock
         {
             get { return _MyLock >= LockBoundary; }
@@ -144,7 +147,7 @@
         /// <para>
         /// If setting, will also try to acquire the lock, unless the new value is unlocked. 
         /// </para><para>
-        /// If the new value is unlocked, nothing will be done.
+        /// If the new value is unlocked, nothing will be done. (Call Release to unlock)
         /// </para><remarks>
         /// Setting the value will also do nothing if the LockManageralready holds a lock.
         /// </remarks>
@@ -169,6 +172,9 @@
          * and throw exception if target doesn't exist in acquire lock
         */
         string _myTarget;
+        /// <summary>
+        /// Readonly lock target.
+        /// </summary>
         public string Target
         {
             get
@@ -176,16 +182,20 @@
                 return _myTarget;
             }
         }
+        /// <summary>
+        /// Approximate # of maximum seconds that the lockmanager can take to try to acquire a lock
+        /// </summary>
         public uint TimeOut { get; set; } = 0;
         /// <summary>
         /// Constructor.
         /// <para>Used for sharing or getting exclusive locks on sections based on other sections using the same target.</para>
         /// </summary>
         /// <param name="TARGET">Case insensitive</param>
+        /// <param name="timeout">If > 0, will throw an error if the lock has to wait that many seconds without obtaining target lock level</param>
         public LockManager(string TARGET = DefaultTarget, uint timeout = 0)
         {
             if (string.IsNullOrWhiteSpace(TARGET))
-                throw new ArgumentNullException("TARGET");
+                throw new ArgumentNullException(nameof(TARGET));
             _MyLock = Lock.Unlocked;
             TimeOut = timeout;
             lock (_lock)
@@ -290,13 +300,16 @@
             }
             #endregion
 
-            _MyLock = level;
+            //_MyLock = level;
             bool matched = false;
             DateTime start = DateTime.Now;
+            const int LOCK_WAIT = 500;
+            object target = _LockTargets[_myTarget];
 
             #region NOLOCK
             if (level < LockBoundary)
-            {   
+            {
+                _MyLock = Lock.NoLock;
                 //Already know that _MyLock is < LockBoundary or an exception would have been thrown             
                 return; //NoLock doesn't need to ACTUALLY register or do anything. 
                 //This is mainly handled so that a Lock can be variable or in case the level of locking might be changed
@@ -306,75 +319,86 @@
             #region SHARE LOCKING
             if ((int)level < ShareBoundary) 
             {
-                //Note that this is skipped for Exclusive/Exclusive intent (level is abvoe ShareBoundary)
+                //Note that this is skipped for Exclusive/Exclusive intent (level is above ShareBoundary)
                 while (true)
-                {                    
-                    lock (_LockTargets[_myTarget])
+                {
+                    bool waitForIntent = false;
+                    lock (target)
                     {
-                        if(_ExclusiveHolder[_myTarget] == null)
+                        if (_IntentHolder[_myTarget] != null)
                         {
-                            _ShareCount[_myTarget]++;                            
-                            return;
+                            waitForIntent = true;
+                            /*
+                             * If there's an intent holder, wait a bit in case they're going to get an exclusive hold
+                             * or in case it already has exclusive and is almost done working.
+                             */
                         }
                     }
+                    if (waitForIntent)
+                        System.Threading.Thread.Sleep(LOCK_WAIT);
+                    lock (target)
+                    { 
+                        //If no exclusive holder, add to sharecount, even if there is a lock manager holding intent (_IntentHolder[_myTarget])
+                        if (_ExclusiveHolder[_myTarget] == null)
+                        {
+                            _ShareCount[_myTarget]++;
+                            _MyLock = Lock.Shared;                        
+                            return;
+                        }
+
+                    }
+                    System.Threading.Thread.Sleep(LOCK_WAIT); 
                     if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
                         throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
-
-                    System.Threading.Thread.Sleep(500);                    
+                   
                 }
-                /*
-                while (_ExclusiveHolder[_myTarget] != null) { }
-                lock (_LockTargets[_myTarget])
-                {
-                    _ShareCount[_myTarget]++;
-                }                
-                return;*/
             }
             #endregion
             #region EXCLUSIVE LOCKING
+            #region INTENT
             //Get access to the intent flag for the target
             while (_IntentHolder[_myTarget] != LockID)
             {
-                lock (_LockTargets[_myTarget])
+                lock (target)
                 {
                     if (_IntentHolder[_myTarget] == null)
                     {                    
                         _IntentHolder[_myTarget] = LockID;
                         matched = true;
+                        _MyLock = Lock.Exclusive_Intent;
                         if (level < Lock.Exclusive)
                             return; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
                     }
                 }
                 if (!matched)
                 {
+                    System.Threading.Thread.Sleep(LOCK_WAIT);
                     if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
                         throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
-                    System.Threading.Thread.Sleep(500);
                 }
             }
+            #endregion
             matched = false;
             //An intent lock will wait until the share locks are at 0 before trying to acquire exclusive lock
             //while ((int) level == ShareBoundary && _ShareCount[_myTarget] > 0) { } //#Update: Handle this in the exclusive loop's condition check
             while (LockID != _ExclusiveHolder[_myTarget])
-            {
-                //_LockValue >= ShareBoundary && //Doesn't really matter... Only really care about the exclusive holder for the target
-                lock (_LockTargets[_myTarget])
+            {                
+                lock (target)
                 {
-                    if (_ExclusiveHolder[_myTarget] == null && ((int)level > ShareBoundary || _ShareCount[_myTarget] == 0))
+                    if (_ExclusiveHolder[_myTarget] == null && _ShareCount[_myTarget] == 0)
                     {                    
                         _ExclusiveHolder[_myTarget] = LockID;
                         matched = true;
+                        _MyLock = Lock.Exclusive;
                     }
                 }
                 if (!matched)
                 {
+                    System.Threading.Thread.Sleep(LOCK_WAIT);
                     if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
                         throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
-                    System.Threading.Thread.Sleep(500);
                 }
             }
-            //while (_ShareCount[_myTarget] > 0) { } //Not necessary after expanding the lock blocks
-            //AddLock(level);
             return;
             #endregion            
         }

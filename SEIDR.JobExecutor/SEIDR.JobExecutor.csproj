@@ -59,6 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="JobExecutor.cd" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SEIDR.JobBase\SEIDR.JobBase.csproj">
