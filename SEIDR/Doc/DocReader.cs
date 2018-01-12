@@ -8,30 +8,57 @@ using System.IO;
 
 namespace SEIDR.Doc
 {
+    /// <summary>
+    /// Allows reading a delimited or fixed width file based on meta data. <para>
+    /// Includes paging for working with large files in batches
+    /// </para>
+    /// </summary>
     public class DocReader:IEnumerable<DocRecord>, IDisposable
     {
         FileStream fs;
         StreamReader sr;
         DocMetaData md;
+        /// <summary>
+        /// Columns associated with the meta data.
+        /// </summary>
         public DocRecordColumnCollection Columns => md.Columns;
+        /// <summary>
+        /// Full file path, from meta data
+        /// </summary>
         public string FilePath => md.FilePath;
-        public string Alias => md.Alias;        
-        
-        public DocReader(DocMetaData info)
+        /// <summary>
+        /// File name associated with the doc
+        /// </summary>
+        public string FileName => Path.GetFileName(md.FilePath);
+        /// <summary>
+        /// File alias, from meta data
+        /// </summary>
+        public string Alias => md.Alias;
+        bool firstLineHeader = true;
+        /// <summary>
+        /// Sets up a doc reader for DocRecord enumeration.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="firstLineIsHeader">When the columns are unknown, determines column names based on the first line. <para>
+        /// If false, the first line will be used for the number of columns.</para> 
+        /// If true, will also set the names of columns
+        /// </param>
+        public DocReader(DocMetaData info, bool firstLineIsHeader = true)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             if (!info.AccessMode.HasFlag(FileAccess.Read))
                 throw new ArgumentException(nameof(info), "Not Configured for read mode");            
             md = info;
-            setupStream();
+            firstLineHeader = firstLineIsHeader;
+            SetupStream();
             
         }
         /// <summary>
         /// Reconfigures the Reader settings/paging information, using any changes to the DocMetaData that was provided
         /// </summary>
-        public void ReConfigure() => setupStream();
-        private void setupStream()
+        public void ReConfigure() => SetupStream();
+        private void SetupStream()
         {
             disposedValue = false;
             if (sr != null) { sr.Close(); sr = null; }
@@ -45,7 +72,7 @@ namespace SEIDR.Doc
             if (md.HasHeader && md.HeaderConfigured)
                 pp = md.SkipLines + 1;
             long position = 0;
-            Tuple<bool, long> pageResult;
+            Tuple<bool, long> pageResult;            
             while((pageResult = ReadNextPage(ref pp, position)).Item1)
             {
                 position = pageResult.Item2;
@@ -90,8 +117,24 @@ namespace SEIDR.Doc
                     if (md.Columns.FixedWidthMode)
                         throw new ArgumentException(nameof(md.FixedWidthMode), "Columns are not set, but trying to use fixed width mode.");
                     if(!md.Delimiter.HasValue)
-                        md.SetDelimiter(lines[0].GuessDelimiter());                    
-                    md.AddDelimitedColumns(lines[0].Split(md.Delimiter.Value));
+                        md.SetDelimiter(lines[0].GuessDelimiter());      
+                    if(firstLineHeader)
+                        md.AddDelimitedColumns(lines[0].Split(md.Delimiter.Value));
+                    else
+                    {
+                        int hl = lines[0].Split(md.Delimiter.Value).Length;
+                        for(int ti = 1; ti <= hl; ti++)
+                        {
+                            md.AddColumn("Column # " + ti);
+                        }/*
+                        string[] tempHeader = new string[lines[0].Split(md.Delimiter.Value).Length];
+                        for(int ti= 1; ti <= tempHeader.Length; ti++)
+                        {
+                            tempHeader[ti - 1] = "Column # " + ti;
+                        }
+                        md.AddDelimitedColumns(tempHeader);
+                        */
+                    }
                     position = lines[0].Length + md.LineEndDelimiter.Length;
                     i++;
                     if (PagePositions.Count == 0)
@@ -158,7 +201,7 @@ namespace SEIDR.Doc
                 .SetLineEndDelimiter(LineEnd ?? Environment.NewLine)
                 .SetFileAccess(FileAccess.Read)
                 .SetFileEncoding(Encoding.Default);                
-            setupStream();
+            SetupStream();
         }
         char[] buffer;
         public int PageCount => PagePositions.Count;

@@ -46,7 +46,7 @@ namespace SEIDR.JobExecutor
             ThreadName = newName;
             _Manager.ProgramName = mgrName;            
         }
-        public virtual bool IsWorking => true;
+        public bool IsWorking { get; set; }
         public abstract int Workload { get; }
         protected abstract void Work();
         protected abstract string HandleAbort();
@@ -54,25 +54,70 @@ namespace SEIDR.JobExecutor
         {
             Status.SetStatus(message, status);
         }
+        Thread worker;
         public void Call()
         {
-            while (CallerService.ServiceAlive)
+            if(worker == null)
             {
+                worker = new Thread(internalCall)
+                {
+                    IsBackground = true,
+                    Name = LogName
+                };
+            }
+            if (worker.ThreadState.In(ThreadState.Running, ThreadState.WaitSleepJoin, ThreadState.AbortRequested, ThreadState.SuspendRequested))
+                return;
+            worker.Start();
+        }
+        public void Stop()
+        {
+            if (worker.ThreadState.In(ThreadState.Aborted, ThreadState.AbortRequested))
+                return;
+            worker.Abort();
+        }
+        void internalCall()
+        {            
+            while (CallerService.ServiceAlive)
+            {                
                 try
                 {
                     CallerService.PauseEvent.WaitOne();
+                    IsWorking = true;
                     Work();
                 }
                 catch(ThreadAbortException)
-                {
+                {                    
                     var m = HandleAbort();
                     if (!string.IsNullOrWhiteSpace(m))
                         SetStatus(m, ThreadStatus.StatusType.Unknown);
+                    throw; //should throw anyway, but just to be sure
                 }
                 catch(Exception ex)
                 {
                     CallerService.LogError(null, ex.Message);
                 }
+                finally
+                {
+                    IsWorking = false;
+                }
+            }
+        }
+        protected const int FAILURE_SLEEPTIME = 15;
+        public virtual void Wait(int sleepSeconds, string logReason)
+        {
+            CallerService.LogError(this, "Sleep Requested: " + logReason);
+            SetStatus("Sleep requested:" + logReason, ThreadStatus.StatusType.Sleep_JobRequest);
+            Thread.Sleep(sleepSeconds * 1000);
+            SetStatus("Wake from Job Sleep Request");
+        }
+        
+        public virtual void LogInfo(string message)
+        {
+            int count = 10;
+            while (!CallerService.LogError(this, message) && count > 0)
+            {
+                count--;
+                Thread.Sleep(FAILURE_SLEEPTIME * 1000);
             }
         }
     }

@@ -56,22 +56,26 @@
     /// This is only useful for multi threading and each thread really needs to have its own lock manager(s).
     /// </para>
     /// </summary>
-    public class LockManager
+    public sealed class LockManager
     {        
+        /// <summary>
+        /// Ensure release during disposal.
+        /// </summary>
+        ~LockManager() { Release(true); }
         /// <summary>
         /// A lock below this value is considered 'Share' 
         /// <para>
         /// A lock at or above the value is considered exclusive
         /// </para>
         /// </summary>
-        public const int ShareBoundary = 4;
+        public const Lock ShareBoundary = Lock.Exclusive_Intent; //4;
         /// <summary>
         /// A lock below this value is considered 'unlocked' and should mainly be used for consistency or if the lock might be changed.
         /// <para>
         /// E.g. if the lock is in a variable, and the level of locking depends on other factors.
         /// </para>
         /// </summary>
-        public const int LockBoundary = 0;
+        public const Lock LockBoundary = Lock.Shared; //0;
         /// <summary>
         /// The identifier for the default lock manager target
         /// </summary>
@@ -95,6 +99,7 @@
         static Dictionary<string, uint?> _ExclusiveHolder; //Up to one exclusive at a time. Many shares
         static Dictionary<string, uint> _ShareCount; //For checking the number of shares on a lock target at a time
         static Dictionary<string, object> _LockTargets; //For actual lock management
+        static Dictionary<string, DateTime> _IntentExpiration;
         static LockManager()
         {
             //_IntentFlag = false;
@@ -103,6 +108,7 @@
             _ExclusiveHolder = new Dictionary<string, uint?>();
             _ShareCount = new Dictionary<string, uint>();
             _LockTargets = new Dictionary<string, object>();
+            _IntentExpiration = new Dictionary<string, DateTime>();
             _lock = new object();            
             //lockList = new SortedList<Lock, int>();
             //Use a loop in case more lock types are considered later on.
@@ -210,7 +216,7 @@
                     _ShareCount.Add(_myTarget, 0);
                 }
             }
-        }        
+        }
         /// <summary>
         /// Release your lock. Useful even with nolock in the event that you MIGHT need to change to using a lock later on.
         /// <para> 
@@ -220,13 +226,16 @@
         /// Will throw an exception if you try to release an already unlocked LockManager.
         /// </remarks>
         /// </summary>
-        public void Release()
+        public void Release() => Release(false);
+        private void Release( bool safeMode)
         {
             if (_MyLock == Lock.Unlocked)
             {
+                if (safeMode)
+                    return;
                 throw new LockManagerException("Tried to release a lock but no lock exists.");
             }
-            int xl = (int)_MyLock;
+            var xl = _MyLock;
             //if ((int)_MyLock < LockBoundary)
             //{
             //    //Set to unlocked in case that's checked for anything
@@ -248,7 +257,9 @@
                     {
                         if(_ExclusiveHolder[_myTarget] == LockID)
                             _ExclusiveHolder[_myTarget] = null;
-                        if(_IntentHolder[_myTarget] == LockID)
+                        if (_IntentExpiration.ContainsKey(_myTarget))
+                            _IntentExpiration.Remove(_myTarget);
+                        if (_IntentHolder[_myTarget] == LockID)
                             _IntentHolder[_myTarget] = null;
                     }
                 }
@@ -275,6 +286,10 @@
                 //_LockValue = (int)nextLock;
             
         }
+        /// <summary>
+        /// Maximum number of seconds that exclusive intent can be maintained without grabbing the actual exclusive lock.
+        /// </summary>
+        public const int ExclusiveIntentExpirationTime = 600;
         /// <summary>
         /// Try to acquire a lock.
         /// <para>
@@ -317,7 +332,7 @@
             }
             #endregion
             #region SHARE LOCKING
-            if ((int)level < ShareBoundary) 
+            if (level < ShareBoundary) 
             {
                 //Note that this is skipped for Exclusive/Exclusive intent (level is above ShareBoundary)
                 while (true)
@@ -356,9 +371,19 @@
             #endregion
             #region EXCLUSIVE LOCKING
             #region INTENT
+            lock (target)
+            {
+                if(_IntentHolder[_myTarget] == LockID && _IntentExpiration.ContainsKey(_myTarget))
+                {
+                    //If we still have the intent holder and it's set to expire, remove the expiration before the loop's test.
+                    _IntentExpiration.Remove(_myTarget);
+                }
+
+            }
             //Get access to the intent flag for the target
             while (_IntentHolder[_myTarget] != LockID)
             {
+                DateTime exp;
                 lock (target)
                 {
                     if (_IntentHolder[_myTarget] == null)
@@ -367,7 +392,20 @@
                         matched = true;
                         _MyLock = Lock.Exclusive_Intent;
                         if (level < Lock.Exclusive)
+                        {
+                            _IntentExpiration[_myTarget] = DateTime.Now.AddSeconds(ExclusiveIntentExpirationTime);
                             return; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
+                        }
+                    }
+                    else if(_IntentExpiration.TryGetValue(_myTarget, out exp))
+                    {
+                        if (exp > DateTime.Now)
+                        {
+                            _IntentHolder[_myTarget] = null;
+                            _IntentExpiration.Remove(_myTarget); 
+                            //Remove intent. Note that expiration is only set when grabbing exclusive intent but not exclusive.
+                            //Removed when grabbing exclusive
+                        }
                     }
                 }
                 if (!matched)
@@ -386,8 +424,8 @@
                 lock (target)
                 {
                     if (_ExclusiveHolder[_myTarget] == null && _ShareCount[_myTarget] == 0)
-                    {                    
-                        _ExclusiveHolder[_myTarget] = LockID;
+                    {
+                        _ExclusiveHolder[_myTarget] = LockID;                        
                         matched = true;
                         _MyLock = Lock.Exclusive;
                     }
@@ -402,6 +440,7 @@
             return;
             #endregion            
         }
+         
     }
     
 }

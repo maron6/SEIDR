@@ -91,10 +91,26 @@ namespace SEIDR.Doc
             }
             return current;
         }
-
+        /// <summary>
+        /// Uses md5 to create a hash of the file content. Returns null if the file does not exist.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
         public static string GetFileHash(this FileInfo file)
         {
-            using(FileStream fs = new FileStream(file.FullName,FileMode.Open, FileAccess.Read))
+            if (!file.Exists)
+                return null;
+            return GetFileHash(file.FullName);
+        }
+        /// <summary>
+        /// Uses md5 to create a hash of the file's content
+        /// </summary>
+        /// <param name="fullFilePath"></param>
+        /// <returns></returns>
+        public static string GetFileHash(this string fullFilePath)
+        {
+
+            using (FileStream fs = new FileStream(fullFilePath, FileMode.Open, FileAccess.Read))
             {
                 var m = System.Security.Cryptography.MD5.Create();
                 return m.ComputeHash(fs).ToString();

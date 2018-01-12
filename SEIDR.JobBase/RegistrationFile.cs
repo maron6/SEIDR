@@ -24,12 +24,49 @@ namespace SEIDR.JobBase
             FilePath = file.FullName;
             FileSize = file.Length;
             _FileDate = file.CreationTime.Date;
+            FileHash = file.GetFileHash();
             file.FullName.ParseDateRegex(profile.FileDateMask, ref _FileDate);            
         }
-        public JobExecution Register(DatabaseManager manager)
+        /// <summary>
+        /// Registers this file as a new JobExecution under it's JobProfile
+        /// </summary>
+        /// <param name="manager"></param>
+        /// <param name="SuccessFilePath"></param>
+        /// <param name="FailureFilePath"></param>
+        /// <returns></returns>
+        public JobExecution Register(DatabaseManager manager, string SuccessFilePath, string FailureFilePath)
         {            
-            var ds = manager.Execute(REGISTER_SPROC, this);
-            return ds.GetFirstRowOrNull().ToContentRecord<JobExecution>();
+            using (var help = manager.GetBasicHelper(this, includeConnection: true))
+            {                
+                help.QualifiedProcedure = REGISTER_SPROC;
+                help[nameof(FilePath)] = SuccessFilePath;
+                help.RetryOnDeadlock = true;
+
+                help.BeginTran();
+                var ds = manager.Execute(REGISTER_SPROC, this);
+                var job = ds.GetFirstRowOrNull().ToContentRecord<JobExecution>();
+                bool Success = job == null ? help.ReturnValue == 0 : true;
+                try
+                {
+                    if (Success)
+                    {
+                        System.IO.File.Move(FilePath, SuccessFilePath); //Note: success always true if job != null
+                    }
+                    else
+                    {
+                        System.IO.File.Move(FilePath, FailureFilePath);
+                    }
+                    help.CommitTran();
+                }
+                catch
+                {
+                    help.RollbackTran();
+                }
+                return job;
+            }            
         }
+        public string FileHash { get; private set; }
+        public static string CheckFileHash(string FilePath) => FilePath.GetFileHash();
+        public static string CheckFileHash(System.IO.FileInfo file) => file.GetFileHash();
     }
 }

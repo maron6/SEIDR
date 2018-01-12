@@ -8,14 +8,10 @@ namespace SEIDR.JobExecutor
 {
     public class ReDistributor : Executor
     {
-        bool _working;
-        public override bool IsWorking => _working;
-        public ReDistributor(int id, DataBase.DatabaseManager manager, JobExecutorService caller, IList<Executor> executors)
+        public ReDistributor(int id, DataBase.DatabaseManager manager, JobExecutorService caller, IEnumerable<JobExecutor> executors)
             :base(id, manager, caller, ExecutorType.Maintenance)
         {
-            list = (from ex in executors
-                    where ex.ExecutorType == ExecutorType.Job
-                    select ex as JobExecutor);
+            list = executors;
         }
         IEnumerable<JobExecutor> list;
         public override int Workload => list.Count();

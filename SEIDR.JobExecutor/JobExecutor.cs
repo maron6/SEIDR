@@ -10,14 +10,15 @@ using SEIDR.ThreadManaging;
 
 namespace SEIDR.JobExecutor
 {
-    public class JobExecutor: Executor, IJobExecutor
+    public sealed class JobExecutor: Executor, IJobExecutor
     {
-        static JobLibrary Library { get; set; }
+        static JobLibrary Library { get; set; } = null;
         static DateTime LastLibraryCheck = new DateTime(1, 1, 1);
         LockManager libraryLock = new LockManager(nameof(JobExecutor.Library)); //NOT static.
-        static void ConfigureLibrary(string location)
+        public static void ConfigureLibrary(string location)
         {
-            Library = new JobLibrary(location);
+            if(Library == null)
+                Library = new JobLibrary(location);            
         }
         static object lockObj = new object();
 
@@ -259,10 +260,37 @@ namespace SEIDR.JobExecutor
                 workQueue.AddRangeLimited(workList, count);
                 workList.RemoveRange(0, count);                
             }
+        }        
+        /// <summary>
+        /// Identify if the JobExecutor includes the JobExecutionID in its workload
+        /// </summary>
+        /// <param name="JobExecutionID"></param>
+        /// <param name="remove">If it's not the current execution, remove from the workload queue.</param>
+        /// <returns>True if the JobExecutionID is being worked or in the queue. <para>Null if it has been removed from the queue.</para>
+        /// <para>False if the execution was not on this Executor's workload</para>
+        /// </returns>
+        public bool? CheckWorkLoad(long JobExecutionID, bool remove)
+        {
+            if (currentExecution.JobExecutionID == JobExecutionID)
+                return true;
+            lock (lockObj)
+            {
+                int i = workQueue.FindIndex(je => je.JobExecutionID == JobExecutionID);
+                if(i >= 0)
+                {
+                    if (remove)
+                    {
+                        workQueue.RemoveAt(i);
+                        return null;
+                    }
+                    return true;
+                }
+            }
+            return false;
         }
         List<JobExecution> workQueue;
         public override int Workload => workQueue.Count;
-        public void Wait(int sleepSeconds, string logReason)
+        public override void Wait(int sleepSeconds, string logReason)
         {
             CallerService.LogFileError(this, currentExecution, "Sleep Requested: " + logReason);
             SetStatus("Sleep requested:" + logReason, JobBase.Status.ThreadStatus.StatusType.Sleep_JobRequest);
@@ -280,7 +308,7 @@ namespace SEIDR.JobExecutor
             }
         }
 
-        public void LogInfo(string message)
+        public override void LogInfo(string message)
         {
             int count = 10;
             while(!CallerService.LogFileError(this, currentExecution, message) && count > 0)

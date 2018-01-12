@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -63,6 +64,16 @@ namespace SEIDR.JobBase.Status
                 default:
                     break;
             }
+        }
+        public DataTable GetStatusSest(IEnumerable<ThreadStatus> statusList)
+        {
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Thread", typeof(ThreadInfo));
+            dt.Columns.Add("LastStatus", typeof(string));
+            dt.Columns.Add("LastStatusTime", typeof(DateTime));
+
+
+            return dt;
         }
     }
 }

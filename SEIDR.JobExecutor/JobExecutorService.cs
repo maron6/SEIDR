@@ -34,7 +34,7 @@ namespace SEIDR.JobExecutor
                 if (checkID == 1)
                     return true;
             }
-            var exec = (from ex in list
+            var exec = (from ex in executorList
                      where ex.ExecutorType == ExecutorType.Job
                      && ex.ThreadID != checkID
                      && job.JobThreadName == ex.ThreadName                     
@@ -50,10 +50,12 @@ namespace SEIDR.JobExecutor
         }        
         public void QueueExecution(JobExecution newJob)
         {
+            if (newJob == null)
+                return;
             JobExecutor jobExecutor;
             if (newJob.RequiredThreadID != null)
             {
-                jobExecutor = (from ex in list
+                jobExecutor = (from ex in executorList
                                 where ex.ExecutorType == ExecutorType.Job
                                 && ex.ThreadID % newJob.RequiredThreadID == 0
                                 && ex.ThreadID <= newJob.RequiredThreadID
@@ -65,7 +67,7 @@ namespace SEIDR.JobExecutor
             }
             if (!string.IsNullOrWhiteSpace(newJob.JobThreadName))
             {
-                jobExecutor = (from ex in list
+                jobExecutor = (from ex in executorList
                                 where ex.ExecutorType == ExecutorType.Job
                                 && ex.ThreadName == newJob.JobThreadName
                                 orderby ex.Workload
@@ -77,14 +79,14 @@ namespace SEIDR.JobExecutor
                     return;
                 }
             }
-            jobExecutor = (from ex in list
+            jobExecutor = (from ex in executorList
                             where ex.ExecutorType == ExecutorType.Job                                       
                             orderby ex.Workload
                             select ex as JobExecutor
                                 ).First();
             jobExecutor.Queue(newJob);
         }
-        List<Executor> list;        
+        List<Executor> executorList;        
         const string CLEAN_LOCKS = "SEIDR.usp_Batch_CleanLocks";
         public JobExecutorService()
         {
@@ -98,6 +100,7 @@ namespace SEIDR.JobExecutor
             CanHandlePowerEvent = false;
         }        
         public const byte CANCEL_ID = 201;
+        public const byte REDIST_ID = 202;
         //public const int QUEUE_ID = 1;
         public byte QueueThreadCount = 1;
         public byte ExecutionThreadCount = 4; //Default        
@@ -115,11 +118,13 @@ namespace SEIDR.JobExecutor
             DataBase.DatabaseConnection db = new DataBase.DatabaseConnection(
                 appSettings["DatabaseServer"],
                 appSettings["DatabaseCatalog"]
-                );
-            db.Timeout = tempInt;
-
+                )
+            {
+                Timeout = tempInt,
+                CommandTimeout = tempInt * 3
+            };
             _MGR = new DataBase.DatabaseManager(db, "SEIDR") { RethrowException = false, ProgramName = "SEIDR.JobExecutor"};
-            OperationExecutor.ExecutionManager = _MGR.Clone(reThrowException: true, programName: "SEIDR.JobExecutor Query");
+            //OperationExecutor.ExecutionManager = _MGR.Clone(reThrowException: true, programName: "SEIDR.JobExecutor Query");
             
 
             LogDirectory = appSettings["LogRootDirectory"] ?? @"C:\Logs\SEIDR.Operator\";
@@ -140,7 +145,8 @@ namespace SEIDR.JobExecutor
             
             try
             {
-                OperationExecutor.SetLibrary(appSettings["OperationLibrary"]);
+                JobExecutor.ConfigureLibrary(appSettings["JobLibrary"]);
+                //OperationExecutor.SetLibrary(appSettings["JobLibrary"]);
             }
             catch(Exception ex)
             {
@@ -151,7 +157,7 @@ namespace SEIDR.JobExecutor
             Mailer.Domain = appSettings["MailDomain"];
 
             _Mailer = new Mailer("SEIDR.OperatorManager", appSettings["StatusMailTo"]);
-            OperationExecutor.ExecutionAlerts = new Mailer("SEIDR.Operator");
+            //OperationExecutor.ExecutionAlerts = new Mailer("SEIDR.Operator");
 
             temp = appSettings["ThreadCount"];
             if (!int.TryParse(temp, out tempInt))
@@ -169,13 +175,13 @@ namespace SEIDR.JobExecutor
             else if (ThreadCount > 6)
                 ThreadCount = 6;
             QueueThreadCount = ThreadCount;
-
+            /*
             temp = appSettings["BatchSize"];
             if (!byte.TryParse(temp, out _BatchSize) || _BatchSize < 1)
                 _BatchSize = 1;
             else if (_BatchSize > 10)
                 _BatchSize = 10;
-
+            */
         }
         
         public Operator GetOperator(OperatorType type, byte ID)
@@ -225,25 +231,39 @@ namespace SEIDR.JobExecutor
             LogFileMessage("Job Library configured");
             #region Operator Set up
             MyOperators = new List<Operator>();
+            executorList = new List<Executor>();
             for (byte i = 1; i <= ExecutionThreadCount; i++)
             {
+                executorList.Add(new JobExecutor(i, DataManager, this));
                 //MyOperators.Add(new OperationExecutor(this, i));
             }
-            //MyOperators.Add(new Queue(this, QUEUE_ID));
-            for(byte i= 1; i <= QueueThreadCount; i++)
+            for (byte i = 1; i <= QueueThreadCount; i++)
             {
+                executorList.Add(new Queue(i, DataManager, this));
                 //MyOperators.Add(new Queue(this, i));
             }
+            var jeList = (from je in executorList
+                          where je is JobExecutor
+                          select je as JobExecutor);
+            executorList.Add(new ReDistributor(REDIST_ID, DataManager, this, jeList));
+            executorList.Add(new CancellationExecutor(CANCEL_ID, this, DataManager, jeList));
+            //MyOperators.Add(new Queue(this, QUEUE_ID));
+            
+            
+            
             //MyOperators.Add(new CancellationExecutor(this, CANCEL_ID));
 
             _ServiceAlive = true;
             #endregion
 
-            DataManager.Execute(CLEAN_LOCKS); //clean up locks before starting up.
-            MyOperators.ForEach(o => o.Call());
+            //DataManager.Execute(CLEAN_LOCKS); //clean up locks before starting up.
+            //MyOperators.ForEach(o => o.Call());
+            executorList.ForEach(e => e.Call());
             LogFileMessage("START UP DONE, OPERATORS STARTED");
 
-            bool EmailSent = false, StatusFileLogged = false;
+            //bool EmailSent = false;
+            bool StatusFileLogged = false;
+            /*
             Task LibMaintenance = new Task(() => {
                 try
                 {
@@ -254,24 +274,12 @@ namespace SEIDR.JobExecutor
                     LogFileMessage("Check Operation Library - " + ex.Message);
                 }
             });
-
+            */
             while (ServiceAlive)
             {
                 _mre.WaitOne();
-
-                DateTime n = DateTime.Now;
-                int hour = n.Hour;
-                int minute = n.Minute;
-                if (minute % 60 == 0)
-                {
-                    if (!EmailSent)
-                    {
-                        _Mailer.SendMailAlert(ServiceName + " Status", GetOverallStatus(true));
-                        EmailSent = true;                        
-                    }                    
-                }
-                else
-                    EmailSent = false;
+                     
+                int minute = DateTime.Now.Minute;
                 if (minute % 5 == 0)
                 {
                     if (!StatusFileLogged)
@@ -283,8 +291,8 @@ namespace SEIDR.JobExecutor
                         //Maybe to do: Delete old log directories? Not something I'd consider especially important, though..                     
                     }
 
-                    if (LibMaintenance.Status.In(TaskStatus.RanToCompletion, TaskStatus.Created, TaskStatus.Canceled))
-                        LibMaintenance.Start();
+                    //if (LibMaintenance.Status.In(TaskStatus.RanToCompletion, TaskStatus.Created, TaskStatus.Canceled))
+                    //    LibMaintenance.Start();
                 }
                 else
                     StatusFileLogged = false;
@@ -308,16 +316,18 @@ namespace SEIDR.JobExecutor
                 PARA_END + PARA + 
                 "Execution Operator Count: " + ExecutorCount +
                 PARA_END + BREAK;
-            var orderedOperators = MyOperators.OrderBy(o => ((int)o.MyType * 1000) + o.ID);
-            foreach(Operator o in orderedOperators)
+            //var orderedOperators = MyOperators.OrderBy(o => ((int)o.MyType * 1000) + o.ID);
+            //foreach(Operator o in orderedOperators)
+            var orderedJobThreads = executorList.OrderBy(e => (int)e.ExecutorType * 1000 + e.ThreadID);
+            foreach(var ex in orderedJobThreads)
             {
-                Message += PARA + o.Name + ", " + o.MyType.ToString() + " - " + o.ID + PARA_END + PARA
-                    + o.MyStatus.LastStatusMessage 
-                    + (o.MyStatus.LastStatus.HasValue 
-                        ? (" - " + o.MyStatus.LastStatus.Value.ToString("MMM dd, yyyy hh:mm"))
+                Message += PARA + ex.ThreadName + $"({ex.LogName})" + PARA_END + PARA
+                    + ex.Status.LastStatusMessage 
+                    + (ex.Status.LastStatus.HasValue 
+                        ? (" - " + ex.Status.LastStatus.Value.ToString("MMM dd, yyyy hh:mm"))
                         : string.Empty)
-                    + PARA_END + PARA + "Working ? " + o.Working.ToString() 
-                    + "     WorkQueue Size: " + o.Workload 
+                    + PARA_END + PARA + "Working ? " + ex.IsWorking.ToString() 
+                    + "     Work Load Size: " + ex.Workload 
                     + PARA_END + BREAK;
             }
             return Message + BREAK + BREAK;
@@ -440,7 +450,7 @@ namespace SEIDR.JobExecutor
             }
             catch { }
         }
-        public bool LogError(JobExecutor caller, string Message)
+        public bool LogError(Executor caller, string Message)
         {
             return LogFileError(caller, null, Message);
         }

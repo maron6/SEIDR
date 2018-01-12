@@ -96,7 +96,7 @@ namespace SEIDR.Doc
         public bool Valid
         {
             get
-            {
+            {                
                 if (AccessMode == FileAccess.Write && !HeaderConfigured)
                     return false;
                 return !string.IsNullOrWhiteSpace(FilePath)
@@ -116,6 +116,11 @@ namespace SEIDR.Doc
         /// Treat empty records as null when getting values/hashes
         /// </summary>
         public bool EmptyIsNull { get; set; } = true;
+        /// <summary>
+        /// Creates meta data for the given file.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="alias"></param>
         public DocMetaData(string file, string alias)
         {
             FilePath = file;
@@ -191,10 +196,34 @@ namespace SEIDR.Doc
             }
             return this;
         }
-        public DocMetaData AddColumn(string ColumnName, int? MaxLength, string EarlyTerminator)
+        /// <summary>
+        /// Creates a new <see cref="DocRecordColumnInfo"/> and adds it to the Columns collection
+        /// </summary>
+        /// <param name="ColumnName"></param>
+        /// <param name="MaxLength">optional limit</param>
+        /// <param name="EarlyTerminator"></param>
+        /// <returns></returns>
+        public DocMetaData AddColumn(string ColumnName, int? MaxLength = null, string EarlyTerminator = null)
         {
+            if (this.FixedWidthMode && MaxLength == null)
+                throw new ArgumentNullException(nameof(MaxLength), $"MetaData indicates fixed width mode, but a length was not provided for new column '{ColumnName}'");
             Columns.AddColumn(ColumnName, MaxLength, EarlyTerminator);
             return this;
+        }
+        string _FileHash = null;
+        /// <summary>
+        /// Returns a hash of the file content, based on <see cref="DocExtensions.GetFileHash(FileInfo)"/>
+        /// </summary>
+        public string FileHash
+        {
+            get
+            {
+                if (!Valid)
+                    return null;
+                if (_FileHash == null)
+                    _FileHash = FilePath.GetFileHash();
+                return _FileHash;
+            }
         }
     }   
 }

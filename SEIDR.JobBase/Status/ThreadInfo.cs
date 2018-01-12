@@ -34,5 +34,9 @@ namespace SEIDR.JobBase.Status
         {
             return !a.Equals(b);
         }
+        public override string ToString()
+        {
+            return $"{Name}({Type}, {ID})";
+        }
     } 
 }
