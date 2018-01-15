@@ -112,8 +112,14 @@ namespace SEIDR.JobBase
     public class ExecutionStatus //: DatabaseObject<ExecutionStatus>
     {                
         public string ExecutionStatusCode { get; set; }
-        public bool IsComplete { get; set; }
-        public bool IsError { get; set; }
+        /// <summary>
+        /// Indicates if the execution is complete. Default: false
+        /// </summary>
+        public bool IsComplete { get; set; } = false;
+        /// <summary>
+        /// Indicates if the execution is at an error status. Default: false.
+        /// </summary>
+        public bool IsError { get; set; } = false;
         /// <summary>
         /// Indicates that the status should not get picked up for queueing.
         /// </summary>

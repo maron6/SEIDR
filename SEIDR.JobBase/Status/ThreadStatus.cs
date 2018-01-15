@@ -70,9 +70,13 @@ namespace SEIDR.JobBase.Status
             DataTable dt = new DataTable();
             dt.Columns.Add("Thread", typeof(ThreadInfo));
             dt.Columns.Add("LastStatus", typeof(string));
-            dt.Columns.Add("LastStatusTime", typeof(DateTime));
-
-
+            dt.Columns.Add("LastStatusTime", typeof(DateTime?));
+            dt.Columns.Add("LastError", typeof(string));
+            dt.Columns.Add("LastErrorTime", typeof(DateTime?));
+            foreach(var stat in statusList)
+            {
+                dt.Rows.Add(stat.ID, stat.LastStatusMessage, stat.LastStatus, stat.LastErrorMessage, stat.LastError);
+            }
             return dt;
         }
     }

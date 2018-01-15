@@ -9,8 +9,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>SEIDR.FileSystem</RootNamespace>
     <AssemblyName>SEIDR.FileSystem</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -46,8 +47,13 @@
     <Compile Include="FSParameterModel.cs" />
     <Compile Include="MD.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SEIDR.FileSystem.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\SEIDR.JobBase\SEIDR.JobBase.csproj">
+      <Project>{364639c6-a8bb-4a53-8023-02f023a8dfcd}</Project>
+      <Name>SEIDR.JobBase</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SEIDR\SEIDR.csproj">
       <Project>{81417f92-b840-4476-96b7-6d87d224fd78}</Project>
       <Name>SEIDR</Name>

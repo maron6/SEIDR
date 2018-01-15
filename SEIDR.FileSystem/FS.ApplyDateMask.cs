@@ -11,6 +11,8 @@ namespace SEIDR.FileSystem
     {
 		public string ApplyDateMask(string SourceFile, DateTime originalDate)
         {
+            if (string.IsNullOrEmpty(SourceFile))
+                return null;
             //DateTime d = originalDate;
             Match m = Regex.Match(SourceFile.ToUpper(), @"<[\-+]\d+[MDY]>");
             while(m.Success){

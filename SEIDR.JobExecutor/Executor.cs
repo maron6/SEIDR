@@ -74,6 +74,7 @@ namespace SEIDR.JobExecutor
             if (worker.ThreadState.In(ThreadState.Aborted, ThreadState.AbortRequested))
                 return;
             worker.Abort();
+            worker.Join();
         }
         void internalCall()
         {            
@@ -105,6 +106,8 @@ namespace SEIDR.JobExecutor
         protected const int FAILURE_SLEEPTIME = 15;
         public virtual void Wait(int sleepSeconds, string logReason)
         {
+            if (string.IsNullOrWhiteSpace(logReason))
+                logReason = "(UNSPECIFIED)";
             CallerService.LogError(this, "Sleep Requested: " + logReason);
             SetStatus("Sleep requested:" + logReason, ThreadStatus.StatusType.Sleep_JobRequest);
             Thread.Sleep(sleepSeconds * 1000);

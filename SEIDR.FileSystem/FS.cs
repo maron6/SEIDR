@@ -9,6 +9,7 @@ using SEIDR.OperationServiceModels;
 using System.ComponentModel.Composition;
 using SEIDR.DataBase;
 using System.IO;
+using SEIDR.JobBase;
 
 namespace SEIDR.FileSystem
 {
@@ -17,196 +18,178 @@ namespace SEIDR.FileSystem
         ExportMetadata("Description", "Operation for moving files to a destination"),
         ExportMetadata("Version", 1),
         ExportMetadata("ParameterSelect", "usp_SEIDR_FS_Parameter_SL")]*/
-    public partial class FS : iOperation
+    public partial class FS //: iOperation
     {
-        IOperatorManager mgr;
+        //IOperatorManager mgr;
+        /*
         public IOperatorManager Manager
         {
             set { mgr = value; }
-        }
+        }*/
 
-
-        public bool Execute(Batch b, DataSet parameters, ref string BatchStatus)
+        internal FileOperation Operation { get; set; }
+        public string Source { get; set; }
+        public string Filter { get; set; }
+        public string Destination { get; set; }   
+        public bool IgnoreFileDate { get; set; }
+        string ReplaceStar(string fullPath, string sourceFileName)
         {
-            
-            if (b.Files.Count() == 0)
-            {
-                BatchStatus = BATCHSTATUS.SKIP_STEP;
-                return true;
-            }
-            #region parameters/validation of set up
-            FSParameterModel m = null;
-            try
-            {                
-                m = parameters.ToContentRecord<FSParameterModel>();
-            }            
-            catch
-            {
-                mgr.LogBatchError(b, "Unable to set up paramters", "SEIDR.FileSystem");
-                BatchStatus = BATCHSTATUS.INVALID_STOP;
-                return false;
-            }
-            if(string.IsNullOrWhiteSpace(m.DestinationFolder))
-            {
-                mgr.LogBatchError(b, "Invalid DestinationFolder", "SEIDR.FileSystem Parameter Evaluation");
-                BatchStatus = BATCHSTATUS.INVALID_STOP;
-                return false;
-            }
-            if(m.FileOperation == null)
-            {
-                mgr.LogBatchError(b, "Invalid File Operation (Command)", "SEIDR.FileSystem Parameter Evaluation");
-                BatchStatus = BATCHSTATUS.INVALID_STOP;
-                return false;
-            }
-            if (string.IsNullOrWhiteSpace(m.DestinationFileNameFormat))
-                m.DestinationFileNameFormat = "*";            
-            #endregion
+            if (fullPath.EndsWith(@"\"))
+                return fullPath + sourceFileName;
 
-            bool GRAB = m.FileOperation.In(FileOperation.GRAB, FileOperation.GRAB_ALL, FileOperation.CREATEDIR);
-            if (m.UseBatchDate || GRAB)
+            string name = Path.GetFileName(fullPath);            
+            if (name.Contains("."))
             {
-                m.DestinationFolder = ApplyDateMask(m.DestinationFolder, b.BatchDate);
-                m.DestinationFileNameFormat = ApplyDateMask(m.DestinationFileNameFormat, b.BatchDate);
+                string[] nameParts = name.Split('.');
+                nameParts[0] = nameParts[0].Replace("*", Path.GetFileNameWithoutExtension(sourceFileName));
+                nameParts[1] = nameParts[1].Replace("*", Path.GetExtension(sourceFileName));
+                fullPath = Path.Combine(Path.GetDirectoryName(fullPath), nameParts[0], nameParts[1]);
             }
-            #region GRAB, Create Directory
-            if(GRAB)
+            else
             {
-                if(m.FileOperation == FileOperation.CREATEDIR)
-                {
-                    try
-                    {
-                        Directory.CreateDirectory(m.DestinationFolder);
-                        return true;
-                    }
-                    catch (IOException ex)
-                    {
-                        mgr.LogBatchError(b, ex.Message, "CREATE DIR");
-                        return false;
-                    }
-                }   
-                if (m.FileOperation == FileOperation.GRAB)
-                {
-                    FileInfo f = new FileInfo(
-                        Path.Combine(m.DestinationFolder, m.DestinationFileNameFormat));
-                    if (!f.Exists)
-                        return false;
-
-                    DateTime d;
-                    if (!string.IsNullOrWhiteSpace(m.DateFormat))
-                        d = mgr.ParseNameDate(f, m.DateFormat, 0);
-                    else
-                        d = b.BatchDate;
-                    b.AddFile(f, d);
-                    return true;
-                }
-                else
-                {
-                    DirectoryInfo di = new DirectoryInfo(m.DestinationFolder);
-                    if (string.IsNullOrWhiteSpace(m.GrabAllFilter))
-                        m.GrabAllFilter = "*.*";
-                    var fs = di.EnumerateFiles(m.GrabAllFilter, SearchOption.TopDirectoryOnly);
-                    foreach(var f in fs)
-                    {
-                        DateTime d;
-                        if (!string.IsNullOrWhiteSpace(m.DateFormat))
-                            d = mgr.ParseNameDate(f, m.DateFormat, 0);
-                        else
-                            d = b.BatchDate;
-                        b.AddFile(f, d);                        
-                    }
-                    return true;
-                }
+                fullPath = fullPath.Replace("*", sourceFileName);
             }
-            #endregion
-
-            bool result = true;
-            b.Files
-                .Where(f=> f.OperationSuccess == false)
-                .ForEach(f =>
-            {
-                bool r = false;
-                try
-                {
-                    if(m.FileOperation == FileOperation.DELETE)
-                    {
-                        if (f.Exists)
-                            File.Delete(f.FilePath);
-                        b.DeleteFile(f.FilePath);
-                        r = true;
-                    }
-                    else
-                        r = HandleBatchFile(f, m);
-                }
-                catch(IOException) { r = false; }
-                if (!r)
-                    result = false;
-            });
-            return result;
+            return fullPath;
         }
-        bool HandleBatchFile(Batch_File f, FSParameterModel parameters)
+        /// <summary>
+        /// Call this in a try/catch. Set status code differently depending on error...
+        /// </summary>
+        /// <param name="jobExecution"></param>
+        /// <param name="StatusCode"></param>
+        /// <returns></returns>
+        public bool Process(JobProfile profile, 
+            JobExecution jobExecution, DatabaseManager manager, 
+            out string StatusCode)
         {
-            string pathNow = f.FilePath;
-            string DirNow = f.Directory;
-            string Name = f.FileName;
-
-            string temp = Path.GetTempFileName();
-            string fn = ApplyDateMask(parameters.DestinationFileNameFormat, f.FileDate)
-                .Replace("*", f.FileName);
-            string fd = ApplyDateMask(parameters.DestinationFolder, f.FileDate);
-            FileOperation op = parameters.FileOperation.Value;
-            switch (op)
+            StatusCode = null;
+            if (string.IsNullOrWhiteSpace(Filter))
+                Filter = "*.*";
+            DateTime processingDate = jobExecution.ProcessingDate;            
+            Source = ApplyDateMask(Source, processingDate);
+            Destination = ApplyDateMask(Destination, processingDate);
+            switch (Operation)
             {
-                case FileOperation.CHECK:
-                case FileOperation.EXIST:
+                case FileOperation.CREATEDIR:
                     {
-                        f.OperationSuccess = f.Exists;
+                        DirectoryInfo di = new DirectoryInfo(Source);
+                        if (!di.Root.Exists)
+                            return false;
+                        else if (!di.Exists)
+                        {
+                            Directory.CreateDirectory(Source);
+                        }
                         break;
                     }
-                case FileOperation.TAG:
-                    {                        
-                        f.FilePath = Path.Combine(fd, fn);
-                        File.Copy(pathNow, temp);
-                        File.AppendAllText(temp, Name);
-                        File.Move(temp, f.FilePath);
-                        f.CheckHash();
-                        f.OperationSuccess = true;                        
-                        return true;
-                    }                
-                case FileOperation.COPYDIR:
-                case FileOperation.MOVEDIR:
-                    {
-                        op -= 2;
-                        fn = Name;
-                        break;                        
-                    }                                        
-            }
-            switch (op)
-            {
-                case FileOperation.COPY:
-                    {
-                        bool x = f.CopyTo(Path.Combine(fd, fn), UpdatePath: true);
-                        f.OperationSuccess = x;
-                        return x;
-                    }
+                case FileOperation.GRAB:
                 case FileOperation.MOVE:
-                    {                        
-                        bool x = f.MoveTo(Path.Combine(fd, Name));
-                        f.OperationSuccess = x;
-                        return x;                        
-                    }
-            }            
-            //If unable to move file or operation somehow wasn't accounted for... return false.
-            //Note that this method is called after already filtering out Successful file operations
-            return f.OperationSuccess;
-        }
+                case FileOperation.COPY:
+                case FileOperation.TAG:
+                    {
+                        FileInfo fi = new FileInfo(Source);
+                        if (fi.Exists)
+                        {
+                            RegistrationFile r = new RegistrationFile(profile, fi)
+                            {
+                                StepNumber = jobExecution.StepNumber
+                            };
+                            string dest = Source;
+                            if(Destination != null)
+                                dest = ReplaceStar(Destination, fi.Name);
 
-        public string GetResultNotification(bool ExecuteResult, string BatchStatus)
-        {
-            if (BatchStatus == BATCHSTATUS.SKIP_STEP)
-                return "No Work found";
-            if (BatchStatus == BATCHSTATUS.INVALID_STOP)
-                return "Invalid Parameter Set up. BatchErrors should be reviewed and the settings corrected";
-            return null;
-        }
+                            if (Operation.In(FileOperation.GRAB, FileOperation.MOVE))
+                                r.Register(manager, dest, Source);
+                            else
+                            {
+                                r.CopyRegister(manager, dest, Source);
+                                if (Operation == FileOperation.TAG)
+                                    File.AppendAllText(dest, Environment.NewLine + fi.Name);
+                            }
+
+                            break;
+                        }
+                        return false;
+                    }
+                case FileOperation.GRAB_ALL:                    
+                    {
+                        DirectoryInfo di = new DirectoryInfo(Source);
+                        if (!di.Exists)
+                        {
+                            StatusCode = "NS";
+                            break;
+                        }
+                        var files = di.GetFiles(Filter);
+                        foreach(var file in files)
+                        {
+                            string dest = Path.Combine(Destination, file.Name);
+                            RegistrationFile r = new RegistrationFile(profile, file)
+                            {
+                                StepNumber = jobExecution.StepNumber
+                            };
+                            r.Register(manager, dest, file.FullName);
+                        }
+                        break;
+                    }
+                case FileOperation.CHECK:
+                case FileOperation.EXIST:
+                case FileOperation.DELETE:                
+                    {
+                        if (!File.Exists(Source))
+                            return false;
+                        if (Operation == FileOperation.DELETE)
+                            File.Delete(Source);
+                        break;
+                    }
+                case FileOperation.MOVEDIR:
+                case FileOperation.COPYDIR:
+                    {                        
+                        DirectoryInfo di = new DirectoryInfo(Source);
+                        if (!di.Exists)
+                        {
+                            StatusCode = "ND";
+                            break;
+                        }
+                        if (string.IsNullOrWhiteSpace(Destination))
+                        {
+                            StatusCode = "BD";
+                            return false;
+                        }
+                        DirectoryInfo dest = new DirectoryInfo(Destination);
+                        if (dest.Exists)
+                        {
+                            var f = di.GetFiles();                            
+                            foreach(var file in f)
+                            {
+                                string fileDest = Path.Combine(Destination, file.Name);
+                                if (Operation == FileOperation.MOVEDIR)
+                                {
+                                    file.MoveTo(fileDest);
+                                }
+                                else
+                                {
+                                    file.CopyTo(fileDest, true);
+                                }
+                            }
+                            break;
+                        }
+                        else if(Operation == FileOperation.MOVEDIR)
+                        {
+                            Directory.Move(Source, Destination);
+                            break;
+                        }
+                        else
+                        {
+                            Directory.CreateDirectory(Destination);
+                            var f = di.GetFiles();
+                            foreach(var file in f)
+                            {                                
+                                file.CopyTo(Destination, true);
+                            }
+                            break;
+                        }
+                    }
+            }
+            
+            return true;
+        }        
     }
 }

@@ -51,7 +51,7 @@ namespace SEIDR.JobExecutor
                     h.QualifiedProcedure = GRAB_WORK;
                     h.RetryOnDeadlock = true;
                     h.ExpectedReturnValue = 0;
-                    work = _Manager.Execute(h).ToContentList<JobBase.JobProfile>();
+                    work = _Manager.Execute(h).ToContentList<JobProfile>();
                 }                    
                 if(Workload == 0)
                 {
