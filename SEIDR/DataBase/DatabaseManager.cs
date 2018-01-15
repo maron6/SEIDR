@@ -346,9 +346,10 @@ namespace SEIDR.DataBase
                     }
                     catch(SqlException ex)
                     {
-                        
-                        if (ex.Message.ToUpper().Contains("PARAMETER"))
-                            _Parameters.Remove(cmd);                        
+
+                        if (ex.ErrorCode.In(201, 214, 225, 349, 591, 1023, 2003)
+                            || ex.Message.ToUpper().Contains("PARAMETER"))
+                            _Parameters.Remove(cmd);
                         if (i.Transaction != null)
                         {
                             try
@@ -391,13 +392,14 @@ namespace SEIDR.DataBase
                     }
                     catch(SqlException ex)
                     {
+                        if (ex.ErrorCode.In(201, 214, 225, 349, 591, 1023, 2003)
+                            || ex.Message.ToUpper().Contains("PARAMETER"))
+                            _Parameters.Remove(cmd);
                         if (ex.ErrorCode == 1205 && i.RetryOnDeadlock)
                         {
                             System.Threading.Thread.Sleep(3000);
                             return Execute(i, CommitSuccess);
                         }
-                        if (ex.Message.ToUpper().Contains("PARAMETER"))
-                            _Parameters.Remove(cmd);
 
                         if (i.RethrowException ?? RethrowException)
                             throw;
@@ -439,7 +441,8 @@ namespace SEIDR.DataBase
                         System.Threading.Thread.Sleep(3000);
                         return Execute(QualifiedProcedureName, mapObj);
                     }
-                    if (ex.Message.ToUpper().Contains("PARAMETER"))
+                    if (ex.ErrorCode.In(201, 214, 225, 349, 591, 1023, 2003)
+                        || ex.Message.ToUpper().Contains("PARAMETER"))
                         _Parameters.Remove(cmd);
                     if (RethrowException)
                         throw;
@@ -494,9 +497,10 @@ namespace SEIDR.DataBase
                             i.CommitTran();
                     }
                     catch(SqlException ex)
-                    {                        
-                        if (ex.Message.ToUpper().Contains("PARAMETER"))
-                            _Parameters.Remove(cmd);                        
+                    {
+                        if (ex.ErrorCode.In(201, 214, 225, 349, 591, 1023, 2003)
+                            || ex.Message.ToUpper().Contains("PARAMETER"))
+                            _Parameters.Remove(cmd);
                         if (i.Transaction != null)
                         {
                             try
@@ -542,7 +546,8 @@ namespace SEIDR.DataBase
                         System.Threading.Thread.Sleep(3000);
                         return ExecuteNonQuery(i, CommitSuccess);                        
                     }
-                    if (ex.Message.ToUpper().Contains("PARAMETER"))
+                    if (ex.ErrorCode.In(201, 214, 225, 349, 591, 1023, 2003)
+                        || ex.Message.ToUpper().Contains("PARAMETER"))
                         _Parameters.Remove(cmd);
                     if (i.RethrowException ?? RethrowException)
                         throw;

@@ -42,9 +42,9 @@ namespace SEIDR.JobExecutor
                 Directory.CreateDirectory(f); //Also checks if it already exists first.
             }
         }
-        protected override void Work()
+        protected override void CheckWorkLoad()
         {
-            if(Workload == 0)
+            if (Workload == 0)
             {
                 using (var h = _Manager.GetBasicHelper(map))
                 {
@@ -52,13 +52,11 @@ namespace SEIDR.JobExecutor
                     h.RetryOnDeadlock = true;
                     h.ExpectedReturnValue = 0;
                     work = _Manager.Execute(h).ToContentList<JobProfile>();
-                }                    
-                if(Workload == 0)
-                {
-                    Wait(sleepSeconds: 2 * FAILURE_SLEEPTIME, logReason: "No Queue work found");
-                    return;
                 }
             }
+        }
+        protected override void Work()
+        {
             var profile = work[0];
             work.RemoveAt(0);
             bool invalid = false;
@@ -69,10 +67,10 @@ namespace SEIDR.JobExecutor
                 if(root.Like("%:%") && !root.Like(@"\\%"))
                 {
                     invalid = true;
-                    //Should be a drive. on the local machine.
+                    //Should be a drive, on the local machine.
                 }
                 else
-                    return; //Root doesn't exist, but it's a UNC path. May just be connection issues.
+                    return; //Root doesn't exist, but it's (probably) a UNC path. May just be connection issues. Skip
             }
             
             if (invalid || !di.Exists)

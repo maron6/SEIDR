@@ -23,6 +23,8 @@ namespace SEIDR.JobExecutor
         public ExecutorType ExecutorType { get; private set; }
         protected ThreadInfo Info { get; private set; }
         public ThreadStatus Status { get; private set; }
+        protected object WorkLock = new object();
+        protected abstract void CheckWorkLoad();
         public Executor(int id, DataBase.DatabaseManager manager, JobExecutorService caller, ExecutorType type)
         {
             ThreadID = id;
@@ -65,16 +67,33 @@ namespace SEIDR.JobExecutor
                     Name = LogName
                 };
             }
-            if (worker.ThreadState.In(ThreadState.Running, ThreadState.WaitSleepJoin, ThreadState.AbortRequested, ThreadState.SuspendRequested))
-                return;
-            worker.Start();
+            int count = 15;
+            while(worker.ThreadState.In(ThreadState.AbortRequested, ThreadState.SuspendRequested) && count > 0)
+            {
+                Wait(FAILURE_SLEEPTIME, "Waiting for thread to finish Abort/Suspend request...");
+                count--;
+            }
+            lock (WorkLock)
+            {
+                if (worker.ThreadState.In(ThreadState.Running, ThreadState.WaitSleepJoin,
+                    ThreadState.AbortRequested, ThreadState.SuspendRequested, ThreadState.Background))
+                    return;
+                IsWorking = false;
+                worker.Start();
+            }
         }
-        public void Stop()
+        public bool Stop()
         {
-            if (worker.ThreadState.In(ThreadState.Aborted, ThreadState.AbortRequested))
-                return;
+            lock (WorkLock)
+            {
+                if (!IsWorking)
+                    return false;
+            }
+            if (worker.ThreadState.In(ThreadState.Aborted, ThreadState.AbortRequested, ThreadState.Stopped, ThreadState.StopRequested))
+                return false;
             worker.Abort();
             worker.Join();
+            return true;
         }
         void internalCall()
         {            
@@ -83,7 +102,16 @@ namespace SEIDR.JobExecutor
                 try
                 {
                     CallerService.PauseEvent.WaitOne();
-                    IsWorking = true;
+                    CheckWorkLoad();
+                    if(Workload == 0)
+                    {
+                        Wait(FAILURE_SLEEPTIME, "No Work found");
+                        continue;
+                    }
+                    lock (WorkLock)
+                    {
+                        IsWorking = true;
+                    }
                     Work();
                 }
                 catch(ThreadAbortException)
@@ -99,7 +127,10 @@ namespace SEIDR.JobExecutor
                 }
                 finally
                 {
-                    IsWorking = false;
+                    lock (WorkLock)
+                    {
+                        IsWorking = false;
+                    }
                 }
             }
         }

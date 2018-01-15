@@ -29,6 +29,7 @@ namespace SEIDR.JobExecutor
         }
         const string SET_STATUS = "SEIDR.usp_JobExecution_SetStatus";
         const string REQUEUE = "SEIDR.usp_JobExecution_Requeue";
+        const string GET_WORK = "SEIDR.usp_JobExecution_sl_Workload";
         JobProfile currentJob;
         JobExecution currentExecution;
         
@@ -257,10 +258,14 @@ namespace SEIDR.JobExecutor
             {
                 if (count > workList.Count)
                     count = workList.Count;
+                if (count == 0)
+                    return;
                 workQueue.AddRangeLimited(workList, count);
                 workList.RemoveRange(0, count);                
             }
-        }        
+        }
+        void DistributeWork(List<JobExecution> list)
+            => DistributeWork(list.Count, list);
         /// <summary>
         /// Identify if the JobExecutor includes the JobExecutionID in its workload
         /// </summary>
@@ -271,6 +276,11 @@ namespace SEIDR.JobExecutor
         /// </returns>
         public bool? CheckWorkLoad(long JobExecutionID, bool remove)
         {
+            lock (WorkLock)
+            {
+                if (!IsWorking)
+                    return false;
+            }
             if (currentExecution.JobExecutionID == JobExecutionID)
                 return true;
             lock (lockObj)
@@ -287,6 +297,16 @@ namespace SEIDR.JobExecutor
                 }
             }
             return false;
+        }
+
+        protected override void CheckWorkLoad()
+        {
+            using (var h = _Manager.GetBasicHelper())
+            {
+                h.QualifiedProcedure = GET_WORK;
+                h.AddKey(nameof(ThreadID), ThreadID);
+                DistributeWork(_Manager.Execute(h).ToContentList<JobExecution>());                
+            }
         }
         List<JobExecution> workQueue;
         public override int Workload => workQueue.Count;

@@ -316,7 +316,7 @@
             #endregion
 
             //_MyLock = level;
-            bool matched = false;
+            //bool matched = false;
             DateTime start = DateTime.Now;
             const int LOCK_WAIT = 500;
             object target = _LockTargets[_myTarget];
@@ -381,21 +381,24 @@
 
             }
             //Get access to the intent flag for the target
-            while (_IntentHolder[_myTarget] != LockID)
+            while (true)//_IntentHolder[_myTarget] != LockID)
             {
                 DateTime exp;
                 lock (target)
                 {
+                    if (_IntentHolder[_myTarget] == LockID)
+                        break;
                     if (_IntentHolder[_myTarget] == null)
                     {                    
                         _IntentHolder[_myTarget] = LockID;
-                        matched = true;
+                        //matched = true;
                         _MyLock = Lock.Exclusive_Intent;
                         if (level < Lock.Exclusive)
                         {
                             _IntentExpiration[_myTarget] = DateTime.Now.AddSeconds(ExclusiveIntentExpirationTime);
                             return; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
                         }
+                        break;
                     }
                     else if(_IntentExpiration.TryGetValue(_myTarget, out exp))
                     {
@@ -407,37 +410,30 @@
                             //Removed when grabbing exclusive
                         }
                     }
-                }
-                if (!matched)
-                {
-                    System.Threading.Thread.Sleep(LOCK_WAIT);
-                    if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
-                        throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
-                }
+                }                
+                System.Threading.Thread.Sleep(LOCK_WAIT);
+                if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
+                    throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
+                
             }
-            #endregion
-            matched = false;
+            #endregion            
             //An intent lock will wait until the share locks are at 0 before trying to acquire exclusive lock
             //while ((int) level == ShareBoundary && _ShareCount[_myTarget] > 0) { } //#Update: Handle this in the exclusive loop's condition check
-            while (LockID != _ExclusiveHolder[_myTarget])
+            while (true)//LockID != _ExclusiveHolder[_myTarget])
             {                
                 lock (target)
                 {
                     if (_ExclusiveHolder[_myTarget] == null && _ShareCount[_myTarget] == 0)
                     {
-                        _ExclusiveHolder[_myTarget] = LockID;                        
-                        matched = true;
+                        _ExclusiveHolder[_myTarget] = LockID;                                                
                         _MyLock = Lock.Exclusive;
+                        return;
                     }
                 }
-                if (!matched)
-                {
-                    System.Threading.Thread.Sleep(LOCK_WAIT);
-                    if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
-                        throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
-                }
+                System.Threading.Thread.Sleep(LOCK_WAIT);
+                if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
+                    throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);                
             }
-            return;
             #endregion            
         }
          

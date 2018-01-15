@@ -351,7 +351,7 @@ namespace SEIDR.DataBase
         {
             bool AlreadyOpen = true;
             DataSet ds = new DataSet();
-            if (c.State == ConnectionState.Closed)
+            if (c.State == ConnectionState.Closed || c.State == ConnectionState.Broken)
             {
                 c.Open();
                 AlreadyOpen = false;

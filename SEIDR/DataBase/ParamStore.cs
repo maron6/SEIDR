@@ -9,11 +9,17 @@ namespace SEIDR.DataBase
 {
     public class ParamStore
     {
+        /// <summary>
+        /// Creates a new param store, for caching SQL Parameters of commands
+        /// </summary>
         public ParamStore()
         {            
             cmdParams = new Dictionary<string, SqlParameter[]>();
         }
-        
+        /// <summary>
+        /// Removes the parameters associated with the Command used for <paramref name="cmd"/>
+        /// </summary>
+        /// <param name="cmd"></param>
         public void Remove(SqlCommand cmd)
         {
             string Key = cmd.CommandText.Replace("[", "").Replace("]", "").ToUpper(); ;
@@ -21,6 +27,10 @@ namespace SEIDR.DataBase
                 cmdParams.Remove(Key);
         }
         Dictionary<string, SqlParameter[]> cmdParams;
+        /// <summary>
+        /// Stores the parameter information fromn the given command
+        /// </summary>
+        /// <param name="cmd"></param>
         public void FillParameterCollection(SqlCommand cmd)
         {
             if (cmd.CommandType != System.Data.CommandType.StoredProcedure)

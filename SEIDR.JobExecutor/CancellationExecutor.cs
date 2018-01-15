@@ -2,6 +2,7 @@
 using SEIDR.DataBase;
 using System.Collections.Generic;
 using System.Linq;
+using SEIDR.JobBase;
 
 namespace SEIDR.JobExecutor
 {
@@ -16,7 +17,8 @@ namespace SEIDR.JobExecutor
             execList = executors;
         }
 
-        public override int Workload => IsWorking ? 1 : 0;
+        public override int Workload => cancel != null ? 1 : 0;
+        JobExecution cancel = null;
 
         protected override string HandleAbort()
         {
@@ -30,25 +32,20 @@ namespace SEIDR.JobExecutor
                 return true;
             if (check.Value)
             {
-                jobThread.Stop();
-                while (jobThread.IsWorking)
-                {
-                    //wait for thread abort to finish..
-                    Wait(FAILURE_SLEEPTIME, $"Cancelling thread {jobThread.ThreadName} ({jobThread.LogName})...");
-                }
-                jobThread.Call();
-                return true;
+                if (jobThread.Stop()) //Calls thread Join, so should wait for the job to finish                                
+                    jobThread.Call(); 
+                //If above returned false, stop request came from somewhere else, so don't call. 
+                //Work that needed to stop has stopped, though, so return true
+                return true;                                
             }
             return false;
         }
+        protected override void CheckWorkLoad()
+        {
+            cancel = _Manager.Execute(model).GetFirstRowOrNull().ToContentRecord<JobExecution>();
+        }
         protected override void Work()
         {
-            JobBase.JobExecution cancel = _Manager.Execute(model).GetFirstRowOrNull().ToContentRecord<JobBase.JobExecution>();
-            if (cancel == null || cancel.JobExecutionID == null)
-            {
-                Wait(FAILURE_SLEEPTIME, "No Work");
-                return;
-            }
             int skipThread = -1;
             if(cancel.RequiredThreadID != null)
             {
