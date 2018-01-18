@@ -15,6 +15,7 @@ namespace SEIDR.JobBase
         public int JobProfileID { get; private set; }
         public string FilePath { get; private set; }
         public string FileName => System.IO.Path.GetFileName(FilePath);
+        public string FileHash { get; private set; }
         public long FileSize { get; private set; }
         DateTime _FileDate;
         public DateTime FileDate => _FileDate;
@@ -94,7 +95,6 @@ namespace SEIDR.JobBase
                 return job;
             }            
         }
-        public string FileHash { get; private set; }
         public static string CheckFileHash(string FilePath) => FilePath.GetFileHash();
         public static string CheckFileHash(System.IO.FileInfo file) => file.GetFileHash();
     }
