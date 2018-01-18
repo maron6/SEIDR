@@ -245,12 +245,13 @@ namespace SEIDR.JobExecutor
             var jeList = (from je in executorList
                           where je is JobExecutor
                           select je as JobExecutor);
+
             executorList.Add(new ReDistributor(REDIST_ID, DataManager, this, jeList));
             executorList.Add(new CancellationExecutor(CANCEL_ID, this, DataManager, jeList));
             //MyOperators.Add(new Queue(this, QUEUE_ID));
-            
-            
-            
+
+
+            DataManager.ExecuteNonQuery("SEIDR.usp_JobExecution_CleanWorking");
             //MyOperators.Add(new CancellationExecutor(this, CANCEL_ID));
 
             _ServiceAlive = true;
@@ -386,19 +387,19 @@ namespace SEIDR.JobExecutor
             }
         }
         #region Logging
-        public bool LogExecutionError(JobExecution execution, string Message, string ExtraInfo, int? CallerThread = null)
+        public bool LogExecutionError(JobExecution execution, string Message, int? ExtraID, int? CallerThread = null)
         {
-            const string sproc = "SEIDR.usp_JobExecution_Error_i";
+            const string sproc = "SEIDR.usp_JobExecutionError_i";            
             var m = new
             {
                 execution.JobExecutionID,
-                Message,
-                Extra = ExtraInfo,                
-                Job = execution.JobNameSpace + "." + execution.JobName
+                ErrorDescription = Message,
+                ExtraID = ExtraID,                
+                ThreadID = CallerThread
             };
             try
             {
-                _MGR.ExecuteNonQuery(sproc, m);
+                _MGR.ExecuteNonQuery(sproc, m, RetryDeadlock: true);
             }
             catch
             {
@@ -406,11 +407,11 @@ namespace SEIDR.JobExecutor
             }
             return true;
         }        
-        public bool LogExecutionError(Executor caller, JobExecution errBatch, string Message, string Extra)
+        public bool LogExecutionError(Executor caller, JobExecution errBatch, string Message, int? ExtraID)
         {
             caller.Status.SetStatus(Message, ThreadStatus.StatusType.Error);
-            bool a = LogExecutionError(errBatch, Message, Extra, caller.ThreadID);
-            bool b = LogFileError(caller, errBatch, Message + Environment.NewLine + Extra);
+            bool a = LogExecutionError(errBatch, Message, ExtraID, caller.ThreadID);
+            bool b = LogFileError(caller, errBatch, (ExtraID.HasValue? ExtraID.Value + "::":"") + Message + Environment.NewLine);
             return a && b;
         }
         public bool LogFileError(Executor callingOperator, JobExecution b, string Message)

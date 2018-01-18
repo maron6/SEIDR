@@ -63,7 +63,7 @@ namespace SEIDR.JobExecutor
             {
                 currentExecution = CheckWork();
                 currentJob = _Manager.SelectSingle<JobProfile>(currentExecution);
-                SetExecutionStatus(false, true, statusCode: "W");
+                SetExecutionStatus(false, true);
                 IJobMetaData data;
                 ExecutionStatus status = null;
                 bool success = false;
@@ -106,6 +106,7 @@ namespace SEIDR.JobExecutor
                 { "@JobProfileID", currentExecution.JobProfileID },
                 { "@FilePath", currentExecution.FilePath },
                 { "@FileSize", currentExecution.FileSize },
+                { "@FileHash", currentExecution.FileHash },
                 { "@Success", success},
                 { "@Working", working },
                 { "@StepNumber", currentExecution.StepNumber },
@@ -317,14 +318,16 @@ namespace SEIDR.JobExecutor
             Thread.Sleep(sleepSeconds * 1000);
             SetStatus("Wake from Job Sleep Request");
         }
-
+        const int LOG_FAILURE_WAIT = 5 * 1000;
         public void LogError(string message, Exception ex)
         {
             int count = 10;
-            while(!CallerService.LogExecutionError(this, currentExecution, message, ex.Message + Environment.NewLine + ex.StackTrace) &&  count > 0)
+            while(!CallerService.LogExecutionError(this, currentExecution, 
+                message + Environment.NewLine + ex.Message + Environment.NewLine + ex.StackTrace, 
+                ExtraID: null) &&  count > 0)
             {
-                count--;
-                Thread.Sleep(5 * 1000);
+                count--;                
+                Thread.Sleep(LOG_FAILURE_WAIT);
             }
         }
 
@@ -334,7 +337,7 @@ namespace SEIDR.JobExecutor
             while(!CallerService.LogFileError(this, currentExecution, message) && count > 0)
             {
                 count--;
-                Thread.Sleep(5 * 1000);
+                Thread.Sleep(LOG_FAILURE_WAIT);
             }
         }
 

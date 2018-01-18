@@ -21,6 +21,39 @@ namespace SEIDR.DataBase
         /// If the DatabaseManager executes the HelperModel and the error code is a deadlock, will try to rerun.
         /// </summary>
         public bool RetryOnDeadlock { get; set; } = DefaultRetryOnDeadlock;
+        const int DEFAULT_DEADLOCK_RETRY_LIMIT = 10;
+        /// <summary>
+        /// Limit to the number of times the helper can be deadlocked. If less than 0, no limit.
+        /// </summary>
+        public int DeadlockRetryLimit { get; set; } = DEFAULT_DEADLOCK_RETRY_LIMIT;
+        /// <summary>
+        /// Checks whether or not there's a limit to the number of times the helper can retry after deadlock
+        /// </summary>
+        public bool HasDeadlockLimit
+        {
+            get { return DeadlockRetryLimit >= 0; }
+            set
+            {
+                if (value && DeadlockRetryLimit < 0)
+                    DeadlockRetryLimit = DEFAULT_DEADLOCK_RETRY_LIMIT;
+                else if (!value)
+                    DeadlockRetryLimit = -1;                    
+            }
+        }
+        /// <summary>
+        /// Resets DeadlockLimit to default.        
+        /// </summary>
+        /// <param name="canAddLimit">If true, allows setting the deadlock limit back to the default even if the limit has been removed</param>
+        public void ResetDeadlockLimit(bool canAddLimit = false)
+        {
+            if (!canAddLimit && DeadlockRetryLimit < 0)
+                return;
+            DeadlockRetryLimit = DEFAULT_DEADLOCK_RETRY_LIMIT;
+        }
+        /// <summary>
+        /// Removes the deadlock limit.
+        /// </summary>
+        public void RemoveDeadlockLimit() { DeadlockRetryLimit = -1; }
         /// <summary>
         /// Provide a value to override the value from DatabaseManager
         /// </summary>
@@ -32,8 +65,11 @@ namespace SEIDR.DataBase
         /// <summary>
         /// Allow maintaining a SQL Connection across commands until the HelperModel is disposed
         /// </summary>
-        public SqlConnection connection { get; private set; } = null;
+        public SqlConnection Connection { get; private set; } = null;        
         public SqlTransaction Transaction { get; private set; } = null;
+        /// <summary>
+        /// The return value from executing a stored procedure using this helper model instance
+        /// </summary>
         public int ReturnValue { get; set; } = 0;
         /// <summary>
         /// If a value is set - output parameters will not be updated if ReturnValue doesn't match.
@@ -287,7 +323,7 @@ namespace SEIDR.DataBase
             if (db == null)
                 throw new ArgumentNullException(nameof(db));            
             Dispose();
-            connection = new SqlConnection(db.ConnectionString);
+            Connection = new SqlConnection(db.ConnectionString);
             IsRolledBack = false;
         }
         public void SetConnection(DatabaseManager dm)
@@ -295,16 +331,16 @@ namespace SEIDR.DataBase
             if (dm == null)
                 throw new ArgumentNullException(nameof(dm));
             Dispose();
-            connection = dm.GetConnection();
+            Connection = dm.GetConnection();
             IsRolledBack = false;
         }
         public void OpenConnection()
         {
-            if (connection == null)
+            if (Connection == null)
                 throw new InvalidOperationException("Connection not set");
-            if (connection.State == ConnectionState.Closed)
+            if (Connection.State == ConnectionState.Closed)
             {
-                connection.Open();
+                Connection.Open();
                 IsRolledBack = false;
             }
         }
@@ -323,13 +359,13 @@ namespace SEIDR.DataBase
         /// </summary>
         public void BeginTran()
         {
-            if (connection == null)
+            if (Connection == null)
                 throw new InvalidOperationException("Connection not set");
             if (Transaction != null)
                 throw new InvalidOperationException("Existing Transaction already exists");
-            if (connection.State == ConnectionState.Closed)
-                connection.Open();
-            Transaction = connection.BeginTransaction();
+            if (Connection.State == ConnectionState.Closed)
+                Connection.Open();
+            Transaction = Connection.BeginTransaction();
             IsRolledBack = false;
         }
         /// <summary>
@@ -337,9 +373,9 @@ namespace SEIDR.DataBase
         /// </summary>
         public void RollbackTran()
         {
-            if (connection == null)
+            if (Connection == null)
                 throw new InvalidOperationException("Connection not set");
-            if (connection.State == ConnectionState.Closed)
+            if (Connection.State == ConnectionState.Closed)
                 throw new InvalidOperationException("Connection is closed.");
             if (Transaction == null)
                 throw new InvalidOperationException("No transaction to roll back");            
@@ -361,9 +397,9 @@ namespace SEIDR.DataBase
                 RollbackTran();
                 return;
             }
-            if (connection == null)
+            if (Connection == null)
                 throw new InvalidOperationException("Connection not set");
-            if (connection.State == ConnectionState.Closed)
+            if (Connection.State == ConnectionState.Closed)
                 throw new InvalidOperationException("Connection is closed.");
             if (Transaction == null)
                 throw new InvalidOperationException("No Transaction to roll back");
@@ -378,9 +414,9 @@ namespace SEIDR.DataBase
         /// <param name="savePoint"></param>
         public void SaveTran(string savePoint)
         {
-            if (connection == null)
+            if (Connection == null)
                 throw new InvalidOperationException("Connection not set");
-            if (connection.State == ConnectionState.Closed)
+            if (Connection.State == ConnectionState.Closed)
                 throw new InvalidOperationException("Connection is closed.");
             if (string.IsNullOrWhiteSpace(savePoint))
                 throw new ArgumentException("SavePoint is empty", nameof(savePoint));
@@ -394,9 +430,9 @@ namespace SEIDR.DataBase
         /// </summary>
         public void CommitTran()
         {
-            if (connection == null)
+            if (Connection == null)
                 throw new InvalidOperationException("Connection not set");
-            if (connection.State == ConnectionState.Closed)
+            if (Connection.State == ConnectionState.Closed)
                 throw new InvalidOperationException("Connection is closed.");
             if (Transaction == null)
                 throw new InvalidOperationException("No transaction to Commit");
@@ -414,10 +450,10 @@ namespace SEIDR.DataBase
         public void ClearConnection()
         {
             ClearTran();
-            if(connection != null)
+            if(Connection != null)
             {
-                connection.Dispose();
-                connection = null;
+                Connection.Dispose();
+                Connection = null;
             }
         }
         /// <summary>
@@ -435,8 +471,8 @@ namespace SEIDR.DataBase
         public void Dispose()
         {
             ClearTran();
-            if (connection != null)
-                connection.Dispose();
+            if (Connection != null)
+                Connection.Dispose();
         }
     }
 }

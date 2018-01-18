@@ -296,7 +296,7 @@ namespace SEIDR.DataBase
         public RT SelectSingle<RT> (object obj, params string[] ignoreProperties) 
             where RT : class, new() => SelectSingle<RT>(obj, Schema: null, ignore: ignoreProperties);
         #endregion
-
+        const int DEADLOCK_SLEEP = 3500;
         static PropertyInfo DBConnectionInfo = typeof(DatabaseObject).GetProperty("Connection");
         /// <summary>
         /// Executes a SQL Command based on the ConnectionProcedureCallModel. 
@@ -307,7 +307,7 @@ namespace SEIDR.DataBase
         /// <returns></returns>
         public DataSet Execute(DatabaseManagerHelperModel i, bool CommitSuccess = false)
         {
-            SqlConnection c = i.connection;            
+            SqlConnection c = i.Connection;            
             //ToDo: Parameter store for procedure with the database connection?
             string proc = $"[{ (i.Schema ?? _Schema)}].{i.Procedure}";
             DataSet ds = new DataSet();
@@ -342,7 +342,8 @@ namespace SEIDR.DataBase
                             return null;
                         }
                         if (CommitSuccess && i.Transaction != null)
-                            i.CommitTran();
+                            i.CommitTran();                        
+                        i.ResetDeadlockLimit();
                     }
                     catch(SqlException ex)
                     {
@@ -360,8 +361,14 @@ namespace SEIDR.DataBase
                         }                        
                         else if (ex.ErrorCode == 1205 && i.RetryOnDeadlock)
                         {
-                            System.Threading.Thread.Sleep(3000);
-                            return Execute(i, CommitSuccess);
+                            if (i.DeadlockRetryLimit != 0)
+                            {
+                                if (i.DeadlockRetryLimit > 0)
+                                    i.DeadlockRetryLimit--;
+
+                                System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
+                                return Execute(i, CommitSuccess);
+                            }
                         }
                         if (i.RethrowException ?? RethrowException)
                             throw;
@@ -389,6 +396,7 @@ namespace SEIDR.DataBase
                             CheckOutputParameters(cmd, i.ParameterMap);
                             CheckOutputParameters(cmd, i.Parameters);
                         }
+                        i.ResetDeadlockLimit();
                     }
                     catch(SqlException ex)
                     {
@@ -397,8 +405,14 @@ namespace SEIDR.DataBase
                             _Parameters.Remove(cmd);
                         if (ex.ErrorCode == 1205 && i.RetryOnDeadlock)
                         {
-                            System.Threading.Thread.Sleep(3000);
-                            return Execute(i, CommitSuccess);
+                            if (i.DeadlockRetryLimit != 0)
+                            {
+                                if (i.DeadlockRetryLimit > 0)
+                                    i.DeadlockRetryLimit--;
+
+                                System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
+                                return Execute(i, CommitSuccess);
+                            }
                         }
 
                         if (i.RethrowException ?? RethrowException)
@@ -438,7 +452,7 @@ namespace SEIDR.DataBase
                 {
                     if(ex.ErrorCode == 1205 && (DefaultRetryOnDeadlock ?? DatabaseManagerHelperModel.DefaultRetryOnDeadlock) )
                     {
-                        System.Threading.Thread.Sleep(3000);
+                        System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
                         return Execute(QualifiedProcedureName, mapObj);
                     }
                     if (ex.ErrorCode.In(201, 214, 225, 349, 591, 1023, 2003)
@@ -461,7 +475,7 @@ namespace SEIDR.DataBase
         public int ExecuteNonQuery(DatabaseManagerHelperModel i, bool CommitSuccess = false)
         {
             int rc = 0;
-            SqlConnection c = i.connection;
+            SqlConnection c = i.Connection;
             //ToDo: Parameter store for procedure with the database connection?
             string proc = $"[{ (i.Schema ?? _Schema)}].{i.Procedure}";            
             if(c != null)
@@ -491,10 +505,12 @@ namespace SEIDR.DataBase
                         else if (i.Transaction != null)
                         {
                             i.RollbackTran(i.Savepoint); //if Savepoint is null or empty, will be the same as calling without a Savepoint parameter
+                            i.ResetDeadlockLimit();
                             return rc;
                         }
                         if (CommitSuccess && i.Transaction != null)
                             i.CommitTran();
+                        i.ResetDeadlockLimit();
                     }
                     catch(SqlException ex)
                     {
@@ -511,8 +527,14 @@ namespace SEIDR.DataBase
                         }
                         else if (i.RetryOnDeadlock && ex.ErrorCode == 1205)
                         {
-                            System.Threading.Thread.Sleep(3000);
-                            return ExecuteNonQuery(i, CommitSuccess);                            
+                            if (i.DeadlockRetryLimit != 0)
+                            {
+                                if(i.HasDeadlockLimit)
+                                    i.DeadlockRetryLimit--;
+
+                                System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
+                                return ExecuteNonQuery(i, CommitSuccess);
+                            }
                         }                                                
                         if(i.RethrowException ?? RethrowException)
                             throw;                        
@@ -538,13 +560,20 @@ namespace SEIDR.DataBase
                         CheckOutputParameters(cmd, i.ParameterMap);
                         CheckOutputParameters(cmd, i.Parameters);
                     }
+                    i.ResetDeadlockLimit();
                 }
                 catch(SqlException ex)
                 {
                     if(ex.ErrorCode == 1205 && i.RetryOnDeadlock)
                     {
-                        System.Threading.Thread.Sleep(3000);
-                        return ExecuteNonQuery(i, CommitSuccess);                        
+                        if (i.DeadlockRetryLimit != 0)
+                        {
+                            if (i.HasDeadlockLimit)
+                                i.DeadlockRetryLimit--;
+
+                            System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
+                            return ExecuteNonQuery(i, CommitSuccess);
+                        }
                     }
                     if (ex.ErrorCode.In(201, 214, 225, 349, 591, 1023, 2003)
                         || ex.Message.ToUpper().Contains("PARAMETER"))
@@ -603,7 +632,7 @@ namespace SEIDR.DataBase
                 {
                     if (ex.ErrorCode == 1205 && (RetryDeadlock ?? DefaultRetryOnDeadlock ?? DatabaseManagerHelperModel.DefaultRetryOnDeadlock))
                     {
-                        System.Threading.Thread.Sleep(3000);
+                        System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
                         return ExecuteNonQuery(QualifiedProcedureName, out ReturnCode, mapObj, RetryDeadlock);                        
                     }
                     if (ex.Message.ToUpper().Contains("PARAMETER"))
@@ -645,7 +674,7 @@ namespace SEIDR.DataBase
                 {
                     if(ex.ErrorCode == 1205 && (RetryDeadlock ?? DefaultRetryOnDeadlock ?? DatabaseManagerHelperModel.DefaultRetryOnDeadlock))
                     {
-                        System.Threading.Thread.Sleep(3000);
+                        System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
                         return ExecuteTextNonQuery(CommandText, true);                        
                     }
                     if (RethrowException)
@@ -678,7 +707,7 @@ namespace SEIDR.DataBase
                 {
                     if (ex.ErrorCode == 1205 && (RetryDeadlock ?? DefaultRetryOnDeadlock ?? DatabaseManagerHelperModel.DefaultRetryOnDeadlock))
                     {
-                        System.Threading.Thread.Sleep(3000);
+                        System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
                         return ExecuteText(CommandText, true);
                     }
 
@@ -699,7 +728,7 @@ namespace SEIDR.DataBase
         public DataSet ExecuteText(DatabaseManagerHelperModel i, string CommandText, bool Commit = false)
         {
             DataSet ds = new DataSet();
-            SqlConnection c = i.connection;
+            SqlConnection c = i.Connection;
             if(c == null)
             {
                 using (c = new SqlConnection(this._conn.ConnectionString))
@@ -721,7 +750,7 @@ namespace SEIDR.DataBase
                     {
                         if (ex.ErrorCode == 1205 && i.RetryOnDeadlock)
                         {
-                            System.Threading.Thread.Sleep(3000);
+                            System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
                             return ExecuteText(i, CommandText, Commit);
                         }
 
@@ -750,6 +779,7 @@ namespace SEIDR.DataBase
                     sda.Fill(ds);
                     if (Commit && i.Transaction != null)
                         i.CommitTran();
+                    i.ResetDeadlockLimit();
                 }
                 catch(SqlException ex)
                 {
@@ -761,8 +791,14 @@ namespace SEIDR.DataBase
                         catch { }
                     else if (ex.ErrorCode == 1205 && i.RetryOnDeadlock)
                     {
-                        System.Threading.Thread.Sleep(3000);
-                        return ExecuteText(i, CommandText, Commit);
+                        if (i.DeadlockRetryLimit != 0)
+                        {
+                            if (i.HasDeadlockLimit)
+                                i.DeadlockRetryLimit--;
+
+                            System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
+                            return ExecuteText(i, CommandText, Commit);
+                        }
                     }
                     if (i.RethrowException ?? RethrowException)
                         throw;

@@ -93,6 +93,7 @@ namespace SEIDR.JobBase
         public string ExecutionStatusCode { get; private set; }
         public string FilePath { get; set; }
         public long FileSize { get; set; }
+        public string FileHash { get; set; }
         public string FileName => System.IO.Path.GetFileName(FilePath);
 
         public int RetryCount { get; private set; } = 0;

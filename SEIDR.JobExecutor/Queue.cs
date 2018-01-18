@@ -15,7 +15,7 @@ namespace SEIDR.JobExecutor
         const string GRAB_WORK = "SEIDR.usp_JobProfile_sl_FileWatch";
         const string INVALID = "SEIDR.usp_JobProfile_u_InvalidPath";
         object map;        
-        List<JobBase.JobProfile> work;
+        List<JobProfile> work;
         public Queue(int ID, DatabaseManager db, JobExecutorService caller)
             : base(ID, db, caller, ExecutorType.Maintenance)
         {
