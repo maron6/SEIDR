@@ -19,6 +19,23 @@ namespace SEIDR.JobExecutor
     [Export(typeof(IOperatorManager))]
     public class JobExecutorService : ServiceBase//, IOperatorManager
     {
+        public bool GrabShareableWork(JobExecutor caller, List<JobExecution> workList)
+        {
+            var q = (from ex in executorList
+                     where ex is JobExecutor
+                     && ex.ThreadID != caller.ThreadID
+                     select ex as JobExecutor);
+            foreach(var exec in q)
+            {
+                if(exec.Workload > 5)
+                {
+                    exec.UndistributeWork(2, workList);
+                    if(workList.Count > 0)
+                        return true;
+                }
+            }
+            return workList.HasMinimumCount(1);
+        }
         /// <summary>
         /// Called if job meta data indicates single threaded. Makes sure there isn't another thread running the job.
         /// </summary>

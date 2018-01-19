@@ -96,6 +96,8 @@ namespace SEIDR.JobBase
         public string FileHash { get; set; }
         public string FileName => System.IO.Path.GetFileName(FilePath);
 
+        public short Priority { get; private set; } = 1;
+
         public int RetryCount { get; private set; } = 0;
         public bool ForceSequence { get; private set; }
         /// <summary>
@@ -104,11 +106,13 @@ namespace SEIDR.JobBase
         public DateTime? DelayStart;
         public const string REGISTERED = "R";
         public const string SCHEDULED = "S";
-        public const string WORKING = "W";
+        //public const string WORKING = "W";
         public const string COMPLETE = "C";
+        public const string COMPLETE_ERROR = "CE";
         public const string CANCELLED = "CX";
         public const string FAILURE = "F";
         public const string STEP_COMPLETE = "SC";
+        public bool CanStart => DelayStart == null || DelayStart < DateTime.Now;
     }
     public class ExecutionStatus //: DatabaseObject<ExecutionStatus>
     {                
@@ -122,10 +126,6 @@ namespace SEIDR.JobBase
         /// </summary>
         public bool IsError { get; set; } = false;
         /// <summary>
-        /// Indicates that the status should not get picked up for queueing.
-        /// </summary>
-        public bool IsWorking { get; set; } = false;
-        /// <summary>
         /// Used to populate ExecutionStatus table when first added. Should be descriptive for users.
         /// </summary>
         public string Description { get; set; }
@@ -136,14 +136,13 @@ namespace SEIDR.JobBase
         /// <summary>
         /// Status allows being picked for queueing.
         /// </summary>
-        public bool Queueable => !IsComplete && !IsError && !IsWorking;
+        public bool Queueable => !IsComplete && !IsError;
         public static ExecutionStatus REQUEUE
             => new ExecutionStatus
             {
                 ExecutionStatusCode = "RQ",
                 IsComplete = false,
                 IsError = false,
-                IsWorking = true,
                 Description = "Requeue the job without updating the status. Was not ready to run.",
                 NameSpace ="SEIDR"
             };        

@@ -29,7 +29,7 @@ namespace SEIDR.JobExecutor
         }
         const string SET_STATUS = "SEIDR.usp_JobExecution_SetStatus";
         const string REQUEUE = "SEIDR.usp_JobExecution_Requeue";
-        const string GET_WORK = "SEIDR.usp_JobExecution_sl_Workload";
+        const string GET_WORK = "SEIDR.usp_JobExecution_sl_Work";
         JobProfile currentJob;
         JobExecution currentExecution;
         
@@ -191,7 +191,7 @@ namespace SEIDR.JobExecutor
                     for(int i = 0; i < workQueue.Count; i++)
                     {
                         je = workQueue[i];                        
-                        if (je.DelayStart != null && je.DelayStart > DateTime.Now)
+                        if (!je.CanStart)
                             continue;
                         //var md = Library.GetJobMetaData(je.JobName, je.JobNameSpace);
                         if (je.JobSingleThreaded)
@@ -215,6 +215,26 @@ namespace SEIDR.JobExecutor
             }
             return null;
         }
+        void SortWork()
+        {
+             workQueue.Sort((a, b) => 
+                {
+                    //positive: a is greater.                    
+                    if (a.DelayStart.HasValue && b.DelayStart.HasValue)
+                    {
+                        if (a.DelayStart.Value > b.DelayStart.Value)
+                            return 1;
+                        return -1;
+                    }
+                    else if (a.DelayStart.HasValue)
+                        return 1;
+                    if (b.DelayStart.HasValue)
+                        return -1; // (int)DateTime.Now.Subtract(b.DelayStart.Value).TotalSeconds; //Treat b as greater
+                    if (a.Priority > b.Priority)
+                        return 1;
+                    return a.Priority < b.Priority ? -1 : 0;                    
+                });
+        }
         /// <summary>
         /// Removes up to <paramref name="count"/> records from the back of the queue.
         /// </summary>
@@ -228,22 +248,8 @@ namespace SEIDR.JobExecutor
                 return;
             lock (lockObj)
             {
-                workQueue.Sort((a, b) => 
-                {
-                    //positive: a is greater.                    
-                    if (a.DelayStart.HasValue && b.DelayStart.HasValue)
-                    {
-                        if (a.DelayStart.Value > b.DelayStart.Value)
-                            return 1;
-                        return -1;
-                    }
-                    else if (a.DelayStart.HasValue)
-                        return 1;
-                    if (b.DelayStart.HasValue)
-                        return -1; // (int)DateTime.Now.Subtract(b.DelayStart.Value).TotalSeconds; //Treat b as greater
-                    return 0;
-                });
-                for(int i = workQueue.Count - 1; i >= 0; i--)
+                SortWork();
+                for (int i = workQueue.Count - 1; i >= 0; i--)
                 {
                     var je = workQueue[i];
                     if (je.JobSingleThreaded || je.RequiredThreadID.HasValue)
@@ -262,6 +268,7 @@ namespace SEIDR.JobExecutor
                 if (count == 0)
                     return;
                 workQueue.AddRangeLimited(workList, count);
+                SortWork();
                 workList.RemoveRange(0, count);                
             }
         }
@@ -302,6 +309,14 @@ namespace SEIDR.JobExecutor
 
         protected override void CheckWorkLoad()
         {
+            List<JobExecution> temp = new List<JobExecution>();
+            if(CallerService.GrabShareableWork(this, temp))
+            {
+                DistributeWork(temp);
+                return;
+            }
+            //first call a method on the callerService and see if there's any jobs we can grab from other threads.
+            //If a thread has >= 5 jobs, grab a couple jobs from the thread. 
             using (var h = _Manager.GetBasicHelper())
             {
                 h.QualifiedProcedure = GET_WORK;
@@ -310,7 +325,7 @@ namespace SEIDR.JobExecutor
             }
         }
         List<JobExecution> workQueue;
-        public override int Workload => workQueue.Count;
+        public override int Workload => workQueue.Where(je => je.CanStart).Count();
         public override void Wait(int sleepSeconds, string logReason)
         {
             CallerService.LogFileError(this, currentExecution, "Sleep Requested: " + logReason);

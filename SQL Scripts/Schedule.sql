@@ -1,4 +1,4 @@
-CREATE TABLE APP.ScheduleRule(
+CREATE TABLE SEIDR.ScheduleRule(
 	ScheduleRuleID int not null identity(1,1) primary key,
 	Description varchar(250),
 	PartOfDateType varchar(4) null, --DATEPART(xx)
@@ -16,7 +16,7 @@ CREATE TABLE APP.ScheduleRule(
 GO
  
 
-CREATE TABLE APP.Schedule
+CREATE TABLE SEIDR.Schedule
 (
 	ScheduleID int not null identity(1,1) primary key,
 	Description varchar(250),
@@ -27,7 +27,7 @@ CREATE TABLE APP.Schedule
 )
 GO
 
-CREATE TABLE APP.ScheduleRuleCluster
+CREATE TABLE SEIDR.ScheduleRuleCluster
 (
 	ScheduleRuleClusterID int not null identity(1,1) primary key,
 	Description varchar(250),
@@ -37,31 +37,46 @@ CREATE TABLE APP.ScheduleRuleCluster
 	Active as CONVERT(bit, CASE WHEN dd is null then 1 else 0 end) PERSISTED NOT NULL
 )
 GO
-CREATE TABLE APP.ScheduleRuleCluster_ScheduleRule --AND rules
-(	ScheduleRuleClusterID int not null foreign key references APP.ScheduleRuleCluster(ScheduleRuleClusterID), 
-	ScheduleRuleID int not null foreign key references APP.ScheduleRule(ScheduleRuleID),
+CREATE TABLE SEIDR.ScheduleRuleCluster_ScheduleRule --AND rules
+(	ScheduleRuleClusterID int not null foreign key references SEIDR.ScheduleRuleCluster(ScheduleRuleClusterID), 
+	ScheduleRuleID int not null foreign key references SEIDR.ScheduleRule(ScheduleRuleID),
 	PRIMARY KEY(ScheduleRuleClusterID, ScheduleRuleID)
 )
 GO
 
-CREATE TABLE APP.Schedule_ScheduleRuleCluster --OR clusters of rules
+CREATE TABLE SEIDR.Schedule_ScheduleRuleCluster --OR clusters of rules
 (
-	ScheduleID int not null FOREIGN KEY REFERENCES APP.Schedule(ScheduleID),
-	ScheduleRuleClusterID int not null FOREIGN KEY REFERENCES APP.ScheduleRuleCluster(ScheduleRuleClusterID), 
+	ScheduleID int not null FOREIGN KEY REFERENCES SEIDR.Schedule(ScheduleID),
+	ScheduleRuleClusterID int not null FOREIGN KEY REFERENCES SEIDR.ScheduleRuleCluster(ScheduleRuleClusterID), 
 	FromDate datetime not null default(CONVERT(date, GETDATE())),
 	ThroughDate datetime null,
-	PRIMARY KEY(ScheduleID, ScheduleRuleID),
+	PRIMARY KEY(ScheduleID, ScheduleRuleClusterID),
 	CHECK(ThroughDate is null or ThroughDate > FromDate)
 )
 GO
 
-CREATE FUNCTION APP.ufn_CheckScheduleRule(@ScheduleRuleID int, @DateToCheck datetime, @FromDate datetime)
+CREATE FUNCTION SEIDR.ufn_CheckScheduleRuleCluster(@ScheduleRuleClusterID int, @DateToCheck datetime, @FromDate datetime)
+RETURNS BIT
+AS
+BEGIN
+	DECLARE @RET bit = 0
+
+	SELECT @RET = MIN(CONVERT(int, CheckValue))
+	FROM SEIDR.ScheduleRuleCluster_ScheduleRule srcsr
+	CROSS APPLY (SELECT SEIDR.ufn_CheckScheduleRule(srcsr.ScheduleRuleID, @DateToCheck, @FromDate)) r(CheckValue)
+	WHERE srcsr.ScheduleRuleClusterID = @ScheduleRuleClusterID
+
+	RETURN @RET
+END
+GO
+
+CREATE FUNCTION SEIDR.ufn_CheckScheduleRule(@ScheduleRuleID int, @DateToCheck datetime, @FromDate datetime)
 RETURNS BIT
 AS
 BEGIN
 	DECLARE @RET bit = 0
 	IF EXISTS(SELECT null
-				FROM APP.ScheduleRule sr					
+				FROM SEIDR.ScheduleRule sr					
 				WHERE @DateToCheck > @FromDate 
 				AND (PartOfDateType is null 
 					OR PartOfDate = 
@@ -116,7 +131,7 @@ GO
 -- Create date: <Create Date,,>
 -- Description:	<Description,,>
 -- =============================================
-ALTER FUNCTION UTIL.[ufn_GetDays] 
+CREATE FUNCTION SEIDR.[ufn_GetDays] 
 (	
 	-- Add the parameters for the function here
 	@StartDate datetime,
@@ -140,35 +155,41 @@ BEGIN
 END
 GO
 
-SELECT * FROM UTIL.ufn_GetDays( GETDATE() - 30, null)
+SELECT * FROM SEIDR.ufn_GetDays( GETDATE() - 30, null)
 
 
-CREATE PROCEDURE APP.usp_CheckMissingSchedules --Historical. No minute/hour support then.
+CREATE PROCEDURE SEIDR.usp_CheckMissingSchedules --Historical. No minute/hour support then.
 AS
 BEGIN
 		
-		CREATE TABLE #schedule(ScheduleID int, ScheduleDate date, ScheduleRuleClusterID int, ScheduleRuleID int, Matcb bit,)
+		CREATE TABLE #schedule(ScheduleID int, ScheduleDate date, ScheduleRuleClusterID int, [Match] bit,)
+	
 		INSERT INTO #Schedule
-		SELECT s.ScheduleID, d.Date [ScheduleDate], src.ScheduleRuleClusterID, src.ScheduleRuleID,  APP.ufn_CheckScheduleRule(src.ScheduleRuleID, d.Date, src.FromDate) 
-		FROM APP.Schedule s 
-		JOIN APP.Schedule_ScheduleRulecluster ssrc
-			ON s.ScheduleID = ssrc.ScheduleID and ssrc.Active = 1
-		CROSS APPLY UTIL.ufn_GetDays(ssrc.FromDate, ssrc.ThroughDate) d --Allow early creation of schedule records?
-		JOIN APP.ScheduleRuleCluster src
+		SELECT s.ScheduleID, d.Date [ScheduleDate], src.ScheduleRuleClusterID, 
+			SEIDR.ufn_CheckScheduleRuleCluster(src.ScheduleRuleClusterID, d.Date, ssrc.FromDate) 
+		FROM SEIDR.Schedule s 
+		JOIN SEIDR.Schedule_ScheduleRulecluster ssrc
+			ON s.ScheduleID = ssrc.ScheduleID --and ssrc.Active = 1
+		CROSS APPLY SEIDR.ufn_GetDays(ssrc.FromDate, ssrc.ThroughDate) d --Allow early creation of schedule records?
+		JOIN SEIDR.ScheduleRuleCluster src
 			ON ssrc.ScheduleRuleClusterID =src.ScheduleRuleClusterID and src.Active = 1		
 		WHERE s.Active = 1 
 		--AND NOT EXISTS(SELECT null FROM .... WHERE ScheduleID = s.ScheduleID AND ProcessingDate = d.[Date]) --To get records on object x using schedule s that are missing a processing date
 
 		SELECT ScheduleID, ScheduleDate, MIN(ScheduleRuleClusterID) MatchedScheduleRuleClusterID
 		FROM #Schedule s1
-		WHERE match = 1
-		AND NOT EXISTS(SELECT null FROM #Schedule WHERE ScheduleID = s1.ScheduleID AND ScheduleRuleClusterID = s1.ScheduleRuleClusterID AND ScheduleDate = s1.ScheduleDate AND Match = 0)
+		WHERE [match] = 1
+		AND NOT EXISTS(SELECT null 
+						FROM #Schedule 
+						WHERE ScheduleID = s1.ScheduleID 
+						AND ScheduleRuleClusterID = s1.ScheduleRuleClusterID 
+						AND ScheduleDate = s1.ScheduleDate AND [Match] = 0)
 		GROUP BY ScheduleID, ScheduleDate
 END
 GO	
 
 
-ALTER PROCEDURE APP.usp_CheckSchedules
+CREATE PROCEDURE SEIDR.usp_CheckSchedules
 	@ScheduleID int = null, 
 	@DateToCheck datetime, 
 	@Valid bit output
@@ -177,28 +198,30 @@ BEGIN
 	IF @DateToCheck is null
 		SET @DateToCheck = GETDATE()
 
-	CREATE TABLE #schedule(ScheduleID int, ScheduleRuleClusterID int, ScheduleRuleID int, Matcb bit,)
+	CREATE TABLE #schedule(ScheduleID int, ScheduleRuleClusterID int, ScheduleRuleID int, [Match] bit,)
 
 	INSERT INTO #Schedule
-	SELECT src.ScheduleRuleClusterID, src.SCheduleID, APP.ufn_CheckScheduleRule(src.ScheduleRuleID, @DateToCheck, FromDate) 
-	FROM APP.Schedule s
-	JOIN APP.Schedule_ScheduleRuleCluster ssr
+	SELECT src.ScheduleRuleClusterID, s.ScheduleID, 
+		SEIDR.ufn_CheckScheduleRuleCluster(src.ScheduleRuleClusterID, @DateToCheck, FromDate) 
+	FROM SEIDR.Schedule s
+	JOIN SEIDR.Schedule_ScheduleRuleCluster ssr
 		oN s.ScheduleID = ssr.ScheduleID
-		AND ssr.Active = 1
-	JOIN APP.ScheduleRuleCluster src
+		--AND ssr.Active = 1
+	JOIN SEIDR.ScheduleRuleCluster src
 		On ssr.ScheduleRuleClusterID = src.ScheduleRuleClusterID
+		and src.Active = 1
 	WHERE @DateToCheck > FromDate
 	AND (@ScheduleID = s.ScheduleID or s.Active = 1 AND @ScheduleID is null)
 	AND (ThroughDate is null or ThroughDate > @DateToCheck)
 
 
 
-	SELECT s.ScheduleID, @DateToCheck, MIN(SCheduleRuleClusterID) MatchedScheduleRuleClusterID
+	SELECT s.ScheduleID, @DateToCheck, MIN(s.ScheduleRuleClusterID) MatchedScheduleRuleClusterID
 	FROM #Schedule s
 	LEFT JOIN #Schedule s2
 		ON s.ScheduleRuleClusterID = s2.ScheduleRuleClusterID
-		AND s2.Match = 0
-	WHERE s.Match = 1
+		AND s2.[Match] = 0
+	WHERE s.[Match] = 1
 	AND s2.ScheduleRuleID IS NULL
 	GROUP by s.ScheduleID
 
