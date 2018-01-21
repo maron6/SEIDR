@@ -11,10 +11,11 @@ namespace SEIDR.JobExecutor
         public const string GET_CANCEL_REQUEST = "usp_JobExecution_ss_Cancel";
         DatabaseManagerHelperModel model;
         IEnumerable<JobExecutor> execList;
-        public CancellationExecutor(int ID, JobExecutorService caller, DatabaseManager database, IEnumerable<JobExecutor> executors)
-            :base(ID, database, caller, ExecutorType.Maintenance)
+        public CancellationExecutor(JobExecutorService caller, DatabaseManager database, IEnumerable<JobExecutor> executors)
+            :base(database, caller, ExecutorType.Maintenance)
         {
             execList = executors;
+            model = database.GetBasicHelper(QualifiedProcedure: GET_CANCEL_REQUEST, Keys:null);
         }
 
         public override int Workload => cancel != null ? 1 : 0;

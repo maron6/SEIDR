@@ -9,8 +9,8 @@ namespace SEIDR.JobExecutor
 {
     public class ReDistributor : Executor
     {
-        public ReDistributor(int id, DataBase.DatabaseManager manager, JobExecutorService caller, IEnumerable<JobExecutor> executors)
-            :base(id, manager, caller, ExecutorType.Maintenance)
+        public ReDistributor(DataBase.DatabaseManager manager, JobExecutorService caller, IEnumerable<JobExecutor> executors)
+            :base(manager, caller, ExecutorType.Maintenance)
         {
             list = executors;
         }

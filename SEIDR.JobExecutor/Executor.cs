@@ -11,12 +11,18 @@ namespace SEIDR.JobExecutor
     public abstract class Executor
     {
 
-
+        static int _maintenanceCounter = 0;
+        static int _jobCounter = 0;
         protected const int DEADLOCK_TIME_INCREASE = 45;
         protected const int MAX_TIMEOUT = 1200;
 
         public int ThreadID { get; private set; }
-        public string ThreadName { get; private set; }
+        volatile string _ThreadName;
+        public string ThreadName
+        {
+            get { return _ThreadName; }
+            private set { _ThreadName = value; }
+        }
         public string LogName { get; private set; }
         public DataBase.DatabaseManager _Manager { get; private set; }
         protected JobExecutorService CallerService { get; private set; }
@@ -25,8 +31,14 @@ namespace SEIDR.JobExecutor
         public ThreadStatus Status { get; private set; }
         protected object WorkLock = new object();
         protected abstract void CheckWorkLoad();
-        public Executor(int id, DataBase.DatabaseManager manager, JobExecutorService caller, ExecutorType type)
+        public Executor(DataBase.DatabaseManager manager, JobExecutorService caller, ExecutorType type)
         {
+            int id;
+            if (type == ExecutorType.Job)
+                id = ++_jobCounter;
+            else
+                id = ++_maintenanceCounter;
+
             ThreadID = id;
             CallerService = caller;
             ExecutorType = type;
@@ -46,7 +58,7 @@ namespace SEIDR.JobExecutor
                 mgrName += " - " + newName;
             }
             ThreadName = newName;
-            _Manager.ProgramName = mgrName;            
+            _Manager.ProgramName = mgrName;
         }
         public volatile bool IsWorking;
         public abstract int Workload { get; }

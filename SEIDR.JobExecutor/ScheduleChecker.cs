@@ -10,13 +10,13 @@ namespace SEIDR.JobExecutor
     {
         DateTime lastCheck;
         const string CHECK_SCHEDULES = "SEIDR.usp_JobProfile_CheckSchedule";
-        public ScheduleChecker(int threadID, JobExecutorService caller,
+        public ScheduleChecker(JobExecutorService caller,
             DataBase.DatabaseManager manager)
-            :base(threadID, manager, caller, ExecutorType.Maintenance)
+            :base(manager, caller, ExecutorType.Maintenance)
         {
             _Manager.DefaultRetryOnDeadlock = true;
         }
-        int workLoad = 1;
+        volatile int workLoad = 1;
         public override int Workload => workLoad;         
 
         protected override void CheckWorkLoad()

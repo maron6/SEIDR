@@ -22,9 +22,10 @@ namespace SEIDR.JobExecutor
                 Library = new JobLibrary(location);
         }
         static object lockObj = new object();
+        internal static object NameLock = new object();
 
-        public JobExecutor(int id, DatabaseManager manager, JobExecutorService caller)
-            : base(id, manager, caller, ExecutorType.Job)
+        public JobExecutor( DatabaseManager manager, JobExecutorService caller)
+            : base(manager, caller, ExecutorType.Job)
         {
 
         }
@@ -129,6 +130,7 @@ namespace SEIDR.JobExecutor
                 MailTo = executedJob.FailureNotificationMail;
                 subject = $"Job Execution Step failure: Job Profile {executedJob.JobProfileID}, Step {executedJob.StepNumber}";
             }
+            
 
         }
         void SetExecutionStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
@@ -230,31 +232,49 @@ namespace SEIDR.JobExecutor
                         var je = workQueue[i];
                         if (!je.CanStart)
                             continue;
-                        //var md = Library.GetJobMetaData(je.JobName, je.JobNameSpace);
-                        if (je.JobSingleThreaded)
-                        { //If job is considered single threaded, need to check for any other thread running the job.
-                            if (!CallerService.CheckSingleThreadedJobThread(je, ThreadID))
+                        lock (NameLock)
+                        {
+                            string threadName = je.JobThreadName;
+                            if (string.IsNullOrWhiteSpace(je.JobThreadName))
+                                threadName = je.JobName;
+
+                            //var md = Library.GetJobMetaData(je.JobName, je.JobNameSpace);
+                            if (je.JobSingleThreaded && threadName != ThreadName)
                             {
-                                if (je.RequiredThreadID == null)
-                                    workQueue.RemoveAt(i);
-                                i--; //Removing record at i. Need to decrement so we don't skip a record.
-                                continue;
+                                //If we already have this ThreadName, don't need to check other threads, so skip
+                                //If job is considered single threaded, need to check for any other thread running the job.
+                                if (!CallerService.CheckSingleThreadedJobThread(je, ThreadID))
+                                {
+                                    //Something else is running for this JobName.
+                                    if (je.RequiredThreadID == null)
+                                    {
+                                        //If requiredThreadID is null and we're in this block, it has already been queued under another thread.
+                                        workQueue.RemoveAt(i);
+                                        i--; //Removing record at i. Need to decrement so we don't skip a record.
+                                    }
+                                    else
+                                    {
+                                        je.DelayStart = DateTime.Now.AddMinutes(1);
+                                        /*
+                                         another thread is running with this JobName, 
+                                         but the job still has a required ThreadID. 
+                                         Add a delay and check the next record.
+                                         */
+                                    }
+                                    continue;
+                                }
                             }
+                            SetThreadName(threadName);
+                            workQueue.RemoveAt(i);
                         }
-                        workQueue.RemoveAt(i);
                         using (var h = _Manager.GetBasicHelper())
                         {
                             h.QualifiedProcedure = START_WORK;
                             h["@JobExecutionID"] = je.JobExecutionID;
                             je = _Manager.SelectSingle<JobExecution>(h);
-                            if (h.ReturnValue != 0)
-                                continue;
-                        }
-
-                        string threadName = je.JobThreadName;
-                        if (string.IsNullOrWhiteSpace(je.JobThreadName))
-                            threadName = je.JobName;
-                        SetThreadName(threadName);
+                            if (h.ReturnValue != 0 || je == null)
+                                continue; //ThreadName will have been changed, but that should be okay.
+                        }                            
                         return je;
                     }
                 }

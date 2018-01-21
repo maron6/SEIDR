@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Threading;
 
     public enum Lock
     {
@@ -262,19 +263,24 @@
             //    _MyLock = Lock.Unlocked;
             //    return; //Mainly so that people can use the same code and
             //}
+            var target = _LockTargets[_myTarget];
             if (xl >= LockBoundary)
             {
                 if (xl < ShareBoundary)
                 {
-                    lock (_LockTargets[_myTarget])
+                    lock (target)
                     {
                         _ShareCount[_myTarget]--;
+                        Monitor.Pulse(target);
+                        //pulsing here is for exclusives waiting for sharecount to go to 0. 
+                        //Only need to signal to one on this target object -- if shareCount > 0, 
+                        //there should not be any instances waiting for the share level, so we shouldn't need a pulse all
                     }
                 }
                 if (xl >= ShareBoundary)
                 {
                     DateTime d;
-                    lock (_LockTargets[_myTarget])
+                    lock (target)
                     {
                         if(_ExclusiveHolder[_myTarget] == LockID)
                             _ExclusiveHolder[_myTarget] = null;
@@ -282,6 +288,7 @@
                             _IntentExpiration.TryRemove(_myTarget, out d);
                         if (_IntentHolder[_myTarget] == LockID)
                             _IntentHolder[_myTarget] = null;
+                        Monitor.PulseAll(target);
                     }
                 }
             } 
@@ -371,7 +378,7 @@
                         }
                     }
                     if (waitForIntent)
-                        System.Threading.Thread.Sleep(LOCK_WAIT);
+                        Thread.Sleep(LOCK_WAIT);
                     lock (target)
                     { 
                         //If no exclusive holder, add to sharecount, even if there is a lock manager holding intent (_IntentHolder[_myTarget])
@@ -381,12 +388,15 @@
                             _MyLock = Lock.Shared;                        
                             return;
                         }
-
+                        if(TimeOut == 0)
+                            Monitor.Wait(target);
                     }
-                    System.Threading.Thread.Sleep(LOCK_WAIT); 
-                    if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
-                        throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
-                   
+                    if (TimeOut > 0)
+                    {
+                        Thread.Sleep(LOCK_WAIT); //replace with wait when TimeOut == 0
+                        if (start.AddSeconds(TimeOut) > DateTime.Now)
+                            throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
+                    }
                 }
             }
             #endregion
@@ -410,6 +420,16 @@
                 {
                     if (_IntentHolder[_myTarget] == LockID)
                         break;
+                    if (_IntentExpiration.TryGetValue(_myTarget, out exp))
+                    {
+                        if (exp > DateTime.Now)
+                        {
+                            _IntentHolder[_myTarget] = null;
+                            _IntentExpiration.TryRemove(_myTarget, out exp);                            
+                            //Remove intent. Note that expiration is only set when grabbing exclusive intent but not exclusive.
+                            //Removed when grabbing exclusive                            
+                        }
+                    }    
                     if (_IntentHolder[_myTarget] == null)
                     {                    
                         _IntentHolder[_myTarget] = LockID;
@@ -421,19 +441,9 @@
                             return; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
                         }
                         break;
-                    }
-                    else if(_IntentExpiration.TryGetValue(_myTarget, out exp))
-                    {
-                        if (exp > DateTime.Now)
-                        {
-                            _IntentHolder[_myTarget] = null;
-                            _IntentExpiration.TryRemove(_myTarget, out exp); 
-                            //Remove intent. Note that expiration is only set when grabbing exclusive intent but not exclusive.
-                            //Removed when grabbing exclusive
-                        }
-                    }
-                }                
-                System.Threading.Thread.Sleep(LOCK_WAIT);
+                    }           
+                }
+                Thread.Sleep(LOCK_WAIT);
                 if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
                     throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
                 
@@ -451,10 +461,15 @@
                         _MyLock = Lock.Exclusive;
                         return;
                     }
+                    if(TimeOut == 0)
+                        Monitor.Wait(target);
                 }
-                System.Threading.Thread.Sleep(LOCK_WAIT);
-                if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
-                    throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);                
+                if (TimeOut > 0)
+                {
+                    Thread.Sleep(LOCK_WAIT); //if timeout == 0, use monitor wait instead of sleep
+                    if (start.AddSeconds(TimeOut) > DateTime.Now)
+                        throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
+                }
             }
             #endregion            
         }

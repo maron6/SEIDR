@@ -44,19 +44,11 @@ namespace SEIDR.JobExecutor
         /// <returns></returns>
         public bool CheckSingleThreadedJobThread(JobExecution job, int checkID)
         {
-            byte? reqThread = job.RequiredThreadID;
-            if (string.IsNullOrWhiteSpace(job.JobThreadName))
-            {
-                reqThread = 1;
-                if (checkID == 1)
-                    return true;
-            }
-            var exec = (from ex in executorList
-                     where ex.ExecutorType == ExecutorType.Job
-                     && ex.ThreadID != checkID
+            var exec = (from ex in jobList
+                     where ex.ThreadID != checkID
                      && job.JobThreadName == ex.ThreadName                     
-                     && (reqThread == null || reqThread == ex.ThreadID)
-                     select ex as JobExecutor).FirstOrDefault();
+                     //&& (reqThread == null || (reqThread % ExecutorCount) == ex.ThreadID)
+                     select ex).FirstOrDefault();
             if (exec != null)
             {
                 if (job.RequiredThreadID == null)
@@ -72,21 +64,19 @@ namespace SEIDR.JobExecutor
             JobExecutor jobExecutor;
             if (newJob.RequiredThreadID != null)
             {
-                jobExecutor = (from ex in executorList
-                                where ex.ExecutorType == ExecutorType.Job
-                                && ex.ThreadID % newJob.RequiredThreadID == 0
+                jobExecutor = (from ex in jobList
+                                where ex.ThreadID % newJob.RequiredThreadID == 0
                                 && ex.ThreadID <= newJob.RequiredThreadID
-                                orderby ex.ThreadID
-                                select ex as JobExecutor
-                                ).LastOrDefault();
-                jobExecutor.Queue(newJob);
+                                orderby ex.ThreadID descending
+                                select ex 
+                                ).FirstOrDefault();                
+                jobExecutor?.Queue(newJob);
                 return;
             }
             if (!string.IsNullOrWhiteSpace(newJob.JobThreadName))
             {
-                jobExecutor = (from ex in executorList
-                                where ex.ExecutorType == ExecutorType.Job
-                                && ex.ThreadName == newJob.JobThreadName
+                jobExecutor = (from ex in jobList
+                                where ex.ThreadName == newJob.JobThreadName
                                 orderby ex.Workload
                                 select ex as JobExecutor
                                 ).FirstOrDefault();
@@ -96,13 +86,13 @@ namespace SEIDR.JobExecutor
                     return;
                 }
             }
-            jobExecutor = (from ex in executorList
-                            where ex.ExecutorType == ExecutorType.Job                                       
+            jobExecutor = (from ex in jobList                            
                             orderby ex.Workload
-                            select ex as JobExecutor
+                            select ex
                                 ).First();
             jobExecutor.Queue(newJob);
         }
+        List<JobExecutor> jobList;
         List<Executor> executorList;        
         const string CLEAN_LOCKS = "SEIDR.usp_Batch_CleanLocks";
         public JobExecutorService()
@@ -116,18 +106,10 @@ namespace SEIDR.JobExecutor
             CanHandleSessionChangeEvent = false;
             CanHandlePowerEvent = false;
         }        
-        const byte CANCEL_ID_OFFSET = 1;
-        const byte REDIST_ID_OFFSET = 2;
-        const byte SCHED_ID_OFFSET = 3;
-        int CANCEL_ID => (QueueThreadCount) + (CANCEL_ID_OFFSET);
-        int REDIST_ID => (QueueThreadCount + REDIST_ID_OFFSET);
-        int SCHED_ID => (QueueThreadCount + SCHED_ID_OFFSET);
-        //public const int QUEUE_ID = 1;
         public byte QueueThreadCount = 2;
         public byte ExecutionThreadCount = 4; //Default        
         public int BatchSize = 5;
-        public ServiceStatus MyStatus { get; private set; } = new ServiceStatus();
-        List<Operator> MyOperators;
+        public ServiceStatus MyStatus { get; private set; } = new ServiceStatus();        
         void SetupFromConfig()
         {
 
@@ -234,26 +216,24 @@ namespace SEIDR.JobExecutor
             LogFileMessage("STARTING UP");
             JobExecutor.CheckLibrary(DataManager);
             LogFileMessage("Job Library configured");
-            #region Operator Set up
-            MyOperators = new List<Operator>();
+            #region Executor Set up            
             executorList = new List<Executor>();
+            jobList = new List<JobExecutor>();
             for (byte i = 1; i <= ExecutionThreadCount; i++)
             {
-                executorList.Add(new JobExecutor(i, DataManager, this));
+                var je = new JobExecutor(DataManager, this);
+                executorList.Add(je);
+                jobList.Add(je);                
                 //MyOperators.Add(new OperationExecutor(this, i));
-            }
+            }            
             for (byte i = 1; i <= QueueThreadCount; i++)
             {
-                executorList.Add(new Queue(i, DataManager, this));
+                executorList.Add(new Queue(DataManager, this));
                 //MyOperators.Add(new Queue(this, i));
             }
-            var jeList = (from je in executorList
-                          where je is JobExecutor
-                          select je as JobExecutor);
-
-            executorList.Add(new ReDistributor(REDIST_ID, DataManager, this, jeList));
-            executorList.Add(new CancellationExecutor(CANCEL_ID, this, DataManager, jeList));
-            executorList.Add(new ScheduleChecker(SCHED_ID, this, DataManager));
+            executorList.Add(new ReDistributor(DataManager, this, jobList));
+            executorList.Add(new CancellationExecutor(this, DataManager, jobList));
+            executorList.Add(new ScheduleChecker(this, DataManager));
             //MyOperators.Add(new Queue(this, QUEUE_ID));
 
 
