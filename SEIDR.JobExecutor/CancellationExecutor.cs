@@ -18,7 +18,7 @@ namespace SEIDR.JobExecutor
         }
 
         public override int Workload => cancel != null ? 1 : 0;
-        JobExecution cancel = null;
+        volatile JobExecution cancel = null; //volatile - Workload may get checked from another thread
 
         protected override string HandleAbort()
         {
@@ -42,7 +42,7 @@ namespace SEIDR.JobExecutor
         }
         protected override void CheckWorkLoad()
         {
-            cancel = _Manager.Execute(model).GetFirstRowOrNull().ToContentRecord<JobExecution>();
+            cancel = _Manager.SelectSingle<JobExecution>(model);
         }
         protected override void Work()
         {
@@ -65,53 +65,6 @@ namespace SEIDR.JobExecutor
                 if (Cancel(t, cancel.JobExecutionID.Value))
                     return;
             }
-        }
-    }
-    public class OCancellationExecutor : Operator
-    {
-        public const string GET_CANCEL_REQUESTS = "usp_Batch_sl_Cancel";
-        DatabaseManagerHelperModel Model;
-        public OCancellationExecutor(IOperatorManager owner, byte ID) 
-            : base(owner, OperatorType.Maintenance, ID, "CANCELLATION")
-        {
-            Model = new DatabaseManagerHelperModel(
-                GET_CANCEL_REQUESTS, 
-                new { ThreadID = ID, owner.BatchSize })
-            {
-                RetryOnDeadlock = true
-            };
-        }
-
-        public override bool CheckWork()
-        {
-            var b = DbManager.Execute(Model).ToContentList<Batch>(0);            
-            if (b == null || b.Count == 0)
-                return false;
-            AddBatches(b);
-            return true;
-        }
-
-        public override void DoWork()
-        {
-            Batch work = CurrentBatch;
-            if (work == null || work.BatchID.HasValue == false)
-                return; //Shouldn't happen (CheckWork should only return work after adding Batch(es) to the work queue, but just in case             
-            if (work.ThreadID.HasValue)
-                Manager
-                    .GetOperator(OperatorType.Execution, work.ThreadID.Value)
-                    .ConditionalReset(work.BatchID.Value);
-            else
-            {
-                //Try to find the batch, reset the thread if found.
-                Manager
-                    .GetOperatorByBatchID(OperatorType.Execution, work.BatchID.Value)
-                    ?.ConditionalReset(work.BatchID.Value);
-            }
-        }
-
-        public override void HandleAbort()
-        {            
-            return;
         }
     }
 }

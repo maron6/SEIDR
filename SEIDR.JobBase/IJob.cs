@@ -20,10 +20,14 @@ namespace SEIDR.JobBase
         /// </summary>
         [DefaultValue(null)]
         string ThreadName { get; }
+        /// <summary>
+        /// Indicates if the job needs to be run on a single thread. <para>
+        /// E.g., it needs to store a complex state outside of local variables in the Execute method.</para>
+        /// </summary>
         [DefaultValue(false)]
         bool SingleThreaded { get; }
         /// <summary>
-        /// The job is able to call <see cref="IJobExecutor.checkAcknowledgeCancel"/> and stop if requested.
+        /// The job is able to call <see cref="IJobExecutor.checkAcknowledgeCancel"/> and stops if requested.
         /// </summary>
         [DefaultValue(false)]
         bool SafeCancel { get; }

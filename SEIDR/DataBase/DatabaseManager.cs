@@ -380,14 +380,15 @@ namespace SEIDR.DataBase
                 using (SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure })
                 using (c = new SqlConnection(_conn.ConnectionString))
                 {
-                    c.Open();
-                    cmd.Connection = c;
-                    cmd.CommandTimeout = _conn.CommandTimeout;
-                    if (i.ParameterMap != null)
-                        FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
-                    SqlDataAdapter sda = new SqlDataAdapter(cmd);
-                    try
+                     try
                     {
+                        c.Open();
+                        cmd.Connection = c;
+                        cmd.CommandTimeout = _conn.CommandTimeout;
+                        if (i.ParameterMap != null)
+                            FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
+                        SqlDataAdapter sda = new SqlDataAdapter(cmd);
+                   
                         sda.Fill(ds);
                         int rv = cmd.GetReturnValue();
                         i.ReturnValue = rv;
@@ -418,7 +419,11 @@ namespace SEIDR.DataBase
                         if (i.RethrowException ?? RethrowException)
                             throw;
                     }
-                    c.Close();
+                    finally
+                    {
+                        if(c.State == ConnectionState.Open)
+                            c.Close();
+                    }                    
                 }
             }
             return ds;            
@@ -436,21 +441,22 @@ namespace SEIDR.DataBase
             using (SqlCommand cmd = new SqlCommand(QualifiedProcedureName) { CommandType = CommandType.StoredProcedure })            
             using (SqlConnection c = new SqlConnection(_conn.ConnectionString))
             {
-                c.Open();
-                cmd.Connection = c;
-                cmd.CommandTimeout = _conn.CommandTimeout;
-                if (mapObj != null)
-                    FillCommandParameters(cmd, mapObj, null, null);
-                SqlDataAdapter sda = new SqlDataAdapter(cmd);
                 try
                 {
+                    c.Open();
+                    cmd.Connection = c;
+                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    if (mapObj != null)
+                        FillCommandParameters(cmd, mapObj, null, null);
+                    SqlDataAdapter sda = new SqlDataAdapter(cmd);
+                
                     sda.Fill(ds);
                     int rv = cmd.GetReturnValue();
-                    CheckOutputParameters(cmd, mapObj);                    
+                    CheckOutputParameters(cmd, mapObj);
                 }
-                catch(SqlException ex)
+                catch (SqlException ex)
                 {
-                    if(ex.ErrorCode == 1205 && (DefaultRetryOnDeadlock ?? DatabaseManagerHelperModel.DefaultRetryOnDeadlock) )
+                    if (ex.ErrorCode == 1205 && (DefaultRetryOnDeadlock ?? DatabaseManagerHelperModel.DefaultRetryOnDeadlock))
                     {
                         System.Threading.Thread.Sleep(DEADLOCK_SLEEP);
                         return Execute(QualifiedProcedureName, mapObj);
@@ -461,7 +467,6 @@ namespace SEIDR.DataBase
                     if (RethrowException)
                         throw;
                 }
-                c.Close();
             }                            
             return ds;            
         }
@@ -545,13 +550,14 @@ namespace SEIDR.DataBase
             using (SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure })                            
             using (c = new SqlConnection(_conn.ConnectionString))
             {
-                c.Open();
-                cmd.Connection = c;
-                cmd.CommandTimeout = _conn.CommandTimeout;
-                if (i.ParameterMap != null || i.Parameters != null)
-                    FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
                 try
                 {
+                    c.Open();
+                    cmd.Connection = c;
+                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    if (i.ParameterMap != null || i.Parameters != null)
+                        FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
+                
                     rc = cmd.ExecuteNonQuery();
                     int rv = cmd.GetReturnValue();
                     i.ReturnValue = rv;
@@ -581,10 +587,10 @@ namespace SEIDR.DataBase
                     if (i.RethrowException ?? RethrowException)
                         throw;
                 }
-                finally
-                {
-                    c.Close();
-                }                
+                //finally
+                //{
+                //    c.Close(); //optional, connection is in a "USING" block
+                //}                
             }
             return rc;
         }
@@ -618,15 +624,16 @@ namespace SEIDR.DataBase
             using (SqlCommand cmd = new SqlCommand(QualifiedProcedureName) { CommandType = CommandType.StoredProcedure })           
             using (SqlConnection c = new SqlConnection(_conn.ConnectionString))
             {
-                c.Open();
-                cmd.Connection = c;
-                cmd.CommandTimeout = _conn.CommandTimeout;
-                if (mapObj != null)
-                    FillCommandParameters(cmd, mapObj, null, null);
                 try
                 {
+                    c.Open();
+                    cmd.Connection = c;
+                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    if (mapObj != null)
+                    FillCommandParameters(cmd, mapObj, null, null);
+                
                     rv = cmd.ExecuteNonQuery();
-                    ReturnCode = cmd.GetReturnValue();
+                    ReturnCode = cmd.GetReturnValue();                    
                 }
                 catch(SqlException ex)
                 {
@@ -641,7 +648,7 @@ namespace SEIDR.DataBase
                         throw;
                 }
                 CheckOutputParameters(cmd, mapObj);
-                c.Close();
+
             }
             return rv;
         }
@@ -759,7 +766,7 @@ namespace SEIDR.DataBase
                         return null;
                     }
                     i.ReturnValue = cmd.GetReturnValue();
-                    c.Close();
+                    c.Close(); //Note: optional (functionality is performed during dispose)
                     return ds;
                 }
             }
@@ -1076,7 +1083,7 @@ namespace SEIDR.DataBase
             }
             else
             {
-                if (Methods.Keys.Count > 200)
+                if (Methods.Keys.Count > 500)
                 {
                     Methods.Clear();
                     Methods[MKey] = m;

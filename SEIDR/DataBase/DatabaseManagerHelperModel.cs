@@ -99,12 +99,15 @@ namespace SEIDR.DataBase
         public DatabaseManagerHelperModel(string schema, string Procedure, Dictionary<string, object> Keys)
             :this(schema, Procedure)
         {
-            Parameters = Keys;
+            if (Keys != null)
+                Parameters = Keys;
         }
-        public DatabaseManagerHelperModel(string UnqualifiedProcedureName, Dictionary<string, object> Keys):this()
+        public DatabaseManagerHelperModel(string UnqualifiedProcedureName, Dictionary<string, object> Keys)
+            :this()
         {
             Procedure = UnqualifiedProcedureName;
-            Parameters = Keys;
+            if(Keys != null)
+                Parameters = Keys;
         }
         public DatabaseManagerHelperModel(string UnqualifiedProcedure, object mapObj):this()
         {
@@ -288,8 +291,8 @@ namespace SEIDR.DataBase
             }
         }
         /// <summary>
-        /// Add/Get Key-Value pairs for SQL parameters - will override properties from parameter map. 
-        /// <para>Any new keys will also be added to PropertyIgnore</para>
+        /// Add/Get Key-Value pairs for SQL parameters - will override properties from <see cref="ParameterMap"/>
+        /// <para>Any new keys will also be added to <see cref="PropertyIgnore"/></para>
         /// </summary>
         /// <param name="key"></param>
         /// <returns></returns>
@@ -316,6 +319,12 @@ namespace SEIDR.DataBase
                 Parameters[key] = value;
             }
         }
+        /// <summary>
+        /// Parameter information used when the helper is passed to a DatabaseManager to execute.<para>
+        /// If a key in this dictionary is also a property on <see cref="ParameterMap"/>, it will be ignored
+        /// unless the property's name is in <see cref="PropertyIgnore"/>
+        /// </para>
+        /// </summary>
         public Dictionary<string, object> Parameters { get; private set; } = new Dictionary<string, object>();
 
         public void SetConnection(DatabaseConnection db)

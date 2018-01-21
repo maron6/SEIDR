@@ -12,7 +12,7 @@ namespace SEIDR.JobBase
     public interface IJobExecutor
     {
         /// <summary>
-        /// Readonly copy of the database connection being used by the Executor
+        /// A readonly copy of the database connection being used by the Executor
         /// </summary>
         DataBase.DatabaseConnection connection { get; }
         /// <summary>
@@ -20,9 +20,12 @@ namespace SEIDR.JobBase
         /// </summary>
         JobProfile job { get; }
         /// <summary>
-        /// The actual number ID of the executing thread, used by the actual service
+        /// The actual number ID of the executing thread, used by the Service
         /// </summary>
         int ThreadID { get; }
+        /// <summary>
+        /// Name of the thread, for logging purposes.
+        /// </summary>
         string ThreadName { get; }
         /// <summary>
         /// If called, will move the current jobExecution to the end of the queue with a mark to retry in at least <paramref name="delayMinutes"/> minutes.
@@ -43,9 +46,10 @@ namespace SEIDR.JobBase
         void LogInfo(string message);
         /// <summary>
         /// Call when at a point where the job can stop if requested.
+        /// <para>It should only be called when the job is at a point where it's safe to return when the method returns true.</para>
         /// </summary>
         /// <returns>True if the job has been requested to stop.<para>
-        /// If this returns true, the result output of the job will be ignored.</para></returns>
+        /// If this returns true, the job should return false if it is able to stop.</para></returns>
         bool checkAcknowledgeCancel();
     }
 }
