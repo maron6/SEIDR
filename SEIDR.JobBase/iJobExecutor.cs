@@ -41,5 +41,11 @@ namespace SEIDR.JobBase
         void Wait(int sleepSeconds, string logReason);
         void LogError(string message, Exception ex);
         void LogInfo(string message);
+        /// <summary>
+        /// Call when at a point where the job can stop if requested.
+        /// </summary>
+        /// <returns>True if the job has been requested to stop.<para>
+        /// If this returns true, the result output of the job will be ignored.</para></returns>
+        bool checkAcknowledgeCancel();
     }
 }

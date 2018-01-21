@@ -5,33 +5,7 @@ using System.ComponentModel;
 
 namespace SEIDR.JobBase
 {
-    public interface IJobMetaData
-    {        
-        string JobName { get; }
-        [DefaultValue(null)]
-        string Description { get; }        
-        string NameSpace { get;  }
-        /// <summary>
-        /// If a Job cannot share the same thread as other jobs, it should share a name. 
-        /// <para>When the job is picked up, the Executor thread will take on the name from the current job if this is specified.</para>
-        /// <para>If a job is queued and then ready while another thread is already running with this threadName, the jobExecution will either be held or moved to the other thread's queue.</para>
-        /// </summary>
-        [DefaultValue(null)]
-        string ThreadName { get; }
-        [DefaultValue(false)]
-        bool SingleThreaded { get; }
-    }
-    public interface IJob
-    {        
-        /// <summary>
-        /// Called by the jobExecutor.
-        /// </summary>
-        /// <param name="execution"></param>        
-        /// <param name="status">Optional status set, to allow a more detailed status.</param>        
-        /// <returns>True for success, false for failure.</returns>
-        bool Execute(IJobExecutor jobExecutor, JobExecution execution, ref ExecutionStatus status);
-
-    }
+    
     public class JobProfile//: DatabaseObject<JobProfile>
     {        
         public int? JobProfileID { get; private set; }
@@ -96,7 +70,14 @@ namespace SEIDR.JobBase
         public string FileHash { get; set; }
         public string FileName => System.IO.Path.GetFileName(FilePath);
 
-        public short Priority { get; private set; } = 1;
+        /// <summary>
+        /// Determined in view by database based on: 
+        /// <para>* the amount of time since it was last queued/worked on,</para><para> 
+        /// * the Profile's Priority, the Execution's priority,</para><para> 
+        /// * the Procesing age (older processingDates get a slight boost to priority, future processing dates get a slightly lowered priority) 
+        /// </para>
+        /// </summary>
+        public int WorkPriority { get; private set; } = 1;
 
         public int RetryCount { get; private set; } = 0;
         public bool ForceSequence { get; private set; }
@@ -113,6 +94,8 @@ namespace SEIDR.JobBase
         public const string FAILURE = "F";
         public const string STEP_COMPLETE = "SC";
         public bool CanStart => DelayStart == null || DelayStart < DateTime.Now;
+
+        public bool Complete { get; set; }
     }
     public class ExecutionStatus //: DatabaseObject<ExecutionStatus>
     {                

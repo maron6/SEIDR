@@ -37,7 +37,9 @@ namespace SEIDR.JobBase
             FileSize = file.Length;
             _FileDate = file.CreationTime.Date;
             FileHash = file.GetFileHash();
-            file.FullName.ParseDateRegex(profile.FileDateMask, ref _FileDate);            
+            file.FullName.ParseDateRegex(profile.FileDateMask, ref _FileDate);
+            if (!CheckSQLDateValid(_FileDate))
+                _FileDate = file.CreationTime.Date;
         }
         public JobExecution CopyRegister(DatabaseManager manager, string SuccessFilePath, string FailureFilePath)
             => Register(manager, SuccessFilePath, FailureFilePath, true);
@@ -94,6 +96,13 @@ namespace SEIDR.JobBase
                 }
                 return job;
             }            
+        }
+
+        public bool CheckSQLDateValid(DateTime check)
+        {
+            if (check.CompareTo(new DateTime(1770, 1, 1, 0, 0, 0, 0)) <= 0 || check.CompareTo(new DateTime(9000, 12, 30)) >= 0)
+                return false;
+            return true;
         }
         public static string CheckFileHash(string FilePath) => FilePath.GetFileHash();
         public static string CheckFileHash(System.IO.FileInfo file) => file.GetFileHash();

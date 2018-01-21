@@ -116,11 +116,16 @@ namespace SEIDR.JobExecutor
             CanHandleSessionChangeEvent = false;
             CanHandlePowerEvent = false;
         }        
-        public const byte CANCEL_ID = 201;
-        public const byte REDIST_ID = 202;
+        const byte CANCEL_ID_OFFSET = 1;
+        const byte REDIST_ID_OFFSET = 2;
+        const byte SCHED_ID_OFFSET = 3;
+        int CANCEL_ID => (QueueThreadCount) + (CANCEL_ID_OFFSET);
+        int REDIST_ID => (QueueThreadCount + REDIST_ID_OFFSET);
+        int SCHED_ID => (QueueThreadCount + SCHED_ID_OFFSET);
         //public const int QUEUE_ID = 1;
-        public byte QueueThreadCount = 1;
+        public byte QueueThreadCount = 2;
         public byte ExecutionThreadCount = 4; //Default        
+        public int BatchSize = 5;
         public ServiceStatus MyStatus { get; private set; } = new ServiceStatus();
         List<Operator> MyOperators;
         void SetupFromConfig()
@@ -142,7 +147,10 @@ namespace SEIDR.JobExecutor
             };
             _MGR = new DataBase.DatabaseManager(db, "SEIDR") { RethrowException = false, ProgramName = "SEIDR.JobExecutor"};
             //OperationExecutor.ExecutionManager = _MGR.Clone(reThrowException: true, programName: "SEIDR.JobExecutor Query");
-            
+
+            temp = appSettings["BatchSize"];
+            if (!int.TryParse(appSettings["BatchSize"], out BatchSize) || BatchSize < 5)
+                BatchSize = 5;
 
             LogDirectory = appSettings["LogRootDirectory"] ?? @"C:\Logs\SEIDR.Operator\";
             if (!Directory.Exists(LogDirectory))
@@ -201,26 +209,6 @@ namespace SEIDR.JobExecutor
             */
         }
         
-        public Operator GetOperator(OperatorType type, byte ID)
-        {
-            return (from o in MyOperators
-                    where o.MyType == type
-                    && o.ID == ID
-                    select o).FirstOrDefault();
-        }
-
-        public Operator GetOperatorByBatchID(OperatorType type, int BatchID)
-        {
-            var ops = (from op in MyOperators
-                       where op.MyType == type
-                       select op);
-            foreach(var op in ops)
-            {
-                if (op.CheckForBatch(BatchID))
-                    return op;
-            }
-            return null;
-        }
 
         static void Main(string[] args)
         {
@@ -265,6 +253,7 @@ namespace SEIDR.JobExecutor
 
             executorList.Add(new ReDistributor(REDIST_ID, DataManager, this, jeList));
             executorList.Add(new CancellationExecutor(CANCEL_ID, this, DataManager, jeList));
+            executorList.Add(new ScheduleChecker(SCHED_ID, this, DataManager));
             //MyOperators.Add(new Queue(this, QUEUE_ID));
 
 
@@ -392,10 +381,20 @@ namespace SEIDR.JobExecutor
                 WaitLoops++;
             }
         }
+        public int WorkingCount
+        {
+            get
+            {
+                return executorList.Count(j=> j.IsWorking);
+            }
+        }
+        public int ExecutorCount
+            => executorList.Count(ex => ex.ExecutorType == ExecutorType.Job);
+
         DataBase.DatabaseManager _MGR;
         public DataBase.DatabaseManager DataManager { get { return _MGR; } }
         Mailer _Mailer; //Sends status emails only...
-        bool _ServiceAlive;
+        volatile bool _ServiceAlive;
         public bool ServiceAlive
         {
             get
@@ -484,108 +483,12 @@ namespace SEIDR.JobExecutor
         }
         string LogFileFormat = "SEIDR.{0}.txt";
         #endregion
-        #region File Information helpers
-        public long GetFileSize(string FilePath)
-        {
-            FileInfo f = new FileInfo(FilePath);
-            if (f.Exists)
-                return f.Length;
-            return -1;
-        }
-        public DateTime ParseNameDate(FileInfo file, string format, int dateOffset = 0)
-        {
-            DateTime Default = file.CreationTime.AddDays(dateOffset);
-            DateTime temp = Default.AddDays(0);
-            string fName = Path.GetFileNameWithoutExtension(file.Name);
-            if (format == "UNSPECIFIED")
-            {
-                string f = fName;
-                f = System.Text.RegularExpressions.Regex.Replace(f, @"[^0-9]+", "");
-                if (DateFormatter.ParseOnce(f, out temp))
-                    return CheckSQLDateValid(temp, fName, format) ? temp.AddDays(dateOffset) : Default;
-                return Default;
-            }
-            if (fName.ParseDate(format, out temp))
-            {
-                temp = temp.AddDays(dateOffset);                
-                if (CheckSQLDateValid(temp, fName, format))
-                    return temp;
-            }
-            return Default;
-        }
-        bool CheckSQLDateValid(DateTime check, string file, string format)
-        {
-            if (check.CompareTo(new DateTime(1770, 1, 1, 0, 0, 0, 0)) <= 0 || check.CompareTo(new DateTime(9000, 12, 30)) >= 0)            
-                return false;            
-            return true;
-        }
-        #endregion
-        #region Batch Redistribution
-        public void DistributeBatch(Batch nonSpecifiedThreadBatch)
-        {
-            var leastWork = (from o in MyOperators
-                             where o.MyType == OperatorType.Execution
-                             select o).OrderBy(o => o.Workload).FirstOrDefault();
-            if (leastWork != null)
-                leastWork.AddBatch(nonSpecifiedThreadBatch);            
-        }
-        public void DistributeBatches(IEnumerable<Batch> noThreadBatches)
-        {
-            noThreadBatches.Where(b => b.ThreadID == null || b.ThreadID >= ExecutorCount ).ForEach(b => DistributeBatch(b));
-            noThreadBatches.Where(b => b.ThreadID != null && b.ThreadID < ExecutorCount).ForEach(b =>
-            {
-                var o = GetOperator(OperatorType.Execution, b.ThreadID.Value);
-                o.AddBatch(b);
-            });
-        }
-
-
-        int _Maintenance = -1;
-        int _Executor = -1;
-        public int MaintenanceCount
-        {
-            get
-            {
-                if(_Maintenance < 0)
-                    _Maintenance = (from o in MyOperators
-                        where o.MyType == OperatorType.Maintenance
-                        select o).Count();
-                return _Maintenance;
-            }
-        }
-        public int ExecutorCount
-        {
-            get
-            {
-                if(_Executor < 0)
-                    _Executor = (from o in MyOperators
-                        where o.MyType == OperatorType.Execution
-                        select o).Count();
-                return _Executor;
-            }
-        }
-        public int WorkingCount
-        {
-            get
-            {
-                return (from o in MyOperators
-                        where o.Working
-                        select o).Count();
-            }
-        }
+     
         public ManualResetEvent PauseEvent
         {
             get
             {
                 return _mre;
-            }
-        }
-        byte _BatchSize = 1;
-        public byte BatchSize
-        {
-            get
-            {
-                return _BatchSize;
             }
         }
 
@@ -596,6 +499,5 @@ namespace SEIDR.JobExecutor
                 return 4;
             }
         }
-        #endregion
     }
 }

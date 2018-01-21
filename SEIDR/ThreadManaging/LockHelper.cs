@@ -6,8 +6,16 @@ using System.Threading.Tasks;
 
 namespace SEIDR.ThreadManaging
 {
+    /// <summary>
+    /// Helper for using <see cref="LockManager"/> class
+    /// </summary>
     public class LockHelper: IDisposable
     {
+        /// <summary>        
+        /// Helper for using <see cref="LockManager"/> class
+        /// </summary>
+        /// <param name="manager">Manager whose lock level is managed. Should be unlocked when creating the helper.</param>
+        /// <param name="lockLevel">Target lock level for the helper to acquire.</param>
         public LockHelper(LockManager manager, Lock lockLevel = Lock.Shared)
         {
             if (lockLevel == Lock.Unlocked)
@@ -16,6 +24,26 @@ namespace SEIDR.ThreadManaging
             if (mgr.HasLock)
                 throw new ArgumentException("The LockManager has already obtained a lock", "manager");
             mgr.Acquire(lockLevel);
+        }
+        /// <summary>
+        /// Helper for using <see cref="LockManager"/> class
+        /// </summary>
+        /// <param name="lockLevel"></param>
+        /// <param name="target"></param>
+        /// <param name="timeout">Set to a value > 0 to limit how long it can take to acquire the lock.</param>
+        public LockHelper(Lock lockLevel, string target = "DEFAULT", uint timeout = 0)
+        {
+            if(lockLevel == Lock.Unlocked)
+            {
+                throw new ArgumentOutOfRangeException(nameof(lockLevel), "Lock is below locking boundary");
+            }
+            else if (lockLevel == Lock.Exclusive_Intent)
+            {
+                throw new ArgumentException(nameof(lockLevel), "Lock Level Exclusive Intent is not valid if a LockManager is not passed to the helper");
+            }
+            mgr = new LockManager(target, timeout);
+            mgr.Acquire(lockLevel);
+
         }
         LockManager mgr;
         #region IDisposable Support

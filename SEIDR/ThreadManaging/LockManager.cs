@@ -1,6 +1,7 @@
 ﻿namespace SEIDR.ThreadManaging
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
 
     public enum Lock
@@ -61,7 +62,15 @@
         /// <summary>
         /// Ensure release during disposal.
         /// </summary>
-        ~LockManager() { Release(true); }
+        ~LockManager()
+        {
+            
+            Release(true);
+            lock (_lock)
+            {
+                reclaimedLockIDList.Add(LockID);
+            }
+        }
         /// <summary>
         /// A lock below this value is considered 'Share' 
         /// <para>
@@ -95,21 +104,24 @@
         /// A unique ID for your LockManager object
         /// </summary>
         public readonly uint LockID;
-        static Dictionary<string, uint?> _IntentHolder;
-        static Dictionary<string, uint?> _ExclusiveHolder; //Up to one exclusive at a time. Many shares
-        static Dictionary<string, uint> _ShareCount; //For checking the number of shares on a lock target at a time
-        static Dictionary<string, object> _LockTargets; //For actual lock management
-        static Dictionary<string, DateTime> _IntentExpiration;
+        static volatile List<uint> reclaimedLockIDList;
+        //Note: logic using the dictionaries are not atomic, so still need to use locking
+        static ConcurrentDictionary<string, uint?> _IntentHolder;
+        static ConcurrentDictionary<string, uint?> _ExclusiveHolder; //Up to one exclusive at a time. Many shares
+        static ConcurrentDictionary<string, uint> _ShareCount; //For checking the number of shares on a lock target at a time
+        static ConcurrentDictionary<string, object> _LockTargets; //For actual lock management
+        static ConcurrentDictionary<string, DateTime> _IntentExpiration;
         static LockManager()
         {
             //_IntentFlag = false;
             //_ExclusiveHolder = null;
-            _IntentHolder = new Dictionary<string, uint?>();
-            _ExclusiveHolder = new Dictionary<string, uint?>();
-            _ShareCount = new Dictionary<string, uint>();
-            _LockTargets = new Dictionary<string, object>();
-            _IntentExpiration = new Dictionary<string, DateTime>();
-            _lock = new object();            
+            _IntentHolder = new ConcurrentDictionary<string, uint?>();
+            _ExclusiveHolder = new ConcurrentDictionary<string, uint?>();
+            _ShareCount = new ConcurrentDictionary<string, uint>();
+            _LockTargets = new ConcurrentDictionary<string, object>();
+            _IntentExpiration = new ConcurrentDictionary<string, DateTime>();
+            _lock = new object();
+            reclaimedLockIDList = new List<uint>();
             //lockList = new SortedList<Lock, int>();
             //Use a loop in case more lock types are considered later on.
             //foreach (Lock l in Enum.GetValues(typeof(Lock)))
@@ -206,14 +218,22 @@
             TimeOut = timeout;
             lock (_lock)
             {
-                LockID = _IDCounter++;
+                if (reclaimedLockIDList.HasMinimumCount(1))
+                {
+                    LockID = reclaimedLockIDList[0];
+                    reclaimedLockIDList.RemoveAt(0);
+                }
+                else
+                    LockID = _IDCounter++;
+
+
                 _myTarget = TARGET.ToUpper();
                 if (!_LockTargets.ContainsKey(_myTarget))
                 {
-                    _LockTargets.Add(_myTarget, new object());
-                    _IntentHolder.Add(_myTarget, null);
-                    _ExclusiveHolder.Add(_myTarget, null);
-                    _ShareCount.Add(_myTarget, 0);
+                    _LockTargets.TryAdd(_myTarget, new object());
+                    _IntentHolder.TryAdd(_myTarget, null);                    
+                    _ExclusiveHolder.TryAdd(_myTarget, null);
+                    _ShareCount.TryAdd(_myTarget, 0);
                 }
             }
         }
@@ -253,12 +273,13 @@
                 }
                 if (xl >= ShareBoundary)
                 {
+                    DateTime d;
                     lock (_LockTargets[_myTarget])
                     {
                         if(_ExclusiveHolder[_myTarget] == LockID)
                             _ExclusiveHolder[_myTarget] = null;
                         if (_IntentExpiration.ContainsKey(_myTarget))
-                            _IntentExpiration.Remove(_myTarget);
+                            _IntentExpiration.TryRemove(_myTarget, out d);
                         if (_IntentHolder[_myTarget] == LockID)
                             _IntentHolder[_myTarget] = null;
                     }
@@ -375,8 +396,9 @@
             {
                 if(_IntentHolder[_myTarget] == LockID && _IntentExpiration.ContainsKey(_myTarget))
                 {
+                    DateTime d;
                     //If we still have the intent holder and it's set to expire, remove the expiration before the loop's test.
-                    _IntentExpiration.Remove(_myTarget);
+                    _IntentExpiration.TryRemove(_myTarget, out d);
                 }
 
             }
@@ -405,7 +427,7 @@
                         if (exp > DateTime.Now)
                         {
                             _IntentHolder[_myTarget] = null;
-                            _IntentExpiration.Remove(_myTarget); 
+                            _IntentExpiration.TryRemove(_myTarget, out exp); 
                             //Remove intent. Note that expiration is only set when grabbing exclusive intent but not exclusive.
                             //Removed when grabbing exclusive
                         }

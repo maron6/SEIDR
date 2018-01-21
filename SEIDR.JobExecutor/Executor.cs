@@ -48,7 +48,7 @@ namespace SEIDR.JobExecutor
             ThreadName = newName;
             _Manager.ProgramName = mgrName;            
         }
-        public bool IsWorking { get; set; }
+        public volatile bool IsWorking;
         public abstract int Workload { get; }
         protected abstract void Work();
         protected abstract string HandleAbort();
@@ -82,7 +82,7 @@ namespace SEIDR.JobExecutor
                 worker.Start();
             }
         }
-        public bool Stop()
+        public virtual bool Stop()
         {
             lock (WorkLock)
             {

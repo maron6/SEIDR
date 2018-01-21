@@ -30,10 +30,23 @@ namespace SEIDR.JobExecutor
         const string SET_STATUS = "SEIDR.usp_JobExecution_SetStatus";
         const string REQUEUE = "SEIDR.usp_JobExecution_Requeue";
         const string GET_WORK = "SEIDR.usp_JobExecution_sl_Work";
+        const string START_WORK = "SEIDR.usp_JobExecution_StartWork";
         JobProfile currentJob;
-        JobExecution currentExecution;
-        
-    
+        volatile JobExecution currentExecution;
+        volatile IJobMetaData currentJobMetaData;
+
+        public volatile bool CancelRequested = false;
+        volatile bool cancelSuccess = false;
+        public bool checkAcknowledgeCancel()
+        {
+            if (!CancelRequested)
+                return false;
+
+            cancelSuccess = true;
+            return true;
+        }
+
+
         public DatabaseConnection connection => _Manager.CloneConnection();
 
         public JobProfile job => currentJob;
@@ -57,24 +70,33 @@ namespace SEIDR.JobExecutor
             
         }
         protected override void Work()
-        {            
-
+        {
+            cancelSuccess = false;
+            CancelRequested = false;
             try
             {
                 currentExecution = CheckWork();
                 currentJob = _Manager.SelectSingle<JobProfile>(currentExecution);
-                SetExecutionStatus(false, true);
-                IJobMetaData data;
+                SetExecutionStatus(false, true);                
                 ExecutionStatus status = null;
                 bool success = false;
                 using (new LockHelper(libraryLock, Lock.Shared))
                 {
 
-                    IJob job = Library.GetOperation(currentExecution.JobName, currentExecution.JobNameSpace, out data);
+                    IJob job = Library.GetOperation(currentExecution.JobName, 
+                            currentExecution.JobNameSpace, 
+                            out currentJobMetaData);
                     success = job.Execute(this, currentExecution, ref status);
                 }
-                SetExecutionStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
-                SendNotifications(currentExecution, success);
+                if (cancelSuccess)
+                {
+                    SetExecutionStatus(false, false, "CX");
+                }
+                else
+                {
+                    SetExecutionStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
+                    SendNotifications(currentExecution, success);
+                }
                 //if(!success)
             }
             catch(Exception ex)
@@ -82,19 +104,31 @@ namespace SEIDR.JobExecutor
                 SetExecutionStatus(false, false);
                 LogError("JobExecutor.Work()", ex);
             }
+            finally
+            {
+                currentJobMetaData = null;
+            }
         }
         void SendNotifications(JobExecution executedJob, bool success)
         {
+            string subject;
+            string MailTo = string.Empty;            
             if (success)
             {
-                if (string.IsNullOrWhiteSpace(executedJob.SuccessNotificationMail))
+                if (string.IsNullOrWhiteSpace(executedJob.SuccessNotificationMail)
+                    || !executedJob.Complete) //Out parameter on set status.
                     return;
+                MailTo = executedJob.SuccessNotificationMail;
+                subject = "Job Execution completed: JobProfile " + executedJob.JobProfileID;
             }
             else
             {
                 if (string.IsNullOrWhiteSpace(executedJob.FailureNotificationMail))
                     return;
+                MailTo = executedJob.FailureNotificationMail;
+                subject = $"Job Execution Step failure: Job Profile {executedJob.JobProfileID}, Step {executedJob.StepNumber}";
             }
+            
         }
         void SetExecutionStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
         {
@@ -111,7 +145,8 @@ namespace SEIDR.JobExecutor
                 { "@Working", working },
                 { "@StepNumber", currentExecution.StepNumber },
                 { "@ExecutionStatusCode", statusCode },
-                { "@ExecutionStatusNameSpace", StatusNameSpace }
+                { "@ExecutionStatusNameSpace", StatusNameSpace },
+                { "@Complete", false }
             };
             using (var i = _Manager.GetBasicHelper(Keys, SET_STATUS))
             {                
@@ -124,6 +159,8 @@ namespace SEIDR.JobExecutor
                     else
                         CallerService.QueueExecution(next);
                 }
+                else
+                    currentExecution.Complete = (bool)i["@Complete"];
             }
         }
         public void Queue(JobExecution job, bool Cut = false)
@@ -186,11 +223,10 @@ namespace SEIDR.JobExecutor
             {
                 CheckLibrary();
                 lock (lockObj)
-                {
-                    JobExecution je = null;
+                {                    
                     for(int i = 0; i < workQueue.Count; i++)
                     {
-                        je = workQueue[i];                        
+                        var je = workQueue[i];                        
                         if (!je.CanStart)
                             continue;
                         //var md = Library.GetJobMetaData(je.JobName, je.JobNameSpace);
@@ -205,12 +241,21 @@ namespace SEIDR.JobExecutor
                             }
                         }
                         workQueue.RemoveAt(i);
+                        using(var h = _Manager.GetBasicHelper())
+                        {
+                            h.QualifiedProcedure = START_WORK;
+                            h["@JobExecutionID"] = je.JobExecutionID;
+                            je = _Manager.SelectSingle<JobExecution>(h);
+                            if (h.ReturnValue != 0)
+                                continue;
+                        }
+
                         string threadName = je.JobThreadName;
                         if (string.IsNullOrWhiteSpace(je.JobThreadName))
                             threadName = je.JobName;
                         SetThreadName(threadName);
-                    }                                        
-                    return je;
+                        return je;
+                    }         
                 }
             }
             return null;
@@ -230,9 +275,9 @@ namespace SEIDR.JobExecutor
                         return 1;
                     if (b.DelayStart.HasValue)
                         return -1; // (int)DateTime.Now.Subtract(b.DelayStart.Value).TotalSeconds; //Treat b as greater
-                    if (a.Priority > b.Priority)
+                    if (a.WorkPriority > b.WorkPriority)
                         return 1;
-                    return a.Priority < b.Priority ? -1 : 0;                    
+                    return a.WorkPriority < b.WorkPriority ? -1 : 0;                    
                 });
         }
         /// <summary>
@@ -279,7 +324,8 @@ namespace SEIDR.JobExecutor
         /// </summary>
         /// <param name="JobExecutionID"></param>
         /// <param name="remove">If it's not the current execution, remove from the workload queue.</param>
-        /// <returns>True if the JobExecutionID is being worked or in the queue. <para>Null if it has been removed from the queue.</para>
+        /// <returns>True if the JobExecutionID is being worked or in the queue. 
+        /// <para>Null if it has been removed from the queue as a result of this call.</para>
         /// <para>False if the execution was not on this Executor's workload</para>
         /// </returns>
         public bool? CheckWorkLoad(long JobExecutionID, bool remove)
@@ -364,6 +410,18 @@ namespace SEIDR.JobExecutor
             SetExecutionStatus(false, false, "CX");
             return msg;
             
+        }
+        public override bool Stop()
+        {
+            if (CallerService.ServiceAlive)
+            {
+                if (currentJobMetaData.SafeCancel)
+                {
+                    CancelRequested = true;
+                    return false; //Thread does not need to be restarted
+                }
+            }
+            return base.Stop();
         }
     }
 }
