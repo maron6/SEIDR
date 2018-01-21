@@ -148,7 +148,7 @@ namespace SEIDR.Doc
             return f.Length;
         }
         /// <summary>
-        /// Generates a file name using the dateFormat and passed FileDate. Multiple date offsets can be used by offsetting with an alias.
+        /// Generates a new file name using the dateFormat and passed FileDate. Multiple date offsets can be used by offsetting with an alias.
         /// <para>E.g., &lt;a:0YYYY0MM-1D>test_&lt;a:YY>_&lt;a:MM>_&lt;a:DD>_&lt;DD>.txt for date 2017/12/2 should lead to test_17_12_01_02.txt</para>
         /// </summary>
         /// <param name="dateFormat"></param>
@@ -259,6 +259,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// Parses the file date out of a file.
         /// <para>Example: file_&lt;YYYY>_&lt;MM>_&lt;DD>_*&lt;0YYYY0MM1DD>.txt might be used for file_2017_12_01_through_2017_12_04.txt to get 2017/12/02</para>
+        /// <para>Another example for the same fileName: file_*_through_&lt;YYYY>_&lt;MM>_&lt;DD>_&lt;0YYYY0MM-2DD>.txt could be used for file_2017_12_01_through_2017_12_04.txt to get 2017/12/02</para>
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="dateFormat"></param>
@@ -274,7 +275,8 @@ namespace SEIDR.Doc
             string offsetPattern = @"[<](\+|-)?\d+(YYYY|YY)(\+|-)?\d+M{1,2}(\+|-)?\d+D{1,2}[>]";
             var r = new Regex(offsetPattern, RegexOptions.IgnoreCase|RegexOptions.IgnorePatternWhitespace);
             var m = r.Match(dateFormat); //get formats to use.
-            int offset = 0;            
+            //int offset = 0;
+            int year = 0, month = 0, day = 0;
             if(m.Success)
             {
                 string s = m.Value;
@@ -295,31 +297,19 @@ namespace SEIDR.Doc
                     mm = s.IndexOf("M");
                     mOffset = 1;
                 }
-                int dOffset = 2;
                 int dd = s.IndexOf("DD");
                 if (dd < 0)
                 {
                     dd = s.IndexOf("D");
-                    dOffset = 1;
                 }
-                int year = Int32.Parse(s.Substring(0, yy));
-                int month = Int32.Parse(s.Substring(yy + yOffset, mm - yy - yOffset));
-                int day = Int32.Parse(s.Substring(mm + mOffset, dd - mm - mOffset));
-
-                td = td.AddDays(day);
-                td = td.AddMonths(month);
-                td = td.AddYears(year);
-                offset = (int)fileDate.Subtract(td).TotalDays;
+                year = Int32.Parse(s.Substring(0, yy));
+                month = Int32.Parse(s.Substring(yy + yOffset, mm - yy - yOffset));
+                day = Int32.Parse(s.Substring(mm + mOffset, dd - mm - mOffset));
             }
-            //DateTime dfd = fileDate;
             bool x;
             if (x = fileName.ParseDate(dateFormat, out fileDate))
-                fileDate = fileDate.AddDays(offset);
-            /*else
-            {
-                //dfd = dfd.AddDays(offset);
-                fileDate = new DateTime(1, 1, 1);
-            }*/
+                fileDate = fileDate.AddDays(day).AddMonths(month).AddYears(year);
+            
             return x;
         }        
         /// <summary>
