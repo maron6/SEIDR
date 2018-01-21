@@ -10,20 +10,21 @@ using SEIDR.ThreadManaging;
 
 namespace SEIDR.JobExecutor
 {
-    public sealed class JobExecutor: Executor, IJobExecutor
+    public sealed class JobExecutor : Executor, IJobExecutor
     {
+        int BatchSize => CallerService.BatchSize;
         static JobLibrary Library { get; set; } = null;
         static DateTime LastLibraryCheck = new DateTime(1, 1, 1);
         LockManager libraryLock = new LockManager(nameof(JobExecutor.Library)); //NOT static.
         public static void ConfigureLibrary(string location)
         {
-            if(Library == null)
-                Library = new JobLibrary(location);            
+            if (Library == null)
+                Library = new JobLibrary(location);
         }
         static object lockObj = new object();
 
         public JobExecutor(int id, DatabaseManager manager, JobExecutorService caller)
-            :base(id, manager, caller, ExecutorType.Job)
+            : base(id, manager, caller, ExecutorType.Job)
         {
 
         }
@@ -50,16 +51,16 @@ namespace SEIDR.JobExecutor
         public DatabaseConnection connection => _Manager.CloneConnection();
 
         public JobProfile job => currentJob;
-        
 
-  
+
+
         public void Requeue(int delayMinutes)
-        {            
+        {
             Dictionary<string, object> Keys = new Dictionary<string, object>
             {
                 { "@JobExecutionID", currentExecution.JobExecutionID}
             };
-            using(var i = _Manager.GetBasicHelper(Keys, REQUEUE))
+            using (var i = _Manager.GetBasicHelper(Keys, REQUEUE))
             {
                 var ds = _Manager.Execute(i);
                 var jb = ds.GetFirstRowOrNull(0).ToContentRecord<JobExecution>();
@@ -67,7 +68,7 @@ namespace SEIDR.JobExecutor
                 Queue(jb);
                 currentExecution = null;
             }
-            
+
         }
         protected override void Work()
         {
@@ -77,14 +78,14 @@ namespace SEIDR.JobExecutor
             {
                 currentExecution = CheckWork();
                 currentJob = _Manager.SelectSingle<JobProfile>(currentExecution);
-                SetExecutionStatus(false, true);                
+                SetExecutionStatus(false, true);
                 ExecutionStatus status = null;
                 bool success = false;
                 using (new LockHelper(libraryLock, Lock.Shared))
                 {
 
-                    IJob job = Library.GetOperation(currentExecution.JobName, 
-                            currentExecution.JobNameSpace, 
+                    IJob job = Library.GetOperation(currentExecution.JobName,
+                            currentExecution.JobNameSpace,
                             out currentJobMetaData);
                     success = job.Execute(this, currentExecution, ref status);
                 }
@@ -99,7 +100,7 @@ namespace SEIDR.JobExecutor
                 }
                 //if(!success)
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 SetExecutionStatus(false, false);
                 LogError("JobExecutor.Work()", ex);
@@ -112,7 +113,7 @@ namespace SEIDR.JobExecutor
         void SendNotifications(JobExecution executedJob, bool success)
         {
             string subject;
-            string MailTo = string.Empty;            
+            string MailTo = string.Empty;
             if (success)
             {
                 if (string.IsNullOrWhiteSpace(executedJob.SuccessNotificationMail)
@@ -128,12 +129,12 @@ namespace SEIDR.JobExecutor
                 MailTo = executedJob.FailureNotificationMail;
                 subject = $"Job Execution Step failure: Job Profile {executedJob.JobProfileID}, Step {executedJob.StepNumber}";
             }
-            
+
         }
         void SetExecutionStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
         {
             if (currentExecution == null)
-                return;            
+                return;
             Dictionary<string, object> Keys = new Dictionary<string, object>
             {
                 { "@JobExecutionID", currentExecution.JobExecutionID},
@@ -149,7 +150,7 @@ namespace SEIDR.JobExecutor
                 { "@Complete", false }
             };
             using (var i = _Manager.GetBasicHelper(Keys, SET_STATUS))
-            {                
+            {
                 i.BeginTran();
                 var next = _Manager.Execute(i, CommitSuccess: true).GetFirstRowOrNull().ToContentRecord<JobExecution>();
                 if (next != null)
@@ -223,10 +224,10 @@ namespace SEIDR.JobExecutor
             {
                 CheckLibrary();
                 lock (lockObj)
-                {                    
-                    for(int i = 0; i < workQueue.Count; i++)
+                {
+                    for (int i = 0; i < workQueue.Count; i++)
                     {
-                        var je = workQueue[i];                        
+                        var je = workQueue[i];
                         if (!je.CanStart)
                             continue;
                         //var md = Library.GetJobMetaData(je.JobName, je.JobNameSpace);
@@ -241,7 +242,7 @@ namespace SEIDR.JobExecutor
                             }
                         }
                         workQueue.RemoveAt(i);
-                        using(var h = _Manager.GetBasicHelper())
+                        using (var h = _Manager.GetBasicHelper())
                         {
                             h.QualifiedProcedure = START_WORK;
                             h["@JobExecutionID"] = je.JobExecutionID;
@@ -255,30 +256,30 @@ namespace SEIDR.JobExecutor
                             threadName = je.JobName;
                         SetThreadName(threadName);
                         return je;
-                    }         
+                    }
                 }
             }
             return null;
         }
         void SortWork()
         {
-             workQueue.Sort((a, b) => 
-                {
+            workQueue.Sort((a, b) =>
+               {
                     //positive: a is greater.                    
                     if (a.DelayStart.HasValue && b.DelayStart.HasValue)
-                    {
-                        if (a.DelayStart.Value > b.DelayStart.Value)
-                            return 1;
-                        return -1;
-                    }
-                    else if (a.DelayStart.HasValue)
-                        return 1;
-                    if (b.DelayStart.HasValue)
-                        return -1; // (int)DateTime.Now.Subtract(b.DelayStart.Value).TotalSeconds; //Treat b as greater
+                   {
+                       if (a.DelayStart.Value > b.DelayStart.Value)
+                           return 1;
+                       return -1;
+                   }
+                   else if (a.DelayStart.HasValue)
+                       return 1;
+                   if (b.DelayStart.HasValue)
+                       return -1; // (int)DateTime.Now.Subtract(b.DelayStart.Value).TotalSeconds; //Treat b as greater
                     if (a.WorkPriority > b.WorkPriority)
-                        return 1;
-                    return a.WorkPriority < b.WorkPriority ? -1 : 0;                    
-                });
+                       return 1;
+                   return a.WorkPriority < b.WorkPriority ? -1 : 0;
+               });
         }
         /// <summary>
         /// Removes up to <paramref name="count"/> records from the back of the queue.
@@ -288,7 +289,7 @@ namespace SEIDR.JobExecutor
         /// <returns></returns>
         public void UndistributeWork(int count, List<JobExecution> workingList)
         {
-            
+
             if (Workload == 0)
                 return;
             lock (lockObj)
@@ -302,7 +303,7 @@ namespace SEIDR.JobExecutor
                     workingList.Add(je);
                     workQueue.RemoveAt(i); //Going backwards through the list, don't need to worry about the position messing up.                  
                 }
-            }            
+            }
         }
         public void DistributeWork(int count, List<JobExecution> workList)
         {
@@ -314,7 +315,7 @@ namespace SEIDR.JobExecutor
                     return;
                 workQueue.AddRangeLimited(workList, count);
                 SortWork();
-                workList.RemoveRange(0, count);                
+                workList.RemoveRange(0, count);
             }
         }
         void DistributeWork(List<JobExecution> list)
@@ -340,7 +341,7 @@ namespace SEIDR.JobExecutor
             lock (lockObj)
             {
                 int i = workQueue.FindIndex(je => je.JobExecutionID == JobExecutionID);
-                if(i >= 0)
+                if (i >= 0)
                 {
                     if (remove)
                     {
@@ -356,7 +357,7 @@ namespace SEIDR.JobExecutor
         protected override void CheckWorkLoad()
         {
             List<JobExecution> temp = new List<JobExecution>();
-            if(CallerService.GrabShareableWork(this, temp))
+            if (CallerService.GrabShareableWork(this, temp))
             {
                 DistributeWork(temp);
                 return;
@@ -367,11 +368,20 @@ namespace SEIDR.JobExecutor
             {
                 h.QualifiedProcedure = GET_WORK;
                 h.AddKey(nameof(ThreadID), ThreadID);
-                DistributeWork(_Manager.Execute(h).ToContentList<JobExecution>());                
+                h.AddKey(nameof(BatchSize), BatchSize);
+
+                DistributeWork(_Manager.SelectList<JobExecution>(h));
             }
         }
         List<JobExecution> workQueue;
-        public override int Workload => workQueue.Where(je => je.CanStart).Count();
+        public override int Workload
+        {
+            get
+            {
+                lock (lockObj)
+                    return workQueue.Count(je => je.CanStart);
+            }
+        }
         public override void Wait(int sleepSeconds, string logReason)
         {
             CallerService.LogFileError(this, currentExecution, "Sleep Requested: " + logReason);

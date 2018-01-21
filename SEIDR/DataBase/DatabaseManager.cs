@@ -297,7 +297,7 @@ namespace SEIDR.DataBase
             where RT : class, new() => SelectSingle<RT>(obj, Schema: null, ignore: ignoreProperties);
         #endregion
         const int DEADLOCK_SLEEP = 3500;
-        static PropertyInfo DBConnectionInfo = typeof(DatabaseObject).GetProperty("Connection");
+        static PropertyInfo DatabaseObjectManagerInfo = typeof(DatabaseObject).GetProperty(nameof(DatabaseObject.Manager));
         /// <summary>
         /// Executes a SQL Command based on the ConnectionProcedureCallModel. 
         /// <para>If there's a transaction and <paramref name="CommitSuccess"/> is true, will commit the transaction on the model.</para>
@@ -826,7 +826,7 @@ namespace SEIDR.DataBase
             RT ex = ds.ToContentRecord<RT>(0, 0);
             if (typeof(RT).IsSubclassOf(typeof(DatabaseObject)))
             {
-                DBConnectionInfo.SetValue(ex, _conn);
+                DatabaseObjectManagerInfo.SetValue(ex, this); // _conn);
             }
             return ex;
         }
@@ -848,11 +848,11 @@ namespace SEIDR.DataBase
             ex = ds.Tables[0].Rows[0].ToContentRecord<RT>();
             if (t.IsSubclassOf(typeof(DatabaseObject)))
             {
-                DBConnectionInfo.SetValue(ex, _conn);
+                DatabaseObjectManagerInfo.SetValue(ex, this); // _conn);
             }
             return ex;
         }
-        public IEnumerable<RT> SelectList<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null) where RT : class, new()
+        public List<RT> SelectList<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null) where RT : class, new()
         {
             RT ex = new RT();
             Type t = ex.GetType();
@@ -865,18 +865,25 @@ namespace SEIDR.DataBase
             m.SetPropertyIgnore(ignore);
             return SelectList<RT>(m);
         }
-        public IEnumerable<RT> SelectList<RT>(DatabaseManagerHelperModel i) where RT : class, new()
+        /// <summary>
+        /// Select a list of <typeparamref name="RT"/> records, based on the information in the helper model.
+        /// </summary>
+        /// <typeparam name="RT"></typeparam>
+        /// <param name="i"></param>
+        /// <returns></returns>
+        public List<RT> SelectList<RT>(DatabaseManagerHelperModel i) where RT : class, new()
         {
             DataSet ds = Execute(i);
             if (ds.Tables.Count == 0)
                 return null;
             Type t = typeof(RT);
-            IEnumerable<RT> temp = ds.Tables[0].ToContentList<RT>();
+            List<RT> temp = ds.Tables[0].ToContentList<RT>();
             if (t.IsSubclassOf(typeof(DatabaseObject)))
             {
+                //If it's a database object, have it's manager default to the one that created it. (this)
                 temp.ForEach(r =>
                 {
-                    DBConnectionInfo.SetValue(r, _conn);
+                    DatabaseObjectManagerInfo.SetValue(r, this);// _conn);
                 });
             }
             return temp;
@@ -930,6 +937,14 @@ namespace SEIDR.DataBase
             m.SetPropertyIgnore(ignore);
             Execute(m);
         }
+        /// <summary>
+        /// Calls a procedure whose name is determined by combining <see cref="DeleteFormat"/> with the name of type <typeparamref name="RT"/>.
+        /// </summary>
+        /// <typeparam name="RT"></typeparam>
+        /// <param name="paramObj"></param>
+        /// <param name="suffix"></param>
+        /// <param name="Schema"></param>
+        /// <param name="ignore"></param>
         public void Delete<RT>(RT paramObj, string suffix = null, string Schema = null, string[] ignore = null ) where RT: class, new()
         {
 
