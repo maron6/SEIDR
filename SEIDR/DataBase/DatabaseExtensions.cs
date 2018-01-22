@@ -221,6 +221,13 @@ namespace SEIDR.DataBase
                 });
             }
         }
+        /// <summary>
+        /// Maps the properties of <paramref name="obj"/> to a new row in <paramref name="dt"/>.
+        /// <para>If <paramref name="obj"/> is null, each column in the new row will be mapped to DBNull.</para>
+        /// </summary>
+        /// <typeparam name="RT"></typeparam>
+        /// <param name="dt"></param>
+        /// <param name="obj"></param>
         public static void AddRow<RT>(this DataTable dt, RT obj)
         {
             if (dt == null || dt.Columns.Count == 0)

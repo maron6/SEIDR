@@ -79,9 +79,8 @@ namespace SEIDR.JobExecutor
                 RetryOnDeadlock = true,                
                 Schema = "SEIDR"
             };            
-            DataTable dt = new DataTable("SEIDR.udt_Job");
-            dt.AddColumns<IJob>();
-            //dt.AddColumns<iOperationMetaData>();
+            DataTable dt = new DataTable("SEIDR.udt_JobMetaData");
+            dt.AddColumns<IJobMetaData>(nameof(IJobMetaData.SafeCancel)); //Don't need SafeCancel in the database.            
             maps.ForEach(m => dt.AddRow(m.Metadata));
             //model.SetKey("OperationList", dt);
             model.SetKey("JobList", dt);

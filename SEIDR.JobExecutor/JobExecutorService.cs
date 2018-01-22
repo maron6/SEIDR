@@ -215,6 +215,7 @@ namespace SEIDR.JobExecutor
             SetupFromConfig();
             LogFileMessage("STARTING UP");
             JobExecutor.CheckLibrary(DataManager);
+            JobExecutor.PopulateStatusList(DataManager);
             LogFileMessage("Job Library configured");
             #region Executor Set up            
             executorList = new List<Executor>();
@@ -265,7 +266,8 @@ namespace SEIDR.JobExecutor
             while (ServiceAlive)
             {
                 _mre.WaitOne();
-                     
+                JobExecutor.CheckLibrary(DataManager);
+                
                 int minute = DateTime.Now.Minute;
                 if (minute % 5 == 0)
                 {

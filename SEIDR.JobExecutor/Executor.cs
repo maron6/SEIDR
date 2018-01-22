@@ -75,11 +75,13 @@ namespace SEIDR.JobExecutor
             {
                 worker = new Thread(internalCall)
                 {
-                    IsBackground = true,
+                    IsBackground = true, 
+                    //Note that background threads if a service doesn't have any foreground threads.
+                    //Full threads because they're for long running processes.
                     Name = LogName
                 };
             }
-            int count = 15;
+            int count = 20;
             while(worker.ThreadState.In(ThreadState.AbortRequested, ThreadState.SuspendRequested) && count > 0)
             {
                 Wait(FAILURE_SLEEPTIME, "Waiting for thread to finish Abort/Suspend request...");
@@ -89,7 +91,11 @@ namespace SEIDR.JobExecutor
             {
                 if (worker.ThreadState.In(ThreadState.Running, ThreadState.WaitSleepJoin,
                     ThreadState.AbortRequested, ThreadState.SuspendRequested, ThreadState.Background))
+                {
+                    SetStatus("Executor.Call() - Thread Status is still: " + worker.ThreadState + " after waiting. Return.", 
+                        ThreadStatus.StatusType.Unknown);
                     return;
+                }
                 IsWorking = false;
                 worker.Start();
             }

@@ -15,14 +15,43 @@ namespace SEIDR.JobExecutor
         int BatchSize => CallerService.BatchSize;
         static JobLibrary Library { get; set; } = null;
         static DateTime LastLibraryCheck = new DateTime(1, 1, 1);
-        LockManager libraryLock = new LockManager(nameof(JobExecutor.Library)); //NOT static.
+
+        volatile static List<ExecutionStatus> statusList = new List<ExecutionStatus>();
+        public static void PopulateStatusList(DatabaseManager manager)
+        {
+            lock (statusListLock)
+            {
+                statusList.Clear();
+                statusList = manager.SelectList<ExecutionStatus>(Schema:"SEIDR");
+            }
+        }
+        void CheckStatus(ExecutionStatus check)
+        {
+            lock(statusListLock)
+            {
+                if (statusList.Exists(s => s.NameSpace == check.NameSpace && s.ExecutionStatusCode == check.ExecutionStatusCode))
+                    return;
+                statusList.Add(check);
+            }
+            //format: SEIDR.usp_{0}_i
+            _Manager.Insert(check);
+        }
+        const string LIBRARY_TARGET = nameof(SEIDR.JobExecutor) + "." + nameof(Library);
+        LockManager libraryLock = new LockManager(LIBRARY_TARGET); //NOT static.
+        static object statusListLock = new object();
         public static void ConfigureLibrary(string location)
         {
             if (Library == null)
                 Library = new JobLibrary(location);
         }
-        static object lockObj = new object();
-        internal static object NameLock = new object();
+        /// <summary>
+        /// Work Queue lock
+        /// </summary>
+        object workLockObj = new object();
+        /// <summary>
+        /// Thread name lock. (Since Job imports can be single thread required, organized by Name)
+        /// </summary>
+        static object NameLock = new object();
 
         public JobExecutor( DatabaseManager manager, JobExecutorService caller)
             : base(manager, caller, ExecutorType.Job)
@@ -54,7 +83,6 @@ namespace SEIDR.JobExecutor
         public JobProfile job => currentJob;
 
 
-
         public void Requeue(int delayMinutes)
         {
             Dictionary<string, object> Keys = new Dictionary<string, object>
@@ -78,16 +106,35 @@ namespace SEIDR.JobExecutor
             try
             {
                 currentExecution = CheckWork();
+                using (var h = _Manager.GetBasicHelper())
+                {
+                    h.QualifiedProcedure = START_WORK;
+                    h["@JobExecutionID"] = currentExecution.JobExecutionID;
+                    currentExecution = _Manager.SelectSingle<JobExecution>(h);
+                    if (h.ReturnValue != 0 || currentExecution == null)
+                        return; //ThreadName will have been changed, but that should be okay.
+                }
                 currentJob = _Manager.SelectSingle<JobProfile>(currentExecution);
                 SetExecutionStatus(false, true);
                 ExecutionStatus status = null;
                 bool success = false;
                 using (new LockHelper(libraryLock, Lock.Shared))
                 {
-
+#pragma warning disable 420
+                    int newThread;
                     IJob job = Library.GetOperation(currentExecution.JobName,
                             currentExecution.JobNameSpace,
                             out currentJobMetaData);
+#pragma warning restore 420
+
+                    if (!job.CheckThread(currentExecution, ThreadID, out newThread)
+                        && newThread % CallerService.ExecutorCount != ThreadID) 
+                    {
+                        //if new thread goes over ExecutorCount, it's okay in this thread. if newThread % ExecutorCount is this ID
+                        currentExecution.RequiredThreadID = newThread;
+                        CallerService.QueueExecution(currentExecution);
+                        return;
+                    }
                     success = job.Execute(this, currentExecution, ref status);
                 }
                 if (cancelSuccess)
@@ -96,10 +143,14 @@ namespace SEIDR.JobExecutor
                 }
                 else
                 {
+                    if (string.IsNullOrWhiteSpace(status.NameSpace))
+                        status.NameSpace = currentJobMetaData.NameSpace;
+
+                    CheckStatus(status);
+
                     SetExecutionStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
                     SendNotifications(currentExecution, success);
                 }
-                //if(!success)
             }
             catch (Exception ex)
             {
@@ -168,7 +219,7 @@ namespace SEIDR.JobExecutor
         }
         public void Queue(JobExecution job, bool Cut = false)
         {
-            lock (lockObj)
+            lock (workLockObj)
             {
                 if (Cut)
                     workQueue.Insert(0, job);
@@ -182,17 +233,22 @@ namespace SEIDR.JobExecutor
         /// <param name="Manager"></param>
         public static void CheckLibrary(DatabaseManager Manager)
         {
-            Library.RefreshLibrary();
-            try
+            if (LastLibraryCheck.AddMinutes(20) >= DateTime.Now)
+                return;
+            using (new LockHelper(Lock.Exclusive, LIBRARY_TARGET))
             {
-                Library.ValidateOperationTable(Manager);
-            }
-            finally
-            {
-                LastLibraryCheck = DateTime.Now;
+                Library.RefreshLibrary();
+                try
+                {
+                    Library.ValidateOperationTable(Manager);
+                }
+                finally
+                {
+                    LastLibraryCheck = DateTime.Now;
+                }
             }
 
-        }
+        }/*
         void CheckLibrary()
         {
             if (LastLibraryCheck.AddMinutes(15) >= DateTime.Now)
@@ -215,7 +271,7 @@ namespace SEIDR.JobExecutor
                     LastLibraryCheck = DateTime.Now;
                 }
             }
-        }
+        }*/
         /// <summary>
         /// Goes through the work queue. If something workable is found, removes it from the queue and returns it
         /// </summary>
@@ -224,20 +280,19 @@ namespace SEIDR.JobExecutor
         {
             if (Workload > 0)
             {
-                CheckLibrary();
-                lock (lockObj)
+                lock (workLockObj)
                 {
                     for (int i = 0; i < workQueue.Count; i++)
                     {
                         var je = workQueue[i];
                         if (!je.CanStart)
                             continue;
+
+                        string threadName = je.JobThreadName;
+                        if (string.IsNullOrWhiteSpace(je.JobThreadName))
+                            threadName = je.JobName;
                         lock (NameLock)
                         {
-                            string threadName = je.JobThreadName;
-                            if (string.IsNullOrWhiteSpace(je.JobThreadName))
-                                threadName = je.JobName;
-
                             //var md = Library.GetJobMetaData(je.JobName, je.JobNameSpace);
                             if (je.JobSingleThreaded && threadName != ThreadName)
                             {
@@ -265,16 +320,8 @@ namespace SEIDR.JobExecutor
                                 }
                             }
                             SetThreadName(threadName);
-                            workQueue.RemoveAt(i);
-                        }
-                        using (var h = _Manager.GetBasicHelper())
-                        {
-                            h.QualifiedProcedure = START_WORK;
-                            h["@JobExecutionID"] = je.JobExecutionID;
-                            je = _Manager.SelectSingle<JobExecution>(h);
-                            if (h.ReturnValue != 0 || je == null)
-                                continue; //ThreadName will have been changed, but that should be okay.
-                        }                            
+                        }           
+                        workQueue.RemoveAt(i);            
                         return je;
                     }
                 }
@@ -312,7 +359,7 @@ namespace SEIDR.JobExecutor
 
             if (Workload == 0)
                 return;
-            lock (lockObj)
+            lock (workLockObj)
             {
                 SortWork();
                 for (int i = workQueue.Count - 1; i >= 0; i--)
@@ -327,7 +374,7 @@ namespace SEIDR.JobExecutor
         }
         public void DistributeWork(int count, List<JobExecution> workList)
         {
-            lock (lockObj)
+            lock (workLockObj)
             {
                 if (count > workList.Count)
                     count = workList.Count;
@@ -358,7 +405,7 @@ namespace SEIDR.JobExecutor
             }
             if (currentExecution.JobExecutionID == JobExecutionID)
                 return true;
-            lock (lockObj)
+            lock (workLockObj)
             {
                 int i = workQueue.FindIndex(je => je.JobExecutionID == JobExecutionID);
                 if (i >= 0)
@@ -398,7 +445,7 @@ namespace SEIDR.JobExecutor
         {
             get
             {
-                lock (lockObj)
+                lock (workLockObj)
                     return workQueue.Count(je => je.CanStart);
             }
         }
@@ -443,14 +490,11 @@ namespace SEIDR.JobExecutor
         }
         public override bool Stop()
         {
-            if (CallerService.ServiceAlive)
+            if (CallerService.ServiceAlive && (currentJobMetaData?.SafeCancel == true))
             {
-                if (currentJobMetaData.SafeCancel)
-                {
-                    CancelRequested = true;
-                    return false; //Thread does not need to be restarted
-                }
-            }
+                CancelRequested = true;
+                return false; //Thread does not need to be restarted
+            }            
             return base.Stop();
         }
     }

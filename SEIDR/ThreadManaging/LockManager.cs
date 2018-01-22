@@ -58,20 +58,9 @@
     /// This is only useful for multi threading and each thread really needs to have its own lock manager(s).
     /// </para>
     /// </summary>
-    public sealed class LockManager
-    {        
-        /// <summary>
-        /// Ensure release during disposal.
-        /// </summary>
-        ~LockManager()
-        {
-            
-            Release(true);
-            lock (_lock)
-            {
-                reclaimedLockIDList.Add(LockID);
-            }
-        }
+    public sealed class LockManager: IDisposable
+    {       
+
         /// <summary>
         /// A lock below this value is considered 'Share' 
         /// <para>
@@ -97,6 +86,7 @@
         {
             get { return _MyLock >= LockBoundary; }
         }
+        volatile int acquiring = 0;
         static object _lock; //For locking manager settings        
         Lock _MyLock;
         //static SortedList<Lock, int> lockList ;
@@ -250,13 +240,20 @@
         public void Release() => Release(false);
         private void Release( bool safeMode)
         {
-            if (_MyLock == Lock.Unlocked)
-            {
-                if (safeMode)
-                    return;
-                throw new LockManagerException("Tried to release a lock but no lock exists.");
+            if(!safeMode)
+            {            
+                if(disposedValue)
+                    throw new InvalidOperationException("LockManager has been disposed already.");                
+                else if(_MyLock == Lock.Unlocked)
+                    throw new LockManagerException("Tried to release a lock but no lock exists.");
             }
-            var xl = _MyLock;
+            if (_MyLock == Lock.Unlocked)
+            {                 
+                return;                
+            }
+            //Only needed if this can affect the calling method. I would imagine it can as part of compiling code, but would need research to confirm..
+            Thread.MemoryBarrier(); 
+
             //if ((int)_MyLock < LockBoundary)
             //{
             //    //Set to unlocked in case that's checked for anything
@@ -264,9 +261,9 @@
             //    return; //Mainly so that people can use the same code and
             //}
             var target = _LockTargets[_myTarget];
-            if (xl >= LockBoundary)
+            if (_MyLock >= LockBoundary)
             {
-                if (xl < ShareBoundary)
+                if (_MyLock < ShareBoundary)
                 {
                     lock (target)
                     {
@@ -277,7 +274,7 @@
                         //there should not be any instances waiting for the share level, so we shouldn't need a pulse all
                     }
                 }
-                if (xl >= ShareBoundary)
+                if (_MyLock >= ShareBoundary)
                 {
                     DateTime d;
                     lock (target)
@@ -330,7 +327,12 @@
         /// <param name="level"></param>
         public void Acquire(Lock level)
         {
+
             #region Validation
+            if (disposedValue)
+            {
+                throw new InvalidOperationException("LockManager has been disposed already.");
+            }
             if (level == Lock.Unlocked)
             {
                 Release();
@@ -341,12 +343,17 @@
             {
                 throw new LockManagerException("Tried to Acquire a new lock on a manager that already holds a lock.");
             }
+            if (Interlocked.Exchange(ref acquiring, 1) == 1)
+            {
+                throw new LockManagerException("Tried to Acquire a new lock, but the manager is already trying to acquire a lock.");
+            }
             #endregion
-
+            Thread.MemoryBarrier(); //Only needed if this can affect the calling method. I would imagine it can as part of compiling code, but would need research to confirm..
             //_MyLock = level;
             //bool matched = false;
             DateTime start = DateTime.Now;
             const int LOCK_WAIT = 500;
+            const int MONITOR_WAIT_TIMEOUT = 60_000;
             object target = _LockTargets[_myTarget];
 
             #region NOLOCK
@@ -354,9 +361,13 @@
             {
                 _MyLock = Lock.NoLock;
                 //Already know that _MyLock is < LockBoundary or an exception would have been thrown             
-                return; //NoLock doesn't need to ACTUALLY register or do anything. 
-                //This is mainly handled so that a Lock can be variable or in case the level of locking might be changed
-                //later.
+                return;
+
+                //NoLock doesn't need to ACTUALLY register or do anything. 
+                //Still have the memory barrier from above, which might help by inserting a memory barrier into the compiled code..Would also need to research to confirm
+                
+            //This is mainly handled so that a Lock can be variable or in case the level of locking might be changed
+            //later.
             }
             #endregion
             #region SHARE LOCKING
@@ -377,6 +388,8 @@
                              */
                         }
                     }
+                    if (acquiring < 0)
+                        throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                     if (waitForIntent)
                         Thread.Sleep(LOCK_WAIT);
                     lock (target)
@@ -385,17 +398,28 @@
                         if (_ExclusiveHolder[_myTarget] == null)
                         {
                             _ShareCount[_myTarget]++;
-                            _MyLock = Lock.Shared;                        
+                            _MyLock = Lock.Shared;
+                            if(Interlocked.Exchange(ref acquiring, 0) < 0)
+                            {
+                                Release(true);
+                                throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
+                            }
                             return;
                         }
                         if(TimeOut == 0)
-                            Monitor.Wait(target);
+                            Monitor.Wait(target, MONITOR_WAIT_TIMEOUT);
                     }
+                    if(acquiring < 0)
+                        throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                     if (TimeOut > 0)
                     {
                         Thread.Sleep(LOCK_WAIT); //replace with wait when TimeOut == 0
                         if (start.AddSeconds(TimeOut) > DateTime.Now)
+                        {
+                            if(Interlocked.Exchange(ref acquiring, 0) < 0) //So that we can try again later if the exception is caught, without needing to dispose the manager.
+                                throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                             throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
+                        }
                     }
                 }
             }
@@ -438,15 +462,26 @@
                         if (level < Lock.Exclusive)
                         {
                             _IntentExpiration[_myTarget] = DateTime.Now.AddSeconds(ExclusiveIntentExpirationTime);
+                            if(Interlocked.Exchange(ref acquiring, 0) < 0)
+                            {
+                                Release(true);
+                                throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
+                            }
                             return; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
                         }
                         break;
                     }           
                 }
+                if(acquiring < 0)
+                    throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                 Thread.Sleep(LOCK_WAIT);
                 if (TimeOut > 0 && start.AddSeconds(TimeOut) > DateTime.Now)
+                {
+                    if(Interlocked.Exchange(ref acquiring, 0) < 0) //So that we can try again later if the exception is caught, without needing to dispose the manager.
+                        throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                     throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
-                
+                }
+
             }
             #endregion            
             //An intent lock will wait until the share locks are at 0 before trying to acquire exclusive lock
@@ -459,21 +494,105 @@
                     {
                         _ExclusiveHolder[_myTarget] = LockID;                                                
                         _MyLock = Lock.Exclusive;
+                        if(Interlocked.Exchange(ref acquiring, 0) < 0)
+                        {
+                            Release(true);
+                            throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
+                        }
                         return;
                     }
                     if(TimeOut == 0)
-                        Monitor.Wait(target);
+                        Monitor.Wait(target, MONITOR_WAIT_TIMEOUT);
                 }
                 if (TimeOut > 0)
                 {
                     Thread.Sleep(LOCK_WAIT); //if timeout == 0, use monitor wait instead of sleep
                     if (start.AddSeconds(TimeOut) > DateTime.Now)
+                    {
+                        if(Interlocked.Exchange(ref acquiring, 0) < 0) //So that we can try again later if the exception is caught, without needing to dispose the manager.
+                            throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                         throw new TimeoutException("Acquiring lock - " + DateTime.Now.Subtract(start).TotalSeconds);
+                    }
                 }
+                if (acquiring < 0)
+                    throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
             }
             #endregion            
         }
-         
+
+        #region IDisposable Support
+        volatile private bool disposedValue = false; // To detect redundant calls
+
+        void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    
+                    // TODO: dispose managed state (managed objects).
+                }
+                /*
+                    The objects are technically managed objects here, but since this class is for helping with certain situations in 
+                    multi threading, make sure they're disposed/released so that other threads aren't affected
+                   
+                    Although the class is largely more of an exercise, but the point is that there are situations where readers 
+                    greatly outnumber the writers, and we don't want readers to block each other unnecessarily, but 
+                    Especially if/when the method may be long running. Should look at implementation of ReaderWriterLock, because that's very close,
+                    although this is meant to be a little closer to the locking methodology of a database (intent)
+                
+                    It would probably be best to look int using a mixture Semaphores and locks. 
+                    When reading, lock on target to acquire semaphore access. Release from semaphore in the Release method.
+
+                    intent should probably be fine to leave as-is, but shouldn't need to check the exclusive dictionary 
+                    because exclusive ownership would be managed by the Monitor class and normal locking.
+
+                    When writing, just acquire the lock (Monitor.Enter) and that will be exclusive access. Monitor.Exit in release.
+
+                    May look into replacing a couple of the dictionaries with semaphore/Monitor usage, 
+                    but would still need to track the number of manager objects that have a share lock.                    
+                    May be able to do that by just setting the sharecount to 0 initially, incrementing it whenever calling enter, 
+                    and updating to result of semaphore release -1. 
+                    (Sempaphore.Release returns the count from before Release is called)
+
+                   
+                    May want to add Memory barrier calls, during acquire and release.
+                */
+                lock (_LockTargets[_myTarget])
+                {
+                    acquiring = -1;
+                }
+                Release(true);
+
+                lock (_lock)
+                {
+                    reclaimedLockIDList.Add(LockID);
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+                // TODO: set large fields to null.
+
+                disposedValue = true;
+            }
+        }
+        
+        // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+        ~LockManager()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(false);
+        }
+
+        // This code added to correctly implement the disposable pattern.
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(true);
+            // TODO: uncomment the following line if the finalizer is overridden above.
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+
     }
     
 }

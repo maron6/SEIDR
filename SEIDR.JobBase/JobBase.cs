@@ -57,7 +57,7 @@ namespace SEIDR.JobBase
         /// <summary>
         /// Allows specifying that an Execution needs to run a specific thread number. 
         /// </summary>
-        public byte? RequiredThreadID { get; private set; }
+        public int? RequiredThreadID { get; set; }
 
         public int UserKey { get; private set; }
         public string UserKey1 { get; private set; }
@@ -85,11 +85,10 @@ namespace SEIDR.JobBase
         /// Used for requeueing.
         /// </summary>
         public DateTime? DelayStart;
+
         public const string REGISTERED = "R";
-        public const string SCHEDULED = "S";
-        //public const string WORKING = "W";
+        public const string SCHEDULED = "S";        
         public const string COMPLETE = "C";
-        public const string COMPLETE_ERROR = "CE";
         public const string CANCELLED = "CX";
         public const string FAILURE = "F";
         public const string STEP_COMPLETE = "SC";

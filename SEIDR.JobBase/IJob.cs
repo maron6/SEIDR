@@ -12,6 +12,9 @@ namespace SEIDR.JobBase
         string JobName { get; }
         [DefaultValue(null)]
         string Description { get; }
+        /// <summary>
+        /// Limit 128 characters. Should be able to keep your job unique, as well as isolate your statuses and some other special handling.
+        /// </summary>
         string NameSpace { get; }
         /// <summary>
         /// If a Job cannot share the same thread as other jobs, it should share a name. 
@@ -36,10 +39,20 @@ namespace SEIDR.JobBase
     public interface IJob
     {
         /// <summary>
+        /// Check if the job is okay to run for the specified thread.
+        /// </summary>
+        /// <param name="jobCheck">The job to check. E.g., if the job has to determine thread based on user keys or the profile in order to avoid stepping on other processes.</param>
+        /// <param name="passedThreadID"></param>
+        /// <param name="NewThreadID"></param>
+        /// <returns>True if the passedThreadID is okay to use based on any further configuration from the job.<para>
+        /// If false, newThreadID may be used to move the job to another thread.
+        /// </para></returns>
+        bool CheckThread(JobExecution jobCheck, int passedThreadID, out int NewThreadID);
+        /// <summary>
         /// Called by the jobExecutor.
         /// </summary>
         /// <param name="execution"></param>        
-        /// <param name="status">Optional status set, to allow a more detailed status.</param>        
+        /// <param name="status">Optional status set, to allow a more detailed status. If the status does not have a namespace set, the NameSpace from the job meta data will be used.</param>        
         /// <returns>True for success, false for failure.</returns>
         bool Execute(IJobExecutor jobExecutor, JobExecution execution, ref ExecutionStatus status);
 

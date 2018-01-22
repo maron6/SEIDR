@@ -18,6 +18,13 @@ namespace SEIDR.FileSystem
     {
         const string FS_NAMESPACE = "SEIDR_FS";
         const string GET_EXECUTION_INFO = "SEIDR.usp_FileSystem_ss_JobExecution";
+
+        public bool CheckThread(JobExecution jobCheck, int passedThreadID, out int NewThreadID)
+        {
+            NewThreadID = -1;
+            return true;
+        }
+
         public bool Execute(IJobExecutor jobExecutor, JobExecution execution, ref ExecutionStatus status)
         {
             //throw new NotImplementedException();
