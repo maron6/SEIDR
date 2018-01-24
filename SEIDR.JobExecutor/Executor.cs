@@ -13,6 +13,7 @@ namespace SEIDR.JobExecutor
 
         static int _maintenanceCounter = 0;
         static int _jobCounter = 0;
+        protected int JobExecutorCount => _jobCounter;
         protected const int DEADLOCK_TIME_INCREASE = 45;
         protected const int MAX_TIMEOUT = 1200;
 
@@ -57,7 +58,7 @@ namespace SEIDR.JobExecutor
             {
                 mgrName += " - " + newName;
             }
-            ThreadName = newName;
+            ThreadName = newName ?? "ThreadID" + ThreadID.ToString();
             _Manager.ProgramName = mgrName;
         }
         public volatile bool IsWorking;

@@ -54,39 +54,46 @@ namespace SEIDR.JobBase
             => Register(manager, SuccessFilePath, FailureFilePath, false);
         private JobExecution Register(DatabaseManager manager, 
             string SuccessFilePath, string FailureFilePath, bool copyMode)
-        {            
+            => RegisterDataRow(manager, SuccessFilePath, FailureFilePath, copyMode).ToContentRecord<JobExecution>();        
+        public System.Data.DataRow RegisterDataRowCopy(DatabaseManager manager, string sucessFilePath, string FailureFilePath)
+            => RegisterDataRow(manager, SuccessFilePath: sucessFilePath, FailureFilePath: FailureFilePath, copyMode: true);
+        public System.Data.DataRow RegisterDataRow(DatabaseManager manager, string sucessFilePath, string FailureFilePath)
+            => RegisterDataRow(manager, SuccessFilePath: sucessFilePath, FailureFilePath: FailureFilePath, copyMode: false);
+        private System.Data.DataRow RegisterDataRow(DatabaseManager manager,
+            string SuccessFilePath, string FailureFilePath, bool copyMode)
+        {
             using (var help = manager.GetBasicHelper(this, includeConnection: true))
-            {                
+            {
                 help.QualifiedProcedure = REGISTER_SPROC;
-                if(!string.IsNullOrWhiteSpace(SuccessFilePath))
+                if (!string.IsNullOrWhiteSpace(SuccessFilePath))
                     help[nameof(FilePath)] = SuccessFilePath;
                 help.RetryOnDeadlock = true;
 
                 help.BeginTran();
                 var ds = manager.Execute(REGISTER_SPROC, this);
-                var job = ds.GetFirstRowOrNull().ToContentRecord<JobExecution>();
+                var job = ds.GetFirstRowOrNull();
                 bool Success = job == null ? help.ReturnValue == 0 : true;
                 try
                 {
                     if (Success)
                     {
-                        if(SuccessFilePath != FilePath && !string.IsNullOrWhiteSpace(SuccessFilePath))
+                        if (SuccessFilePath != FilePath && !string.IsNullOrWhiteSpace(SuccessFilePath))
                         {
                             if (copyMode)
                                 System.IO.File.Copy(FilePath, SuccessFilePath, true);
                             else
                                 System.IO.File.Move(FilePath, SuccessFilePath); //Note: success always true if job != null
-                        }                            
+                        }
                     }
                     else
                     {
-                        if(FailureFilePath != FilePath && !string.IsNullOrWhiteSpace(FailureFilePath))
+                        if (FailureFilePath != FilePath && !string.IsNullOrWhiteSpace(FailureFilePath))
                         {
                             if (copyMode)
                                 System.IO.File.Copy(FilePath, FailureFilePath, true);
                             else
                                 System.IO.File.Move(FilePath, FailureFilePath);
-                        }                            
+                        }
                     }
                     help.CommitTran();
                 }
@@ -95,7 +102,7 @@ namespace SEIDR.JobBase
                     help.RollbackTran();
                 }
                 return job;
-            }            
+            }
         }
 
         public bool CheckSQLDateValid(DateTime check)

@@ -183,7 +183,12 @@ namespace SEIDR.DataBase
         {
             return new SqlConnection(_conn.ConnectionString);
         }
+        
+
         readonly DatabaseConnection _conn;
+        /// <summary>
+        /// Connection timeout
+        /// </summary>
         public int TimeOut
         {
             get { return _conn.Timeout; }
@@ -822,10 +827,11 @@ namespace SEIDR.DataBase
         /// <typeparam name="RT"></typeparam>
         /// <param name="i">Contain information for calling a procedure</param>
         /// <param name="RequireSingleResult">If true, will return null when the the procedure returns more than one result</param>
+        /// <param name="CommitSuccess">If true, commitsa if the transaction is open</param>
         /// <returns></returns>        
-        public RT SelectSingle<RT>(DatabaseManagerHelperModel i, bool RequireSingleResult = true) where RT: class, new()
+        public RT SelectSingle<RT>(DatabaseManagerHelperModel i, bool RequireSingleResult = true, bool CommitSuccess = false) where RT: class, new()
         {            
-            DataSet ds = Execute(i);
+            DataSet ds = Execute(i, CommitSuccess: CommitSuccess);
             if (ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
                 return null;
             if (RequireSingleResult && ds.Tables[0].Rows.Count > 1)

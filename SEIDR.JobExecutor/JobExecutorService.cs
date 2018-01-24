@@ -19,6 +19,7 @@ namespace SEIDR.JobExecutor
     [Export(typeof(IOperatorManager))]
     public class JobExecutorService : ServiceBase//, IOperatorManager
     {
+        [Obsolete("No Undistributing - single queue", true)]
         public bool GrabShareableWork(JobExecutor caller, List<JobExecution> workList)
         {
             var q = (from ex in executorList
@@ -29,7 +30,7 @@ namespace SEIDR.JobExecutor
             {
                 if(exec.Workload > 5)
                 {
-                    exec.UndistributeWork(2, workList);
+                    //exec.UndistributeWork(2, workList);
                     if(workList.Count > 0)
                         return true;
                 }
@@ -42,55 +43,22 @@ namespace SEIDR.JobExecutor
         /// <param name="job"></param>
         /// <param name="checkID"></param>
         /// <returns></returns>
-        public bool CheckSingleThreadedJobThread(JobExecution job, int checkID)
+        public bool CheckSingleThreadedJobThread(JobExecutionDetail job, int checkID)
         {
-            var exec = (from ex in jobList
-                     where ex.ThreadID != checkID
-                     && job.JobThreadName == ex.ThreadName                     
-                     //&& (reqThread == null || (reqThread % ExecutorCount) == ex.ThreadID)
-                     select ex).FirstOrDefault();
-            if (exec != null)
+            return(jobList.UnderMaximumCount(executor =>
             {
-                if (job.RequiredThreadID == null)
-                    exec.Queue(job, true);
+                if (executor.ThreadID == checkID)
+                    return false;
+                if (executor.ThreadName == job.JobThreadName)
+                    return true;
                 return false;
-            }
-            return true;
+            }, 1)); //True if none of the other executors have the threadName.            
         }        
-        public void QueueExecution(JobExecution newJob)
+        public void QueueExecution(JobExecutionDetail newJob)
         {
             if (newJob == null)
                 return;
-            JobExecutor jobExecutor;
-            if (newJob.RequiredThreadID != null)
-            {
-                jobExecutor = (from ex in jobList
-                                where ex.ThreadID % newJob.RequiredThreadID == 0
-                                && ex.ThreadID <= newJob.RequiredThreadID
-                                orderby ex.ThreadID descending
-                                select ex 
-                                ).FirstOrDefault();                
-                jobExecutor?.Queue(newJob);
-                return;
-            }
-            if (!string.IsNullOrWhiteSpace(newJob.JobThreadName))
-            {
-                jobExecutor = (from ex in jobList
-                                where ex.ThreadName == newJob.JobThreadName
-                                orderby ex.Workload
-                                select ex as JobExecutor
-                                ).FirstOrDefault();
-                if(jobExecutor != null)
-                {
-                    jobExecutor.Queue(newJob);
-                    return;
-                }
-            }
-            jobExecutor = (from ex in jobList                            
-                            orderby ex.Workload
-                            select ex
-                                ).First();
-            jobExecutor.Queue(newJob);
+            JobExecutor.Queue(newJob);
         }
         List<JobExecutor> jobList;
         List<Executor> executorList;        

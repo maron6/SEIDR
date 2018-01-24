@@ -47,7 +47,7 @@ namespace SEIDR.JobExecutor
         /// <summary>
         /// Work Queue lock
         /// </summary>
-        object workLockObj = new object();
+        static object workLockObj = new object();
         /// <summary>
         /// Thread name lock. (Since Job imports can be single thread required, organized by Name)
         /// </summary>
@@ -56,14 +56,19 @@ namespace SEIDR.JobExecutor
         public JobExecutor( DatabaseManager manager, JobExecutorService caller)
             : base(manager, caller, ExecutorType.Job)
         {
-
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.COMPLETE, IsComplete = true, NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.FAILURE, IsError = true, NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.REGISTERED, NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.SCHEDULED, NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.STEP_COMPLETE, NameSpace = "SEIDR" });            
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.CANCELLED, NameSpace = "SEIDR" });
         }
         const string SET_STATUS = "SEIDR.usp_JobExecution_SetStatus";
         const string REQUEUE = "SEIDR.usp_JobExecution_Requeue";
         const string GET_WORK = "SEIDR.usp_JobExecution_sl_Work";
         const string START_WORK = "SEIDR.usp_JobExecution_StartWork";
         JobProfile currentJob;
-        volatile JobExecution currentExecution;
+        volatile JobExecutionDetail currentExecution;
         volatile IJobMetaData currentJobMetaData;
 
         public volatile bool CancelRequested = false;
@@ -92,7 +97,7 @@ namespace SEIDR.JobExecutor
             using (var i = _Manager.GetBasicHelper(Keys, REQUEUE))
             {
                 var ds = _Manager.Execute(i);
-                var jb = ds.GetFirstRowOrNull(0).ToContentRecord<JobExecution>();
+                var jb = ds.GetFirstRowOrNull(0).ToContentRecord<JobExecutionDetail>();
                 jb.DelayStart = DateTime.Now.AddMinutes(delayMinutes);
                 Queue(jb);
                 currentExecution = null;
@@ -110,7 +115,7 @@ namespace SEIDR.JobExecutor
                 {
                     h.QualifiedProcedure = START_WORK;
                     h["@JobExecutionID"] = currentExecution.JobExecutionID;
-                    currentExecution = _Manager.SelectSingle<JobExecution>(h);
+                    currentExecution = _Manager.SelectSingle<JobExecutionDetail>(h);
                     if (h.ReturnValue != 0 || currentExecution == null)
                         return; //ThreadName will have been changed, but that should be okay.
                 }
@@ -162,7 +167,7 @@ namespace SEIDR.JobExecutor
                 currentJobMetaData = null;
             }
         }
-        void SendNotifications(JobExecution executedJob, bool success)
+        void SendNotifications(JobExecutionDetail executedJob, bool success)
         {
             string subject;
             string MailTo = string.Empty;
@@ -205,19 +210,16 @@ namespace SEIDR.JobExecutor
             using (var i = _Manager.GetBasicHelper(Keys, SET_STATUS))
             {
                 i.BeginTran();
-                var next = _Manager.Execute(i, CommitSuccess: true).GetFirstRowOrNull().ToContentRecord<JobExecution>();
+                var next = _Manager.SelectSingle<JobExecutionDetail>(i, CommitSuccess: true);
                 if (next != null)
                 {
-                    if (next.RequiredThreadID == ThreadID)
-                        Queue(next);
-                    else
-                        CallerService.QueueExecution(next);
+                    Queue(next);
                 }
                 else
                     currentExecution.Complete = (bool)i["@Complete"];
             }
         }
-        public void Queue(JobExecution job, bool Cut = false)
+        public static void Queue(JobExecutionDetail job, bool Cut = false)
         {
             lock (workLockObj)
             {
@@ -276,55 +278,44 @@ namespace SEIDR.JobExecutor
         /// Goes through the work queue. If something workable is found, removes it from the queue and returns it
         /// </summary>
         /// <returns></returns>
-        JobExecution CheckWork()
+        JobExecutionDetail CheckWork()
         {
-            if (Workload > 0)
+            lock (NameLock)
+                SetThreadName(null);
+            lock (workLockObj)
             {
-                lock (workLockObj)
+                SortWork();
+                if (workQueue.UnderMaximumCount(Match, 0))
+                    return null;
+                
+                foreach (var detail in workQueue)
                 {
-                    for (int i = 0; i < workQueue.Count; i++)
-                    {
-                        var je = workQueue[i];
-                        if (!je.CanStart)
-                            continue;
+                    if (!Match(detail))
+                        continue; //Cannot start, or for a different thread
 
-                        string threadName = je.JobThreadName;
-                        if (string.IsNullOrWhiteSpace(je.JobThreadName))
-                            threadName = je.JobName;
-                        lock (NameLock)
+                    string threadName = detail.JobThreadName;
+                    if (string.IsNullOrWhiteSpace(threadName))
+                        threadName = $"{detail.JobNameSpace}.{detail.JobName}";
+                    lock (NameLock)
+                    {
+                        SetThreadName(threadName);
+                        //If we already have this ThreadName, don't need to check other threads, so skip
+                        //If job is considered single threaded, need to check for any other thread running the job.
+                        if (!CallerService.CheckSingleThreadedJobThread(detail, ThreadID))
                         {
-                            //var md = Library.GetJobMetaData(je.JobName, je.JobNameSpace);
-                            if (je.JobSingleThreaded && threadName != ThreadName)
-                            {
-                                //If we already have this ThreadName, don't need to check other threads, so skip
-                                //If job is considered single threaded, need to check for any other thread running the job.
-                                if (!CallerService.CheckSingleThreadedJobThread(je, ThreadID))
-                                {
-                                    //Something else is running for this JobName.
-                                    if (je.RequiredThreadID == null)
-                                    {
-                                        //If requiredThreadID is null and we're in this block, it has already been queued under another thread.
-                                        workQueue.RemoveAt(i);
-                                        i--; //Removing record at i. Need to decrement so we don't skip a record.
-                                    }
-                                    else
-                                    {
-                                        je.DelayStart = DateTime.Now.AddMinutes(1);
-                                        /*
-                                         another thread is running with this JobName, 
-                                         but the job still has a required ThreadID. 
-                                         Add a delay and check the next record.
-                                         */
-                                    }
-                                    continue;
-                                }
-                            }
-                            SetThreadName(threadName);
-                        }           
-                        workQueue.RemoveAt(i);            
-                        return je;
+                            if (detail.RequiredThreadID != null)
+                                detail.DelayStart = DateTime.Now.AddMinutes(1);
+                            continue;
+                            /*
+                                If ThreadID is specified(not null, matches current threadID), then another thread is running with this JobName, 
+                                but the job still has a required ThreadID. 
+                                Add a delay and check the next record.
+                                */
+                        }
                     }
-                }
+                    workQueue.Remove(detail);
+                    return detail;
+                }            
             }
             return null;
         }
@@ -348,6 +339,7 @@ namespace SEIDR.JobExecutor
                    return a.WorkPriority < b.WorkPriority ? -1 : 0;
                });
         }
+        /* --Deprecated via static list - only threads without a requiredThreadID can be redistributed and they are all in the same queue.
         /// <summary>
         /// Removes up to <paramref name="count"/> records from the back of the queue.
         /// </summary>
@@ -371,8 +363,8 @@ namespace SEIDR.JobExecutor
                     workQueue.RemoveAt(i); //Going backwards through the list, don't need to worry about the position messing up.                  
                 }
             }
-        }
-        public void DistributeWork(int count, List<JobExecution> workList)
+        }        
+        public void DistributeWork(int count, List<JobExecutionDetail> workList)
         {
             lock (workLockObj)
             {
@@ -385,8 +377,9 @@ namespace SEIDR.JobExecutor
                 workList.RemoveRange(0, count);
             }
         }
-        void DistributeWork(List<JobExecution> list)
+        void DistributeWork(List<JobExecutionDetail> list)
             => DistributeWork(list.Count, list);
+        */
         /// <summary>
         /// Identify if the JobExecutor includes the JobExecutionID in its workload
         /// </summary>
@@ -423,12 +416,20 @@ namespace SEIDR.JobExecutor
 
         protected override void CheckWorkLoad()
         {
+            /*
             List<JobExecution> temp = new List<JobExecution>();
             if (CallerService.GrabShareableWork(this, temp))
             {
                 DistributeWork(temp);
                 return;
+            }*/
+            lock (workLockObj)
+            {
+                if(workQueue.HasMinimumCount(Match, 1))
+                    return;
+                
             }
+
             //first call a method on the callerService and see if there's any jobs we can grab from other threads.
             //If a thread has >= 5 jobs, grab a couple jobs from the thread. 
             using (var h = _Manager.GetBasicHelper())
@@ -436,17 +437,29 @@ namespace SEIDR.JobExecutor
                 h.QualifiedProcedure = GET_WORK;
                 h.AddKey(nameof(ThreadID), ThreadID);
                 h.AddKey(nameof(BatchSize), BatchSize);
-
-                DistributeWork(_Manager.SelectList<JobExecution>(h));
+                
+                lock (workLockObj)
+                {
+                    workQueue.AddRange(_Manager.SelectList<JobExecutionDetail>(h));
+                }
             }
         }
-        List<JobExecution> workQueue;
+
+        bool Match(JobExecutionDetail check)
+        {
+            if (check.RequiredThreadID == null)
+                return true;
+            if (check.RequiredThreadID % JobExecutorCount != ThreadID)
+                return false;
+            return check.CanStart;
+        }
+        static List<JobExecutionDetail> workQueue;
         public override int Workload
         {
             get
             {
                 lock (workLockObj)
-                    return workQueue.Count(je => je.CanStart);
+                    return workQueue.Count(Match);
             }
         }
         public override void Wait(int sleepSeconds, string logReason)

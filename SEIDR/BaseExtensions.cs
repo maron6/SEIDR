@@ -42,6 +42,83 @@
         #endregion
 
 
+        /// <summary>
+        /// Map properties of map to the inheriting class instance, IT
+        /// </summary>
+        /// <typeparam name="RT"></typeparam>
+        /// <typeparam name="IT">Inheriting type</typeparam>
+        /// <param name="inheritor">Object to map properties onto. If null and <paramref name="map"/> is not null, a new object will  be created and returned.</param>
+        /// <param name="map">Object to map properties from. If null, <paramref name="inheritor"/> will be returned as-is.</param>
+        /// <param name="cache">Cache the property info if the mapping for these class types are going to be done often.</param>
+        /// <returns>REturns the inheritor for method chaining</returns>
+        public static IT MapInheritance<RT, IT>(this IT inheritor, RT map, bool cache = true) where IT: RT, new()
+        {
+            if (map == null)
+                return inheritor;
+            if (inheritor == null)
+                inheritor = new IT();
+            Type iInfo = typeof(IT);
+            Type rInfo = typeof(RT);
+            List < PropertyInfo > md;
+            Dictionary<string, PropertyInfo> td;
+            if (!cache || !mapCache.TryGetValue(rInfo, out md))
+            {
+                md = rInfo.GetProperties().Where(p => p.CanRead).ToList(); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
+                if(cache)
+                    mapCache[rInfo] = md; //don't worry about cached values becoming innacurate, since the TypeInfo isn't going to change after compilation.
+                                      //Even dynamic class matching is based on definition matching
+            }
+            if(!cache || !mapWriteCache.TryGetValue(iInfo, out td))
+            {
+                td = iInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
+                if(cache)
+                    mapWriteCache[iInfo] = td;
+            }
+            Map(inheritor, map, td,  md);
+            return inheritor;
+        }
+        /// <summary>
+        /// Maps properties from the map to target. 
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="map"></param>
+        /// <param name="propertiesToWrite"></param>
+        /// <param name="propertiesToMap"></param>
+        public static void Map(this object target, object map, 
+            Dictionary<string, PropertyInfo> propertiesToWrite, List<PropertyInfo> propertiesToMap)
+        {
+            foreach (var mapping in propertiesToMap)
+            {
+                PropertyInfo p;
+                if (propertiesToWrite.TryGetValue(mapping.Name, out p))
+                {
+                    object nValue = mapping.GetValue(map);
+                    if (nValue == null || nValue == DBNull.Value)
+                    {
+                        if(!p.PropertyType.IsClass)
+                            continue; //Don't try to set a struct value to null.                    
+                    }
+                    else
+                    {
+                        Type underType = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+                        if (underType.IsEnum)
+                        {
+                            nValue = Enum.Parse(underType, nValue.ToString(), true);
+                        }
+                        else if (underType.IsArray) //ToDo.. map array properties
+                            continue; 
+                        /*else
+                        {
+                            nValue = p.GetValue(map);
+                        }*/
+                    }
+                    p.SetValue(target, nValue);
+                }
+            }
+        }
+        static Dictionary<Type, List<PropertyInfo>> mapCache = new Dictionary<Type, List<PropertyInfo>>();
+        static Dictionary<Type, Dictionary<string, PropertyInfo>> mapWriteCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
+
         #region string Extensions
         /// <summary>
         /// For any string properties on the object, set them to null if they're white space or empty
@@ -694,6 +771,32 @@
             return false;
         }
         /// <summary>
+        /// Lazy check to make sure that an IEnumerable has at least <paramref name="minimum"/> records.
+        /// <para>Empty IEnumerables will always return false.</para>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="condition"></param>
+        /// <param name="minimum">Must be at least 1 to be useful - null/empty IEnumerables will always return false</param>
+        /// <returns></returns>
+        public static bool HasMinimumCount<T>(this IEnumerable<T> list, Predicate<T> condition, int minimum)
+        {
+            if (list == null)
+                return false;
+            //if (minimum < 1)
+            //    throw new ArgumentException("Value must be greater than 0", "minimum");
+            int count = 0;
+            foreach (T l in list)
+            {
+                if (!condition(l))
+                    continue;
+                count++;
+                if (count >= minimum)
+                    return true;
+            }
+            return false;
+        }
+        /// <summary>
         /// Maps the dictionary to an ordered enumerable
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -742,6 +845,30 @@
             int count = 0;
             foreach(T l in list)
             {
+                count++;
+                if (count >= maximum)
+                    return false;
+            }
+            return true;
+        }
+        /// <summary>
+        /// Lazy check to make sure that an IENumerable has less than <paramref name="maximum"/> records. (Returns immediately after confirming that we're above the count)
+        /// <para>Empty IEnumerables will always return true.</para>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="condition">Condition to filter options that contribute to the count being compared against maximum</param>
+        /// <param name="maximum"></param>
+        /// <returns></returns>
+        public static bool UnderMaximumCount<T>(this IEnumerable<T> list, Predicate<T> condition, int maximum)
+        {
+            if (list == null)
+                throw new ArgumentNullException(nameof(list));
+            int count = 0;
+            foreach (T l in list)
+            {
+                if (!condition(l))
+                    continue;
                 count++;
                 if (count >= maximum)
                     return false;

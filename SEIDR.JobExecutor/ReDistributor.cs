@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace SEIDR.JobExecutor
 {
+    [Obsolete]
     public class ReDistributor : Executor
     {
         public ReDistributor(DataBase.DatabaseManager manager, JobExecutorService caller, IEnumerable<JobExecutor> executors)
@@ -43,21 +44,21 @@ namespace SEIDR.JobExecutor
             {
                 if(je.Workload > boundary)
                 {
-                    je.UndistributeWork(je.Workload - boundary, dist);
+                    //je.UndistributeWork(je.Workload - boundary, dist);
                 }                
             }            
             foreach(var je in list)
             {
                 if(je.Workload < boundary)
                 {
-                    je.DistributeWork(je.Workload - boundary, dist);
+                    //je.DistributeWork(je.Workload - boundary, dist);
                     if (dist.UnderMaximumCount(0))
                         return;
                 }
             }
             foreach (var je in list)
             {                                
-                je.DistributeWork(1, dist);
+                //je.DistributeWork(1, dist);
                 if (dist.UnderMaximumCount(0))
                     return;                
             }

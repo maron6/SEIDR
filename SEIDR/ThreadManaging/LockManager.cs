@@ -394,6 +394,7 @@
                         Thread.Sleep(LOCK_WAIT);
                     lock (target)
                     { 
+                        //ToDo: Remove exclusiveHolder check, just enter a semaphore, set _MyLock and increment share count
                         //If no exclusive holder, add to sharecount, even if there is a lock manager holding intent (_IntentHolder[_myTarget])
                         if (_ExclusiveHolder[_myTarget] == null)
                         {
