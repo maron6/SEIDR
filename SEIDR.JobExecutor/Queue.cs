@@ -71,7 +71,7 @@ namespace SEIDR.JobExecutor
                 }
                 else
                 {
-                    LogInfo("Unable to access network path:" + profile.RegistrationFolder);
+                    LogInfo("Unable to access network path:" + profile.RegistrationFolder, true);
                     return; //Root doesn't exist, but it's (probably) a UNC path. May just be connection issues. Skip
                 }
             }
@@ -119,12 +119,17 @@ namespace SEIDR.JobExecutor
                 {
                     var dupe = Path.Combine(Duplicate, reg.FileName + DateTime.Now.ToString("_yyyyMMdd_hhss"));
                     File.Move(reg.FilePath, dupe);
+                    LogInfo($"Job Profile {profile.JobProfileID}, '{reg.FileName}' - moved to duplicate (" + Duplicate + ").", true);
                     return;                     
                 }
-                string fail = Path.Combine(Rejected, reg.FileName);      
+                string fail = Path.Combine(Rejected, reg.FileName);
+                LogInfo($"Job Profile {profile.JobProfileID}, '{reg.FileName}' - Attempt Register", true);
                 var j = reg.RegisterDataRow(_Manager, success, fail).ToContentRecord<JobExecutionDetail>();
-                if(j!= null)
+                if (j != null)
+                {
                     CallerService.QueueExecution(j);
+                    LogInfo($"Job Profile {profile.JobProfileID}, '{reg.FileName}' - Queued for execution. JobExecutionID: {j.JobExecutionID}.", true);
+                }
             });
 
         }

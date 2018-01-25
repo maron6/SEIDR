@@ -148,7 +148,7 @@ namespace SEIDR.JobExecutor
                 }
                 catch(Exception ex)
                 {
-                    CallerService.LogError(null, ex.Message);
+                    CallerService.LogToFile(null, ex.Message, false);
                     SetStatus("Error:" + ex.Message, ThreadStatus.StatusType.Error);
                 }
                 finally
@@ -165,16 +165,16 @@ namespace SEIDR.JobExecutor
         {
             if (string.IsNullOrWhiteSpace(logReason))
                 logReason = "(UNSPECIFIED)";
-            CallerService.LogError(this, "Sleep Requested: " + logReason);
+            CallerService.LogToFile(this, "Sleep Requested: " + logReason, false);
             SetStatus("Sleep requested:" + logReason, ThreadStatus.StatusType.Sleep_JobRequest);
             Thread.Sleep(sleepSeconds * 1000);
             SetStatus("Wake from Job Sleep Request");
         }
         
-        public virtual void LogInfo(string message)
+        public virtual void LogInfo(string message, bool shared = false)
         {
             int count = 10;
-            while (!CallerService.LogError(this, message) && count > 0)
+            while (!CallerService.LogToFile(this, message, shared) && count > 0)
             {
                 count--;
                 Thread.Sleep(FAILURE_SLEEPTIME * 1000);

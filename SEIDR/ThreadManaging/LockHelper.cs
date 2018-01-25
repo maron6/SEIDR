@@ -16,6 +16,16 @@ namespace SEIDR.ThreadManaging
         /// </summary>
         /// <param name="manager">Manager whose lock level is managed. Should be unlocked when creating the helper.</param>
         /// <param name="lockLevel">Target lock level for the helper to acquire.</param>
+        public LockHelper(LockManager manager, Lock lockLevel)
+            : this(lockLevel, manager)
+        { 
+            //Allow the original parameter order
+        }
+        /// <summary>        
+        /// Helper for using <see cref="LockManager"/> class
+        /// </summary>
+        /// <param name="manager">Manager whose lock level is managed. Should be unlocked when creating the helper.</param>
+        /// <param name="lockLevel">Target lock level for the helper to acquire.</param>
         public LockHelper(Lock lockLevel, LockManager manager)
         {
             if (lockLevel == Lock.Unlocked)

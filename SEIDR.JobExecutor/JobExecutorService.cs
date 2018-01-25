@@ -18,25 +18,7 @@ namespace SEIDR.JobExecutor
 {
     [Export(typeof(IOperatorManager))]
     public class JobExecutorService : ServiceBase//, IOperatorManager
-    {
-        [Obsolete("No Undistributing - single queue", true)]
-        public bool GrabShareableWork(JobExecutor caller, List<JobExecution> workList)
-        {
-            var q = (from ex in executorList
-                     where ex is JobExecutor
-                     && ex.ThreadID != caller.ThreadID
-                     select ex as JobExecutor);
-            foreach(var exec in q)
-            {
-                if(exec.Workload > 5)
-                {
-                    //exec.UndistributeWork(2, workList);
-                    if(workList.Count > 0)
-                        return true;
-                }
-            }
-            return workList.HasMinimumCount(1);
-        }
+    {       
         /// <summary>
         /// Called if job meta data indicates single threaded. Makes sure there isn't another thread running the job.
         /// </summary>
@@ -213,31 +195,15 @@ namespace SEIDR.JobExecutor
             MyStatus.QueueExecutorCount = QueueThreadCount;
             MyStatus.MaintenanceCount = Executor.MaintenanceCount;
 
-            DataManager.ExecuteNonQuery("SEIDR.usp_JobExecution_CleanWorking");
-            //MyOperators.Add(new CancellationExecutor(this, CANCEL_ID));
+            DataManager.ExecuteNonQuery("SEIDR.usp_JobExecution_CleanWorking");            
 
             _ServiceAlive = true;
-            #endregion
-
-            //DataManager.Execute(CLEAN_LOCKS); //clean up locks before starting up.
-            //MyOperators.ForEach(o => o.Call());
+            
+            
             executorList.ForEach(e => e.Call());
-            LogFileMessage("START UP DONE, OPERATORS STARTED");
-
-            //bool EmailSent = false;
+            LogFileMessage("START UP DONE, EXECUTORS STARTED");
+            #endregion
             bool StatusFileLogged = false;
-            /*
-            Task LibMaintenance = new Task(() => {
-                try
-                {
-                    OperationExecutor.CheckLibrary();
-                }
-                catch(Exception ex)
-                {
-                    LogFileMessage("Check Operation Library - " + ex.Message);
-                }
-            });
-            */
             while (ServiceAlive)
             {
                 _mre.WaitOne();
@@ -274,44 +240,24 @@ namespace SEIDR.JobExecutor
             }            
         }       
         const int MILISECOND_TO_SECOND = 1000;
-        string GetOverallStatus(bool HTML)
-        {
-            string 
-                PARA = "<p>", 
-                PARA_END = "</p>", 
-                BREAK = "<br />";
-            if (!HTML) { PARA = ""; PARA_END = Environment.NewLine; BREAK = Environment.NewLine; }
-
-            string Message = 
-                PARA +
-                StartupTimeMessage +
-                PARA +
-                CurrentTimeMessage + 
-                PARA_END + PARA +
-                PARA_END + PARA +
-                "Execution Operator Count: " + ExecutorCount +
-                PARA_END + PARA +
-                "Queue Count: " + QueueThreadCount +
-                PARA_END + BREAK
-                
-                ;
-            //var orderedOperators = MyOperators.OrderBy(o => ((int)o.MyType * 1000) + o.ID);
-            //foreach(Operator o in orderedOperators)
-            var orderedJobThreads = executorList.OrderBy(e => (int)e.ExecutorType * 1000 + e.ThreadID);
-            foreach(var ex in orderedJobThreads)
-            {
-                Message += PARA + ex.ThreadName + $"({ex.LogName})" + PARA_END + PARA
-                    + ex.Status.LastStatusMessage 
-                    + (ex.Status.LastStatus.HasValue 
-                        ? (" - " + ex.Status.LastStatus.Value.ToString("MMM dd, yyyy hh:mm"))
-                        : string.Empty)
-                    + PARA_END + PARA + "Working ? " + ex.IsWorking.ToString() 
-                    + "     Work Load Size: " + ex.Workload 
-                    + PARA_END + BREAK;
-            }
-            return Message + BREAK + BREAK;
-        }
+   
+        #region Service control logic
         ManualResetEvent _mre = new ManualResetEvent(true);
+        volatile bool _ServiceAlive;
+        public bool ServiceAlive
+        {
+            get
+            {
+                return _ServiceAlive;
+            }
+        }
+        public ManualResetEvent PauseEvent
+        {
+            get
+            {
+                return _mre;
+            }
+        }
 
         bool _Paused = false;
         public bool Paused { get { return _Paused; } }
@@ -353,6 +299,7 @@ namespace SEIDR.JobExecutor
                 WaitLoops++;
             }
         }
+        #endregion
         public int WorkingCount
         {
             get
@@ -360,21 +307,14 @@ namespace SEIDR.JobExecutor
                 return executorList.Count(j=> j.IsWorking);
             }
         }
-        public int ExecutorCount
-            => executorList.Count(ex => ex.ExecutorType == ExecutorType.Job);
+        public int ExecutorCount => jobList.Count;            
 
         DataBase.DatabaseManager _MGR;
         public DataBase.DatabaseManager DataManager { get { return _MGR; } }
-        Mailer _Mailer; //Sends status emails only...
-        volatile bool _ServiceAlive;
-        public bool ServiceAlive
-        {
-            get
-            {
-                return _ServiceAlive;
-            }
-        }
+        
         #region Logging
+        Mailer _Mailer; //Send success/failure notifications for Executors.
+
         public bool LogExecutionStartFinish(Executor caller, JobExecutionDetail je, bool start)
             => LogToFile(caller, je, start? "START" : $"FINISH. Duration: {je.ExecutionTimeSeconds.ToString()} seconds.", true);
         
@@ -455,9 +395,9 @@ namespace SEIDR.JobExecutor
             }
             catch { }
         }
-        public bool LogError(Executor caller, string Message)
+        public bool LogToFile(Executor caller, string Message, bool shared)
         {
-            return LogToFile(caller, null, Message);
+            return LogToFile(caller, null, Message, shared);
         }
         string LogDirectory;
         string DailyLogDirectory
@@ -471,15 +411,46 @@ namespace SEIDR.JobExecutor
         }
         const string LOG_FILE_FORMAT = "SEIDR.{0}.txt";
         const string SHARED_LOG_FILE_FORMAT = "SEIDR.txt";
-        #endregion
-     
-        public ManualResetEvent PauseEvent
+
+        string GetOverallStatus(bool HTML)
         {
-            get
+            string
+                PARA = "<p>",
+                PARA_END = "</p>",
+                BREAK = "<br />";
+            if (!HTML) { PARA = ""; PARA_END = Environment.NewLine; BREAK = Environment.NewLine; }
+
+            string Message =
+                PARA +
+                StartupTimeMessage +
+                PARA +
+                CurrentTimeMessage +
+                PARA_END + PARA +
+                PARA_END + PARA +
+                "Execution Operator Count: " + ExecutorCount +
+                PARA_END + PARA +
+                "Queue Count: " + QueueThreadCount +
+                PARA_END + BREAK
+
+                ;
+            //var orderedOperators = MyOperators.OrderBy(o => ((int)o.MyType * 1000) + o.ID);
+            //foreach(Operator o in orderedOperators)
+            var orderedJobThreads = executorList.OrderBy(e => (int)e.ExecutorType * 1000 + e.ThreadID);
+            foreach (var ex in orderedJobThreads)
             {
-                return _mre;
+                Message += PARA + ex.ThreadName + $"({ex.LogName})" + PARA_END + PARA
+                    + ex.Status.LastStatusMessage
+                    + (ex.Status.LastStatus.HasValue
+                        ? (" - " + ex.Status.LastStatus.Value.ToString("MMM dd, yyyy hh:mm"))
+                        : string.Empty)
+                    + PARA_END + PARA + "Working ? " + ex.IsWorking.ToString()
+                    + "     Work Load Size: " + ex.Workload
+                    + PARA_END + BREAK;
             }
+            return Message + BREAK + BREAK;
         }
+
+        #endregion
 
         public byte QueueLimitMargin
         {
