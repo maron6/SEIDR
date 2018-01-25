@@ -51,5 +51,10 @@ namespace SEIDR.JobBase
         /// <returns>True if the job has been requested to stop.<para>
         /// If this returns true, the job should return false if it is able to stop.</para></returns>
         bool checkAcknowledgeCancel();
+        /// <summary>
+        /// Sets the JobExecution status to an intermediary working status.If the job has to stop or restart or retry, this can indicate where to pick up again
+        /// </summary>
+        /// <param name="workingStatus"></param>
+        void UpdateStatus(ExecutionStatus workingStatus);
     }
 }

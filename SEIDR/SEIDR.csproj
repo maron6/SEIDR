@@ -123,9 +123,12 @@
     <Compile Include="Serialization\UBJsonObject.cs" />
     <Compile Include="Serialization\UBJsonReader.cs" />
     <Compile Include="Serialization\UBJsonWriter.cs" />
+    <Compile Include="ThreadManaging\Lock.cs" />
     <Compile Include="ThreadManaging\LockHelper.cs" />
     <Compile Include="ThreadManaging\LockManager.cs" />
     <Compile Include="ThreadManaging\LockManagerException.cs" />
+    <Compile Include="ThreadManaging\TimedLockHelper.cs" />
+    <Compile Include="ThreadManaging\TimedLockManager.cs" />
     <Compile Include="UserFriendlyDateRegex.cs" />
   </ItemGroup>
   <ItemGroup>

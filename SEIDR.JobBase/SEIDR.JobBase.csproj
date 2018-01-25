@@ -44,6 +44,7 @@
     <ProjectReference Include="..\SEIDR\SEIDR.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IJob.cs" />
     <Compile Include="iJobExecutor.cs" />
     <Compile Include="JobBase.cs" />
     <Compile Include="RegistrationFile.cs" />

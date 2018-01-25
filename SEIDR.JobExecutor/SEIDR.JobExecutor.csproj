@@ -47,6 +47,7 @@
   <ItemGroup>
     <Compile Include="CancellationExecutor.cs" />
     <Compile Include="Executor.cs" />
+    <Compile Include="JobExecutionDetail.cs" />
     <Compile Include="JobExecutor.cs" />
     <Compile Include="OperationExecutor.cs" />
     <Compile Include="OperationLibrary.cs" />
@@ -56,6 +57,7 @@
     <Compile Include="Queue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ReDistributor.cs" />
+    <Compile Include="ScheduleChecker.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

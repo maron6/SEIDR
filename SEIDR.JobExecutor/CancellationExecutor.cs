@@ -19,7 +19,7 @@ namespace SEIDR.JobExecutor
         }
 
         public override int Workload => cancel != null ? 1 : 0;
-        volatile JobExecution cancel = null; //volatile - Workload may get checked from another thread
+        volatile JobExecutionDetail cancel = null; //volatile - Workload may get checked from another thread
 
         protected override string HandleAbort()
         {
@@ -43,7 +43,7 @@ namespace SEIDR.JobExecutor
         }
         protected override void CheckWorkLoad()
         {
-            cancel = _Manager.SelectSingle<JobExecution>(model);
+            cancel = _Manager.SelectSingle<JobExecutionDetail>(model);
         }
         protected override void Work()
         {

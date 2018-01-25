@@ -54,7 +54,7 @@ namespace SEIDR.JobBase
         public string FileHash { get; set; }
         public string FileName => System.IO.Path.GetFileName(FilePath);
 
-       
+
     }
     public class ExecutionStatus //: DatabaseObject<ExecutionStatus>
     {                
@@ -79,14 +79,13 @@ namespace SEIDR.JobBase
         /// Status allows being picked for queueing.
         /// </summary>
         public bool Queueable => !IsComplete && !IsError;
-        public static ExecutionStatus REQUEUE
-            => new ExecutionStatus
-            {
-                ExecutionStatusCode = "RQ",
-                IsComplete = false,
-                IsError = false,
-                Description = "Requeue the job without updating the status. Was not ready to run.",
-                NameSpace ="SEIDR"
-            };        
+
+        public const string REGISTERED = "R";
+        public const string SCHEDULED = "S";
+        public const string COMPLETE = "C";
+        public const string CANCELLED = "CX";
+        public const string FAILURE = "F";
+        public const string STEP_COMPLETE = "SC";
+        public const string WORKING = "W";
     }
 }

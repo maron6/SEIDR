@@ -42,12 +42,6 @@ namespace SEIDR.JobExecutor
         /// </summary>
         public DateTime? DelayStart;
 
-        public const string REGISTERED = "R";
-        public const string SCHEDULED = "S";
-        public const string COMPLETE = "C";
-        public const string CANCELLED = "CX";
-        public const string FAILURE = "F";
-        public const string STEP_COMPLETE = "SC";
         public bool CanStart => DelayStart == null || DelayStart < DateTime.Now;
 
 

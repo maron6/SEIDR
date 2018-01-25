@@ -9,31 +9,31 @@ namespace SEIDR.ThreadManaging
     /// <summary>
     /// Helper for using <see cref="LockManager"/> class
     /// </summary>
-    public class LockHelper: IDisposable
+    public class TimedLockHelper : IDisposable
     {
         /// <summary>        
         /// Helper for using <see cref="LockManager"/> class
         /// </summary>
         /// <param name="manager">Manager whose lock level is managed. Should be unlocked when creating the helper.</param>
         /// <param name="lockLevel">Target lock level for the helper to acquire.</param>
-        public LockHelper(LockManager manager, Lock lockLevel = Lock.Shared)
+        public TimedLockHelper(TimedLockManager manager, Lock lockLevel = Lock.Shared)
         {
             if (lockLevel == Lock.Unlocked)
                 throw new ArgumentOutOfRangeException("lockLevel", "Lock is below Locking Boundary");
             mgr = manager;
             if (mgr.HasLock)
                 throw new ArgumentException("The LockManager has already obtained a lock", "manager");
-            if (!mgr.Acquire(lockLevel))
-                throw new LockManagerException("Unable to acquire lock");
+            mgr.Acquire(lockLevel);
         }
         /// <summary>
         /// Helper for using <see cref="LockManager"/> class
         /// </summary>
         /// <param name="lockLevel"></param>
         /// <param name="target"></param>
-        public LockHelper(Lock lockLevel, string target = "DEFAULT")
+        /// <param name="timeout">Set to a value > 0 to limit how long it can take to acquire the lock.</param>
+        public TimedLockHelper(Lock lockLevel, string target = "DEFAULT", uint timeout = 0)
         {
-            if(lockLevel == Lock.Unlocked)
+            if (lockLevel == Lock.Unlocked)
             {
                 throw new ArgumentOutOfRangeException(nameof(lockLevel), "Lock is below locking boundary");
             }
@@ -41,12 +41,11 @@ namespace SEIDR.ThreadManaging
             {
                 throw new ArgumentException(nameof(lockLevel), "Lock Level Exclusive Intent is not valid if a LockManager is not passed to the helper");
             }
-            mgr = new LockManager(target);
-            if (!mgr.Acquire(lockLevel))
-                throw new LockManagerException("Unable to acquire lock");
+            mgr = new TimedLockManager(target, timeout);
+            mgr.Acquire(lockLevel);
 
         }
-        LockManager mgr;
+        TimedLockManager mgr;
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
@@ -62,7 +61,7 @@ namespace SEIDR.ThreadManaging
                 }
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
-                
+
                 disposedValue = true;
             }
         }

@@ -74,7 +74,6 @@ namespace SEIDR.FileSystem
                         Description = "IO Exception",
                         IsError = true,
                         IsComplete = false,
-                        IsWorking = false
                     };
                     jobExecutor.LogError("File Processing, IO Exception", iex);
                     return false;

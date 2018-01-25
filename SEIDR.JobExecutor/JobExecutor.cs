@@ -27,6 +27,7 @@ namespace SEIDR.JobExecutor
         }
         void CheckStatus(ExecutionStatus check)
         {
+            
             lock(statusListLock)
             {
                 if (statusList.Exists(s => s.NameSpace == check.NameSpace && s.ExecutionStatusCode == check.ExecutionStatusCode))
@@ -56,12 +57,13 @@ namespace SEIDR.JobExecutor
         public JobExecutor( DatabaseManager manager, JobExecutorService caller)
             : base(manager, caller, ExecutorType.Job)
         {
-            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.COMPLETE, IsComplete = true, NameSpace = "SEIDR" });
-            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.FAILURE, IsError = true, NameSpace = "SEIDR" });
-            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.REGISTERED, NameSpace = "SEIDR" });
-            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.SCHEDULED, NameSpace = "SEIDR" });
-            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.STEP_COMPLETE, NameSpace = "SEIDR" });            
-            CheckStatus(new ExecutionStatus { ExecutionStatusCode = JobExecutionDetail.CANCELLED, NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.COMPLETE, Description = nameof(ExecutionStatus.COMPLETE), IsComplete = true, NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.FAILURE, Description= nameof(ExecutionStatus.FAILURE), IsError = true, NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.REGISTERED, Description = nameof(ExecutionStatus.REGISTERED), NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.SCHEDULED, Description = nameof(ExecutionStatus.SCHEDULED), NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.STEP_COMPLETE, Description = nameof(ExecutionStatus.STEP_COMPLETE), NameSpace = "SEIDR" });            
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.CANCELLED, Description = nameof(ExecutionStatus.CANCELLED), NameSpace = "SEIDR" });
+            CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.WORKING, Description = nameof(ExecutionStatus.WORKING), NameSpace = "SEIDR" });
         }
         const string SET_STATUS = "SEIDR.usp_JobExecution_SetStatus";
         const string REQUEUE = "SEIDR.usp_JobExecution_Requeue";
@@ -121,8 +123,7 @@ namespace SEIDR.JobExecutor
                     if (h.ReturnValue != 0 || currentExecution == null)
                         return; //ThreadName will have been changed, but that should be okay.
                 }
-                currentExecution.ExecutionJobProfile = _Manager.SelectSingle<JobProfile>(currentExecution);
-                SetExecutionStatus(false, true);
+                currentExecution.ExecutionJobProfile = _Manager.SelectSingle<JobProfile>(currentExecution);                
                 ExecutionStatus status = null;
                 bool success = false;
                 using (new LockHelper(libraryLock, Lock.Shared))
@@ -151,7 +152,7 @@ namespace SEIDR.JobExecutor
                 }
                 if (cancelSuccess)
                 {
-                    SetExecutionStatus(false, false, "CX");
+                    SetExecutionStatus(false, false, ExecutionStatus.CANCELLED);
                 }
                 else
                 {
@@ -220,7 +221,6 @@ namespace SEIDR.JobExecutor
                 { "@FileHash", currentExecution.FileHash },
                 { "@Success", success},
                 { "@Working", working },
-                { "@StepNumber", currentExecution.StepNumber },
                 { "@ExecutionStatusCode", statusCode },
                 { "@ExecutionStatusNameSpace", StatusNameSpace },
                 { "@Complete", false },
@@ -275,6 +275,14 @@ namespace SEIDR.JobExecutor
                 }
             }
         }
+
+        public void UpdateStatus(ExecutionStatus workingStatus)
+        {
+            workingStatus.IsComplete = false;
+            workingStatus.IsError = false;
+            SetExecutionStatus(false, true, workingStatus.ExecutionStatusCode, workingStatus.ExecutionStatusCode);
+        }
+
         /// <summary>
         /// Called by Service during startup, before setting up individual jobexecutors.
         /// </summary>
@@ -295,8 +303,8 @@ namespace SEIDR.JobExecutor
                     LastLibraryCheck = DateTime.Now;
                 }
             }
-
         }
+        #region workload
         /// <summary>
         /// Goes through the work queue. If something workable is found, removes it from the queue and returns it
         /// </summary>
@@ -345,47 +353,6 @@ namespace SEIDR.JobExecutor
             }
             return null;
         } 
-        /* --Deprecated via static list - only threads without a requiredThreadID can be redistributed and they are all in the same queue.
-        /// <summary>
-        /// Removes up to <paramref name="count"/> records from the back of the queue.
-        /// </summary>
-        /// <param name="count"></param>
-        /// <param name="workingList">List of JobExecutions to be redistributed.</param>
-        /// <returns></returns>
-        public void UndistributeWork(int count, List<JobExecution> workingList)
-        {
-
-            if (Workload == 0)
-                return;
-            lock (workLockObj)
-            {
-                SortWork();
-                for (int i = workQueue.Count - 1; i >= 0; i--)
-                {
-                    var je = workQueue[i];
-                    if (je.JobSingleThreaded || je.RequiredThreadID.HasValue)
-                        continue;
-                    workingList.Add(je);
-                    workQueue.RemoveAt(i); //Going backwards through the list, don't need to worry about the position messing up.                  
-                }
-            }
-        }        
-        public void DistributeWork(int count, List<JobExecutionDetail> workList)
-        {
-            lock (workLockObj)
-            {
-                if (count > workList.Count)
-                    count = workList.Count;
-                if (count == 0)
-                    return;
-                workQueue.AddRangeLimited(workList, count);
-                SortWork();
-                workList.RemoveRange(0, count);
-            }
-        }
-        void DistributeWork(List<JobExecutionDetail> list)
-            => DistributeWork(list.Count, list);
-        */
         /// <summary>
         /// Identify if the JobExecutor includes the JobExecutionID in its workload
         /// </summary>
@@ -435,6 +402,7 @@ namespace SEIDR.JobExecutor
             {
                 h.QualifiedProcedure = GET_WORK;
                 h.AddKey(nameof(ThreadID), ThreadID);
+                h.AddKey("ThreadCount", JobExecutorCount);
                 h.AddKey(nameof(BatchSize), BatchSize);
                 
                 lock (workLockObj)
@@ -462,6 +430,8 @@ namespace SEIDR.JobExecutor
                     return workQueue.Count(Match);
             }
         }
+        #endregion
+        #region Service features
         public override void Wait(int sleepSeconds, string logReason)
         {
             CallerService.LogFileError(this, currentExecution, "Sleep Requested: " + logReason);
@@ -497,7 +467,7 @@ namespace SEIDR.JobExecutor
             if (currentExecution == null)
                 return null;
             string msg = "JobExecutionID: " + currentExecution.JobExecutionID;
-            SetExecutionStatus(false, false, "CX");
+            SetExecutionStatus(false, false,  ExecutionStatus.CANCELLED);
             return msg;
             
         }
@@ -510,5 +480,6 @@ namespace SEIDR.JobExecutor
             }            
             return base.Stop();
         }
+        #endregion
     }
 }
