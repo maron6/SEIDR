@@ -20,7 +20,7 @@ namespace SEIDR.JobExecutor
             : base(db, caller, ExecutorType.Maintenance)
         {
             
-            object map = new
+            map = new
             {
                 ThreadID,
                 ThreadCount = caller.QueueThreadCount

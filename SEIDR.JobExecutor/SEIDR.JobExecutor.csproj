@@ -49,8 +49,7 @@
     <Compile Include="Executor.cs" />
     <Compile Include="JobExecutionDetail.cs" />
     <Compile Include="JobExecutor.cs" />
-    <Compile Include="OperationExecutor.cs" />
-    <Compile Include="OperationLibrary.cs" />
+    <Compile Include="JobLibrary.cs" />
     <Compile Include="JobExecutorService.cs">
       <SubType>Component</SubType>
     </Compile>

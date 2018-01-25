@@ -10,7 +10,9 @@
     /// <para>
     /// This is only useful for multi threading and each thread really needs to have its own lock manager(s).
     /// </para>
+    /// <para>Instances should NOT be created as static variables or shared across threads.</para>
     /// </summary>
+    [Obsolete("Better to use the LockManager class.")]
     public sealed class TimedLockManager : IDisposable
     {
         /// <summary>
@@ -488,12 +490,9 @@
             {
                 if (disposing)
                 {
-                    
+
                 }
-                lock (_LockTargets[_myTarget])
-                {
-                    acquiring = -1;
-                }
+                Interlocked.Exchange(ref acquiring, -1);
                 Release(true);
 
                 lock (_lock)

@@ -9,6 +9,7 @@ namespace SEIDR.ThreadManaging
     /// <summary>
     /// Helper for using <see cref="LockManager"/> class
     /// </summary>
+    [Obsolete("Better to use LockManager and LockHelper")]
     public class TimedLockHelper : IDisposable
     {
         /// <summary>        
@@ -45,6 +46,10 @@ namespace SEIDR.ThreadManaging
             mgr.Acquire(lockLevel);
 
         }
+        /// <summary>
+        /// Gets the lock level of the underlying TimedLockManager
+        /// </summary>
+        public Lock LevelLevel => mgr.MyLock;
         TimedLockManager mgr;
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls

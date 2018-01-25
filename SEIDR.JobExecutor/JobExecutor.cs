@@ -19,19 +19,21 @@ namespace SEIDR.JobExecutor
         volatile static List<ExecutionStatus> statusList = new List<ExecutionStatus>();
         public static void PopulateStatusList(DatabaseManager manager)
         {
-            lock (statusListLock)
+            //lock (statusListLock)
+            using(new LockHelper(Lock.Exclusive, STATUS_TARGET))
             {
                 statusList.Clear();
                 statusList = manager.SelectList<ExecutionStatus>(Schema:"SEIDR");
             }
         }
         void CheckStatus(ExecutionStatus check)
-        {
-            
-            lock(statusListLock)
+        {            
+            //lock(statusListLock)
+            using(var h= new LockHelper(Lock.Shared, STATUS_TARGET))
             {
                 if (statusList.Exists(s => s.NameSpace == check.NameSpace && s.ExecutionStatusCode == check.ExecutionStatusCode))
                     return;
+                h.Transition(Lock.Exclusive);
                 statusList.Add(check);
             }
             //format: SEIDR.usp_{0}_i
@@ -39,7 +41,8 @@ namespace SEIDR.JobExecutor
         }
         const string LIBRARY_TARGET = nameof(SEIDR.JobExecutor) + "." + nameof(Library);
         LockManager libraryLock = new LockManager(LIBRARY_TARGET); //NOT static.
-        static object statusListLock = new object();
+        const string STATUS_TARGET = nameof(SEIDR.JobExecutor) + "." + nameof(statusList);
+        //static object statusListLock = new object();
         public static void ConfigureLibrary(string location)
         {
             if (Library == null)
@@ -48,7 +51,9 @@ namespace SEIDR.JobExecutor
         /// <summary>
         /// Work Queue lock
         /// </summary>
-        static object workLockObj = new object();
+        //static object workLockObj = new object();
+        const string WORK_LOCK_TARGET = nameof(SEIDR.JobExecutor) + "." + nameof(workQueue);
+        
         /// <summary>
         /// Thread name lock. (Since Job imports can be single thread required, organized by Name)
         /// </summary>
@@ -89,29 +94,19 @@ namespace SEIDR.JobExecutor
 
         public JobProfile job => currentExecution.ExecutionJobProfile;
 
-
+        volatile bool _requeue = false;
         public void Requeue(int delayMinutes)
         {
             currentExecution.DelayStart = DateTime.Now.AddMinutes(delayMinutes);
-            /*
-            Dictionary<string, object> Keys = new Dictionary<string, object>
-            {
-                { "@JobExecutionID", currentExecution.JobExecutionID}
-            };
-            using (var i = _Manager.GetBasicHelper(Keys, REQUEUE))
-            {
-                var ds = _Manager.Execute(i);
-                var jb = ds.GetFirstRowOrNull(0).ToContentRecord<JobExecutionDetail>();
-                jb.DelayStart = DateTime.Now.AddMinutes(delayMinutes);
-                Queue(jb);
-                currentExecution = null;
-            }
-            */
+            currentExecution.ThreadChecked = false;
+            _requeue = true;
+            
         }
         protected override void Work()
         {
             cancelSuccess = false;
             CancelRequested = false;
+            _requeue = false;
             try
             {
                 currentExecution = CheckWork();
@@ -123,10 +118,11 @@ namespace SEIDR.JobExecutor
                     if (h.ReturnValue != 0 || currentExecution == null)
                         return; //ThreadName will have been changed, but that should be okay.
                 }
-                currentExecution.ExecutionJobProfile = _Manager.SelectSingle<JobProfile>(currentExecution);                
+                currentExecution.ExecutionJobProfile = _Manager.SelectSingle<JobProfile>(currentExecution);
+                
                 ExecutionStatus status = null;
                 bool success = false;
-                using (new LockHelper(libraryLock, Lock.Shared))
+                using (new LockHelper(Lock.Shared, libraryLock))
                 {
 #pragma warning disable 420
                     int newThread;
@@ -146,9 +142,9 @@ namespace SEIDR.JobExecutor
                             return;
                         }
                     }
-                    currentExecution.Start();
+                    LogStart();                    
                     success = job.Execute(this, currentExecution, ref status);
-                    currentExecution.Finish();
+                    LogFinish();
                 }
                 if (cancelSuccess)
                 {
@@ -156,6 +152,11 @@ namespace SEIDR.JobExecutor
                 }
                 else
                 {
+                    if(!success && _requeue)
+                    {
+                        Queue(currentExecution);
+                        return;
+                    }
                     if (string.IsNullOrWhiteSpace(status.NameSpace))
                         status.NameSpace = currentJobMetaData.NameSpace;
 
@@ -211,36 +212,29 @@ namespace SEIDR.JobExecutor
         void SetExecutionStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
         {
             if (currentExecution == null)
-                return;
-            Dictionary<string, object> Keys = new Dictionary<string, object>
+                return;            
+            using (var i = _Manager.GetBasicHelper(currentExecution, true))
             {
-                { "@JobExecutionID", currentExecution.JobExecutionID},
-                { "@JobProfileID", currentExecution.JobProfileID },
-                { "@FilePath", currentExecution.FilePath },
-                { "@FileSize", currentExecution.FileSize },
-                { "@FileHash", currentExecution.FileHash },
-                { "@Success", success},
-                { "@Working", working },
-                { "@ExecutionStatusCode", statusCode },
-                { "@ExecutionStatusNameSpace", StatusNameSpace },
-                { "@Complete", false },
-                { nameof(currentExecution.ExecutionTimeSeconds), currentExecution.ExecutionTimeSeconds}
-            };
-            using (var i = _Manager.GetBasicHelper(Keys, SET_STATUS))
-            {
+                i.QualifiedProcedure = SET_STATUS;
+                i[nameof(working)] = working;
+                i[nameof(success)] = success;
+                i["ExecutionStatusCode"] = statusCode;
+                i["ExecutionStatusNameSpace"] = StatusNameSpace;
+
                 i.BeginTran();
                 var next = _Manager.SelectSingle<JobExecutionDetail>(i, CommitSuccess: true);
                 if (next != null)
                 {
                     Queue(next);
                 }
-                else
-                    currentExecution.Complete = (bool)i["@Complete"]; //completion notification
+                //else
+                //    currentExecution.Complete = (bool)i["@Complete"]; //completion notification
             }
         }
         public static void Queue(JobExecutionDetail job, bool Cut = false)
         {
-            lock (workLockObj)
+            //lock (workLockObj)
+            using(new LockHelper(Lock.Exclusive, WORK_LOCK_TARGET)) //pass target, static
             {
                 if (workQueue.Exists(detail => detail.JobExecutionID == job.JobExecutionID))
                 {
@@ -313,7 +307,8 @@ namespace SEIDR.JobExecutor
         {
             lock (NameLock)
                 SetThreadName(null);
-            lock (workLockObj)
+            //lock (workLockObj)
+            using(var h = new LockHelper(Lock.Shared, WORK_LOCK_TARGET))
             {                
                 if (workQueue.UnderMaximumCount(Match, 0))
                     return null;                
@@ -347,6 +342,7 @@ namespace SEIDR.JobExecutor
                             SetThreadName(threadName);
 
                     }
+                    h.Transition(Lock.Exclusive);
                     workQueue.Remove(detail);
                     return detail;
                 }            
@@ -371,11 +367,13 @@ namespace SEIDR.JobExecutor
             }
             if (currentExecution.JobExecutionID == JobExecutionID)
                 return true;
-            lock (workLockObj)
+            //lock (workLockObj)
+            using(var h = new LockHelper(Lock.Exclusive_Intent, WORK_LOCK_TARGET))
             {
                 int i = workQueue.FindIndex(je => je.JobExecutionID == JobExecutionID);
                 if (i >= 0)
                 {
+                    h.Transition(Lock.Exclusive);
                     if (remove)
                     {
                         workQueue.RemoveAt(i);
@@ -389,7 +387,8 @@ namespace SEIDR.JobExecutor
 
         protected override void CheckWorkLoad()
         {           
-            lock (workLockObj)
+            //lock (workLockObj)
+            using(new LockHelper(Lock.Shared, WORK_LOCK_TARGET))
             {
                 if(workQueue.HasMinimumCount(Match, 1))
                     return;
@@ -405,9 +404,11 @@ namespace SEIDR.JobExecutor
                 h.AddKey("ThreadCount", JobExecutorCount);
                 h.AddKey(nameof(BatchSize), BatchSize);
                 
-                lock (workLockObj)
+                //lock (workLockObj)
+                using(var lh = new LockHelper(Lock.Exclusive, WORK_LOCK_TARGET))
                 {
                     workQueue.AddRange(_Manager.SelectList<JobExecutionDetail>(h));
+                    lh.Transition(Lock.Shared);
                     LogInfo("Added Jobs to WorkQueue. Queued Count:" + workQueue.Count(Match));
                 }
             }
@@ -421,12 +422,13 @@ namespace SEIDR.JobExecutor
                 return false;
             return check.CanStart;
         }
-        static List<JobExecutionDetail> workQueue;
+        static List<JobExecutionDetail> workQueue = new List<JobExecutionDetail>();
         public override int Workload
         {
             get
             {
-                lock (workLockObj)
+                //lock (workLockObj)
+                using(new LockHelper(Lock.Shared, WORK_LOCK_TARGET))
                     return workQueue.Count(Match);
             }
         }
@@ -434,7 +436,7 @@ namespace SEIDR.JobExecutor
         #region Service features
         public override void Wait(int sleepSeconds, string logReason)
         {
-            CallerService.LogFileError(this, currentExecution, "Sleep Requested: " + logReason);
+            CallerService.LogToFile(this, currentExecution, "Sleep Requested: " + logReason);
             SetStatus("Sleep requested:" + logReason, JobBase.Status.ThreadStatus.StatusType.Sleep_JobRequest);
             Thread.Sleep(sleepSeconds * 1000);
             SetStatus("Wake from Job Sleep Request");
@@ -451,11 +453,35 @@ namespace SEIDR.JobExecutor
                 Thread.Sleep(LOG_FAILURE_WAIT);
             }
         }
+        void LogStart()
+        {
+            if (currentExecution == null)
+                return;
+            currentExecution.Start();
+            int count = 5;
+            while(!CallerService.LogExecutionStartFinish(this, currentExecution, true) && count > 0)
+            {
+                count--;
+                Thread.Sleep(LOG_FAILURE_WAIT);
+            }
+        }
+        void LogFinish()
+        {
+            if (currentExecution == null)
+                return;
+            currentExecution.Finish();
+            int count = 5;
+            while (!CallerService.LogExecutionStartFinish(this, currentExecution, false) && count > 0)
+            {
+                count--;
+                Thread.Sleep(LOG_FAILURE_WAIT);
+            }
+        }
 
         public override void LogInfo(string message)
         {
             int count = 5;
-            while(!CallerService.LogFileError(this, currentExecution, message) && count > 0)
+            while(!CallerService.LogToFile(this, currentExecution, message) && count > 0)
             {
                 count--;
                 Thread.Sleep(LOG_FAILURE_WAIT);

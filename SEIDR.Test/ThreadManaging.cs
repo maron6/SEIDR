@@ -44,7 +44,7 @@ namespace SEIDR.Test
             System.Diagnostics.Debug.WriteLine("Current ThreadID: " + Thread.CurrentThread.ManagedThreadId);
             l5.Acquire(Lock.Exclusive_Intent);
             l4.Acquire(Lock.Exclusive);// should not interfere.            
-            Thread t = new Thread(() =>
+            Task t = new Task(() =>
             {
                 System.Diagnostics.Debug.WriteLine("Entered, t1.");
                 System.Diagnostics.Debug.WriteLine("Current ThreadID: " + Thread.CurrentThread.ManagedThreadId);                
@@ -59,10 +59,10 @@ namespace SEIDR.Test
                 //Assert.AreEqual(4, pointer);
                 //pointer++;
                 System.Diagnostics.Debug.WriteLine("Release l1, t1");
-                l1.Release();
+                l1.Release();                
                 System.Diagnostics.Debug.WriteLine("Exit, t1");
             });
-            t.IsBackground = true;
+            //t.IsBackground = true;
             Task t0 = new Task(() =>
             {
                 System.Diagnostics.Debug.WriteLine("Entered, t0. t3 Acquire exclusive");
@@ -74,11 +74,11 @@ namespace SEIDR.Test
             
             t0.Start();
             l5.Release();
-            System.Threading.Thread.Sleep(1000);
+            Thread.Sleep(1000);
             t.Start();
-            System.Threading.Thread.Sleep(1000);
+            Thread.Sleep(1000);
             //Assert.AreEqual(1, pointer);
-            Thread t2 = new Thread(() =>
+            var t2 = new Task(() =>
             {
                 //Assert.AreEqual(1, pointer);
                 //pointer++;
@@ -87,17 +87,24 @@ namespace SEIDR.Test
                 l2.Acquire(Lock.Shared);                
                 System.Diagnostics.Debug.WriteLine("Lock Acquired t2");
                 System.Diagnostics.Debug.WriteLine("Wait ten seconds, then release.");
-                System.Threading.Thread.Sleep(10 * 1000);                
+                Thread.Sleep(10 * 1000);                
                 l2.Release();
+                using(var h =  new LockHelper(Lock.Shared, "Test"))
+                {
+                    h.Transition(Lock.Exclusive);
+                    Thread.Sleep(10 * 1000);
+                    h.Transition(Lock.Shared);
+                    Thread.Sleep(10 * 1000);                    
+                }
                 System.Diagnostics.Debug.WriteLine("Exit t2");
+
             });
-            t2.IsBackground = true;
             t2.Start();
             System.Diagnostics.Debug.WriteLine("T2 started");
             //Assert.AreEqual(2, pointer);
             l5.Acquire(Lock.Exclusive_Intent);
             System.Diagnostics.Debug.WriteLine("Tasks started, l3 released. Sleep 15 seconds and release l4");
-            System.Threading.Thread.Sleep(15 * 1000);
+            Thread.Sleep(15 * 1000);
             System.Diagnostics.Debug.WriteLine("release l4");
             //Assert.AreEqual(5, pointer);
             l5.Acquire(Lock.Exclusive); //Do NOT release/acquire from different threads. Need to add a safety there..
@@ -105,7 +112,7 @@ namespace SEIDR.Test
             while (l5.MyLock < Lock.Exclusive)
             {
                 System.Diagnostics.Debug.WriteLine("l5 waiting for exclusive. Sleep...");
-                System.Threading.Thread.Sleep(5 * 1000);                
+                Thread.Sleep(5 * 1000);                
             }
             l5.Release();
             System.Diagnostics.Debug.WriteLine("l5 released");

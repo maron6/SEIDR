@@ -375,6 +375,9 @@ namespace SEIDR.JobExecutor
             }
         }
         #region Logging
+        public bool LogExecutionStartFinish(Executor caller, JobExecutionDetail je, bool start)
+            => LogToFile(caller, je, start? "START" : $"FINISH. Duration: {je.ExecutionTimeSeconds.ToString()} seconds.", true);
+        
         public bool LogExecutionError(JobExecution execution, string Message, int? ExtraID, int? CallerThread = null)
         {
             const string sproc = "SEIDR.usp_JobExecutionError_i";            
@@ -399,24 +402,37 @@ namespace SEIDR.JobExecutor
         {
             caller.Status.SetStatus(Message, ThreadStatus.StatusType.Error);
             bool a = LogExecutionError(errBatch, Message, ExtraID, caller.ThreadID);
-            bool b = LogFileError(caller, errBatch, (ExtraID.HasValue? ExtraID.Value + "::":"") + Message + Environment.NewLine);
+            bool b = LogToFile(caller, errBatch, (ExtraID.HasValue? ExtraID.Value + "::":"") + Message + Environment.NewLine);
             return a && b;
         }
-        public bool LogFileError(Executor callingOperator, JobExecution b, string Message)
+        public bool LogToFile(Executor callingOperator, JobExecution b, string Message, bool shared = false)
         {
             string tempMessage = CurrentTimeMessage;
             if (b != null)
                 tempMessage += $"JobProfile {b.JobProfileID}, JobExecutionID: [{b.JobExecutionID}], Step: {b.StepNumber}, BatchDate: [{b.ProcessingDate.ToString("MM dd yyyy")}] ";
             tempMessage += Message;
-            string File = Path.Combine(DailyLogDirectory, string.Format(LogFileFormat, callingOperator.LogName));
+            string File = Path.Combine(DailyLogDirectory, string.Format(LOG_FILE_FORMAT, callingOperator.LogName));
             try
             {
                 System.IO.File.AppendAllText(File, tempMessage);
             }
             catch
             {                
-                callingOperator.Status.SetStatus("Could not log error!", ThreadStatus.StatusType.Error);                
+                callingOperator.Status.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);                
                 return false;
+            }
+            if (shared)
+            {
+                File = Path.Combine(DailyLogDirectory, SHARED_LOG_FILE_FORMAT);
+                try
+                {
+                    System.IO.File.AppendAllText(File, $"[{callingOperator.LogName}] {tempMessage}");
+                }
+                catch
+                {
+                    callingOperator.Status.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);
+                    return false;
+                }
             }
             return true;
         }
@@ -441,7 +457,7 @@ namespace SEIDR.JobExecutor
         }
         public bool LogError(Executor caller, string Message)
         {
-            return LogFileError(caller, null, Message);
+            return LogToFile(caller, null, Message);
         }
         string LogDirectory;
         string DailyLogDirectory
@@ -453,7 +469,8 @@ namespace SEIDR.JobExecutor
                 return Path.Combine(LogDirectory, DateTime.Now.ToString("yyyy_MM_dd"));
             }
         }
-        string LogFileFormat = "SEIDR.{0}.txt";
+        const string LOG_FILE_FORMAT = "SEIDR.{0}.txt";
+        const string SHARED_LOG_FILE_FORMAT = "SEIDR.txt";
         #endregion
      
         public ManualResetEvent PauseEvent
