@@ -54,23 +54,22 @@ CREATE TABLE SEIDR.Schedule_ScheduleRuleCluster --OR clusters of rules
 	--CHECK(ThroughDate is null or ThroughDate > FromDate)
 )
 GO
- 
-ALTER FUNCTION SEIDR.ufn_CheckSchedule(@ScheduleID int, @DateToCheck datetime, @FromDate datetime)
-RETURNS BIT
+  
+
+CREATE FUNCTION SEIDR.ufn_CheckSchedule(@ScheduleID int, @DateToCheck datetime, @FromDate datetime)
+RETURNS int
 AS
 BEGIN
-	DECLARE @RET bit = 0
+	DECLARE @RET int = null
 	IF @DateToCheck < @FromDate
 		RETURN @RET
 
-	IF EXISTS(SELECT null
+	SELECT TOP 1 @RET =  ScheduleRuleClusterID				
 				FROM SEIDR.Schedule_ScheduleRuleCluster ssrc
-				WHERE ssrc.ScheduleID = @ScheduleID
+				WHERE ssrc.ScheduleID = @ScheduleID				
 				--AND @DateToCheck > ssrc.FromDate
 				--AND (ssrc.ThroughDate is null or ssrc.ThroughDate > @DateToCheck)
-				AND SEIDR.ufn_CheckScheduleRuleCluster(ScheduleRuleClusterID, @DateToCheck, @FromDate) = 1
-				)
-		SET @RET = 1
+				AND SEIDR.ufn_CheckScheduleRuleCluster(ScheduleRuleClusterID, @DateToCheck, @FromDate) = 1						
 	RETURN @RET
 END
 GO
@@ -185,10 +184,15 @@ GO
 ALTER PROCEDURE SEIDR.usp_JobProfile_CheckSchedule
 AS
 BEGIN
+
+	DECLARE @RC int = 0
+
 	--Test for missing days of schedules
 	DECLARE @Now datetime = GETDATE()
 	CREATE TABLE #JobSchedule(JobProfileID int not null, ScheduleID int  not null, ScheduleDate datetime not null, 
-			ComparisonDate datetime not null, [Match] bit,
+			ComparisonDate datetime not null, 
+			[MatchingRuleClusterID] int null, 
+			[Match] as (CONVERT(bit, CASE WHEN MatchingRuleClusterID is null then 0 else 1 end)),
 			PRIMARY KEY(JobProfileID, ScheduleID, ScheduleDate))
 	INSERT INTO #JobSchedule(JobProfileID, ScheduleID, ScheduleDate, ComparisonDate)
 	SELECT jp.JobProfileID, jp.ScheduleID, d.[Date], LastProcessDate
@@ -204,16 +208,35 @@ BEGIN
 	AND d.[Date] > je.LastProcessDate
 
 	UPDATE js
-	SET Match = SEIDR.ufn_CheckSchedule(js.SCheduleID, ScheduleDate, ComparisonDate)
+	SET [MatchingRuleClusterID] = SEIDR.ufn_CheckSchedule(js.SCheduleID, ScheduleDate, ComparisonDate)
 	FROM #JobSchedule js
 
 	
 	INSERT INTO SEIDR.JobExecution(JobProfileID, UserKey, UserKey1, UserKey2,
 			StepNumber, ExecutionStatusCode, 
-			ProcessingDate)
-	SELECT js.JobProfileID, UserKey, UserKey1, UserKey2, 
+			ProcessingDate, ScheduleRuleClusterID)
+	SELECT js.JobProfileID, jp.UserKey, jp.UserKey1, jp.UserKey2, 
 			1, 'S',
-			ScheduleDate
+			ScheduleDate, [MatchingRuleClusterID]
+	FROM #JobSchedule js
+	JOIN SEIDR.JobProfile jp
+		ON js.JobProfileID = jp.JobProfileID
+	LEFT JOIN SEIDR.JobExecution je
+		ON js.JobProfileID = je.JobProfileID
+		AND js.ScheduleDate = je.ProcessingDate
+	WHERE je.JobExecutionID is null
+	AND [Match] = 1
+	
+	IF @@ROWCOUNT = 0
+		SET @RC += 10
+
+
+	INSERT INTO SEIDR.JobExecution(JobProfileID, UserKey, UserKey1, UserKey2,
+			StepNumber, ExecutionStatusCode, 
+			ProcessingDate, ProcessingTime, ScheduleRuleClusterID)
+	SELECT js.JobProfileID, jp.UserKey, jp.UserKey1, jp.UserKey2, 
+			1, 'S',
+			ScheduleDate, @Now, [MatchingRuleClusterID]
 	FROM #JobSchedule js
 	JOIN SEIDR.JobProfile jp
 		ON js.JobProfileID = jp.JobProfileID
@@ -223,50 +246,47 @@ BEGIN
 	WHERE je.JobExecutionID is null
 	AND [Match] = 1
 
-
-	INSERT INTO SEIDR.JobExecution(JobProfileID, UserKey, UserKey1, UserKey2,
-			StepNumber, ExecutionStatusCode, 
-			ProcessingDate, ProcessingTime)
-	SELECT js.JobProfileID, UserKey, UserKey1, UserKey2, 
-			1, 'S',
-			ScheduleDate, @Now
-	FROM #JobSchedule js
-	JOIN SEIDR.JobProfile jp
-		ON js.JobProfileID = jp.JobProfileID
-	LEFT JOIN SEIDR.JobExecution je
-		ON js.JobProfileID = je.JobProfileID
-		AND js.ScheduleDate = je.ProcessingDate
-	WHERE je.JobExecutionID is null
+	IF @@ROWCOUNT = 0
+		SET @RC += 10
 
 	--For Same day execution (hour/minute intervals)
 	INSERT INTO SEIDR.JobExecution(JobProfileID, UserKey, UserKey1, UserKey2,
-		StepNumber, ExecutionSTatusCode,
+		StepNumber, ExecutionSTatusCode, ScheduleRuleClusterID,
 		ProcessingDate, ProcessingTime)
 	SELECT js.JobProfileID, UserKey, UserKey1, UserKey2, 
-			1, 'S',
+			1, 'S', [MatchingRuleClusterID],
 			@Now, @Now
 	FROM SEIDR.JobProfile js
 	JOIN(SELECT JobProfileID, MAX(ProcessingDateTime) ProcessingDateTime
 			FROM SEIDR.JobExecution
 			GROUP BY JobProfileID)je
 		ON js.JobProfileID = je.JobProfileID
+	CROSS APPLY(SELECT SEIDR.ufn_CheckSChedule(js.ScheduleID, @Now, ProcessingDateTime))s(MatchingRuleClusterID)
 	WHERE js.ScheduleValid = 1 AND js.Active = 1	
-	AND SEIDR.ufn_CheckSChedule(js.ScheduleID, @Now, ProcessingDateTime) = 1
+	AND  s.MatchingRuleClusterID is not null
+	
+	IF @@ROWCOUNT = 0
+		SET @RC += 10
 
 	--Initial Jobs for new schedules.
 	INSERT INTO SEIDR.JobExecution(JobProfileID, UserKey, UserKey1, UserKey2,
-		StepNumber, ExecutionSTatusCode,
+		StepNumber, ExecutionSTatusCode, ScheduleRuleClusterID,
 		ProcessingDate, ProcessingTime)
 	SELECT JobProfileID, UserKey, UserKey1, UserKey2, 
-			1, 'S',
+			1, 'S', [MatchingRuleClusterID],
 			js.ScheduleFromDate, @Now
 	FROM SEIDR.JobProfile js		
+	CROSS APPLY(SELECT SEIDR.ufn_CheckSChedule(js.ScheduleID, @Now, js.ScheduleFromDate))s(MatchingRuleClusterID)
 	WHERE js.ScheduleValid = 1 AND js.Active = 1	
 	AND NOT EXISTS(SELECT null 
 					FROM SEIDR.JobExecution WITH (NOLOCK)
 					WHERE JobPRofileID = js.JobProfileID)
+	AND  s.MatchingRuleClusterID is not null	
 
+	IF @@ROWCOUNT = 0
+		SET @RC += 10
 
+	RETURN @RC
 END
 GO
  

@@ -9,6 +9,7 @@ namespace SEIDR.JobExecutor
 {
     public class JobExecutionDetail: JobExecution
     {
+        public JobProfile ExecutionJobProfile;
         public string JobName { get; private set; }
         public string JobNameSpace { get; private set; }
         public string JobThreadName { get; private set; }
@@ -49,6 +50,22 @@ namespace SEIDR.JobExecutor
         public const string STEP_COMPLETE = "SC";
         public bool CanStart => DelayStart == null || DelayStart < DateTime.Now;
 
-        public bool Complete { get; set; }
+
+        public bool CanRetry { get; set; }
+        public int RetryDelay { get; set; }
+
+
+        public bool Complete { get; set; } = false;
+
+        public bool ThreadChecked { get; set; } = false;
+        public int? ExecutionTimeSeconds { get; set; } = null;      
+        DateTime? ExecutionStart = null;
+        public void Start() => ExecutionStart = DateTime.Now;
+        public void Finish()
+        {
+            ExecutionTimeSeconds = (ExecutionStart.HasValue ? (int?)(DateTime.Now - ExecutionStart.Value).TotalSeconds : null);
+            ExecutionStart = null;
+        }
+        public readonly DateTime DetailCreated = DateTime.Now;
     }
 }

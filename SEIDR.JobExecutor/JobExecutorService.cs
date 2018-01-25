@@ -44,7 +44,7 @@ namespace SEIDR.JobExecutor
         /// <param name="checkID"></param>
         /// <returns></returns>
         public bool CheckSingleThreadedJobThread(JobExecutionDetail job, int checkID)
-        {
+        {            
             return(jobList.UnderMaximumCount(executor =>
             {
                 if (executor.ThreadID == checkID)
@@ -150,6 +150,7 @@ namespace SEIDR.JobExecutor
             else if (ThreadCount > 6)
                 ThreadCount = 6;
             QueueThreadCount = ThreadCount;
+
             /*
             temp = appSettings["BatchSize"];
             if (!byte.TryParse(temp, out _BatchSize) || _BatchSize < 1)
@@ -200,11 +201,17 @@ namespace SEIDR.JobExecutor
                 executorList.Add(new Queue(DataManager, this));
                 //MyOperators.Add(new Queue(this, i));
             }
-            executorList.Add(new ReDistributor(DataManager, this, jobList));
+            //executorList.Add(new ReDistributor(DataManager, this, jobList));
             executorList.Add(new CancellationExecutor(this, DataManager, jobList));
             executorList.Add(new ScheduleChecker(this, DataManager));
             //MyOperators.Add(new Queue(this, QUEUE_ID));
 
+
+
+            MyStatus.BatchSize = BatchSize;
+            MyStatus.JobExecutorCount = Executor.JobExecutorCount;
+            MyStatus.QueueExecutorCount = QueueThreadCount;
+            MyStatus.MaintenanceCount = Executor.MaintenanceCount;
 
             DataManager.ExecuteNonQuery("SEIDR.usp_JobExecution_CleanWorking");
             //MyOperators.Add(new CancellationExecutor(this, CANCEL_ID));
@@ -234,26 +241,36 @@ namespace SEIDR.JobExecutor
             while (ServiceAlive)
             {
                 _mre.WaitOne();
-                JobExecutor.CheckLibrary(DataManager);
-                
-                int minute = DateTime.Now.Minute;
-                if (minute % 5 == 0)
+                try
                 {
-                    if (!StatusFileLogged)
-                    {
-                        LogFileMessage(GetOverallStatus(false));
-                        StatusFileLogged = true;
-                        MyStatus.WriteToFile(LogDirectory);                         
-                        //Don't use the daily folder for current status XML file.   
-                        //Maybe to do: Delete old log directories? Not something I'd consider especially important, though..                     
-                    }
+                    JobExecutor.CheckLibrary(DataManager);
 
-                    //if (LibMaintenance.Status.In(TaskStatus.RanToCompletion, TaskStatus.Created, TaskStatus.Canceled))
-                    //    LibMaintenance.Start();
+                    int minute = DateTime.Now.Minute;
+                    int second = DateTime.Now.Second;
+                    if (minute % 5 == 0)
+                    {
+                        if (!StatusFileLogged)
+                        {
+                            LogFileMessage(GetOverallStatus(false));
+                            StatusFileLogged = true;                     
+                        }
+
+                        //if (LibMaintenance.Status.In(TaskStatus.RanToCompletion, TaskStatus.Created, TaskStatus.Canceled))
+                        //    LibMaintenance.Start();
+                    }
+                    else
+                        StatusFileLogged = false;
+
+                    if (second % 30 == 0)
+                        MyStatus.WriteToFile(LogDirectory);
                 }
-                else
-                    StatusFileLogged = false;
-                Thread.Sleep(5 * MILISECOND_TO_SECOND);
+                finally
+                {
+                    if(ServiceAlive)
+                        Thread.Sleep(5 * MILISECOND_TO_SECOND);
+                    //Don't use the daily folder for current status XML file.   
+                    //Maybe to do: Delete old log directories? Not something I'd consider especially important, though..
+                }
             }            
         }       
         const int MILISECOND_TO_SECOND = 1000;
@@ -270,9 +287,14 @@ namespace SEIDR.JobExecutor
                 StartupTimeMessage +
                 PARA +
                 CurrentTimeMessage + 
-                PARA_END + PARA + 
+                PARA_END + PARA +
+                PARA_END + PARA +
                 "Execution Operator Count: " + ExecutorCount +
-                PARA_END + BREAK;
+                PARA_END + PARA +
+                "Queue Count: " + QueueThreadCount +
+                PARA_END + BREAK
+                
+                ;
             //var orderedOperators = MyOperators.OrderBy(o => ((int)o.MyType * 1000) + o.ID);
             //foreach(Operator o in orderedOperators)
             var orderedJobThreads = executorList.OrderBy(e => (int)e.ExecutorType * 1000 + e.ThreadID);

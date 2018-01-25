@@ -17,11 +17,13 @@ namespace SEIDR.JobExecutor
             _Manager.DefaultRetryOnDeadlock = true;
         }
         volatile int workLoad = 1;
-        public override int Workload => workLoad;         
-
+        public override int Workload => workLoad;
+        int nextCheck = 0;
         protected override void CheckWorkLoad()
         {
-            if (DateTime.Now.Subtract(lastCheck).TotalSeconds > 30)
+            if (nextCheck == 0)
+                workLoad = 1;
+            else if (DateTime.Now.Subtract(lastCheck).TotalSeconds > nextCheck)
                 workLoad = 1;    
         }
 
@@ -31,10 +33,10 @@ namespace SEIDR.JobExecutor
         }
 
         protected override void Work()
-        {
+        {           
             workLoad = 0;
             lastCheck = DateTime.Now;
-            _Manager.ExecuteNonQuery(CHECK_SCHEDULES);
+            _Manager.ExecuteNonQuery(CHECK_SCHEDULES, ReturnCode: out nextCheck);            
         }
     }
 }

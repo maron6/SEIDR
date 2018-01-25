@@ -80,7 +80,9 @@ namespace SEIDR.JobExecutor
                 Schema = "SEIDR"
             };            
             DataTable dt = new DataTable("SEIDR.udt_JobMetaData");
-            dt.AddColumns<IJobMetaData>(nameof(IJobMetaData.SafeCancel)); //Don't need SafeCancel in the database.            
+            dt.AddColumns<IJobMetaData>(
+                nameof(IJobMetaData.SafeCancel), 
+                nameof(IJobMetaData.RerunThreadCheck)); //Fields we don't need in the database.            
             maps.ForEach(m => dt.AddRow(m.Metadata));
             //model.SetKey("OperationList", dt);
             model.SetKey("JobList", dt);

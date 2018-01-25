@@ -13,7 +13,8 @@ namespace SEIDR.JobExecutor
 
         static int _maintenanceCounter = 0;
         static int _jobCounter = 0;
-        protected int JobExecutorCount => _jobCounter;
+        public static int JobExecutorCount => _jobCounter;
+        public static int MaintenanceCount => _maintenanceCounter;
         protected const int DEADLOCK_TIME_INCREASE = 45;
         protected const int MAX_TIMEOUT = 1200;
 
@@ -67,7 +68,10 @@ namespace SEIDR.JobExecutor
         protected abstract string HandleAbort();
         protected void SetStatus(string message, ThreadStatus.StatusType status = ThreadStatus.StatusType.General)
         {
-            Status.SetStatus(message, status);
+            lock (Status) //Not best practice, but it is a status for 'this'
+            {
+                Status.SetStatus(message, status);
+            }
         }
         Thread worker;
         public void Call()
@@ -121,6 +125,7 @@ namespace SEIDR.JobExecutor
                 try
                 {
                     CallerService.PauseEvent.WaitOne();
+                    SetStatus("Check Workload", ThreadStatus.StatusType.Start);
                     CheckWorkLoad();
                     if(Workload == 0)
                     {
@@ -132,6 +137,7 @@ namespace SEIDR.JobExecutor
                         IsWorking = true;
                     }
                     Work();
+                    SetStatus("Finish Work", ThreadStatus.StatusType.Finish);
                 }
                 catch(ThreadAbortException)
                 {                    
@@ -143,6 +149,7 @@ namespace SEIDR.JobExecutor
                 catch(Exception ex)
                 {
                     CallerService.LogError(null, ex.Message);
+                    SetStatus("Error:" + ex.Message, ThreadStatus.StatusType.Error);
                 }
                 finally
                 {

@@ -311,7 +311,7 @@ namespace SEIDR.DataBase
             {
                 if (key[0] == '@')
                     key = key.Substring(1);
-                if (!Parameters.ContainsKey(key))
+                if (ParameterMap != null && !Parameters.ContainsKey(key))
                 {
                     _PropertyIgnore.Add(key);
                     _PropertyIgnore = _PropertyIgnore.Distinct().ToList();

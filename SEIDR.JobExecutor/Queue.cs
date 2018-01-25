@@ -64,13 +64,16 @@ namespace SEIDR.JobExecutor
             if (!di.Root.Exists)
             {
                 string root = di.Root.Name;
-                if(root.Like("%:%") && !root.Like(@"\\%"))
+                if (root.Like("%:%") && !root.Like(@"\\%"))
                 {
                     invalid = true;
                     //Should be a drive, on the local machine.
                 }
                 else
+                {
+                    LogInfo("Unable to access network path:" + profile.RegistrationFolder);
                     return; //Root doesn't exist, but it's (probably) a UNC path. May just be connection issues. Skip
+                }
             }
             
             if (invalid || !di.Exists)
@@ -80,6 +83,7 @@ namespace SEIDR.JobExecutor
                     try
                     {
                         di.Create();
+                        LogInfo("Created directory: " + profile.RegistrationFolder);
                     }
                     catch
                     {

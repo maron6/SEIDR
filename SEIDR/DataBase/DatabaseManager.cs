@@ -1044,7 +1044,10 @@ namespace SEIDR.DataBase
             if (extraKeys == null)
                 extraKeys = new Dictionary<string, object>();
             if (paramObj == null && extraKeys.Count > 0)
+            {
                 paramObj = new { };
+                ignore = new string[0];
+            }
             else if (paramObj == null)
                 return;            
             ParameterStore.FillParameterCollection(cmd); 

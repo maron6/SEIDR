@@ -22,6 +22,11 @@ namespace SEIDR.JobBase.Status
                 x.Serialize(sw, this);
             }
         }
+        public DateTime StartupTime { get; set; } = DateTime.Now;
+        public int JobExecutorCount { get; set; }
+        public int BatchSize { get; set; }
+        public int QueueExecutorCount { get; set; }
+        public int MaintenanceCount { get; set; }        
         [XmlIgnore]
         public const string FILE_NAME = "SEIDR.STATUS.XML";
         public List<ThreadStatus> StatusList { get; set; }
@@ -86,13 +91,15 @@ namespace SEIDR.JobBase.Status
             foreach (ThreadStatus st in StatusList)
             {
                 DataRow r = dt.NewRow();
-                r["ThreadType"] = st.ID.Type;
-                r["ThreadName"] = st.ID.Name;
-                r["LastStatusType"] = st.MyStatus.ToString();
                 bool oldStatus;
-                r["LastStatusTime"] = st.GetMostRecentStatusTime(out oldStatus); //If last status is not null, converts to local time as well
-                r["LastStatusMessage"] = st.LastStatusMessage;
-                r["StartupTime"] = st.startTime;
+             
+                    r["ThreadType"] = st.ID.Type;
+                    r["ThreadName"] = st.ID.Name;
+                    r["LastStatusType"] = st.MyStatus.ToString();
+                    r["LastStatusTime"] = st.GetMostRecentStatusTime(out oldStatus); //If last status is not null, converts to local time as well
+                    r["LastStatusMessage"] = st.LastStatusMessage;
+                    r["StartupTime"] = st.startTime;
+                
                 string color = null;
                 switch (st.MyStatus)
                 {

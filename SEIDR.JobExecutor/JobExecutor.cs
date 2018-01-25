@@ -67,7 +67,7 @@ namespace SEIDR.JobExecutor
         const string REQUEUE = "SEIDR.usp_JobExecution_Requeue";
         const string GET_WORK = "SEIDR.usp_JobExecution_sl_Work";
         const string START_WORK = "SEIDR.usp_JobExecution_StartWork";
-        JobProfile currentJob;
+        
         volatile JobExecutionDetail currentExecution;
         volatile IJobMetaData currentJobMetaData;
 
@@ -85,11 +85,13 @@ namespace SEIDR.JobExecutor
 
         public DatabaseConnection connection => _Manager.CloneConnection();
 
-        public JobProfile job => currentJob;
+        public JobProfile job => currentExecution.ExecutionJobProfile;
 
 
         public void Requeue(int delayMinutes)
         {
+            currentExecution.DelayStart = DateTime.Now.AddMinutes(delayMinutes);
+            /*
             Dictionary<string, object> Keys = new Dictionary<string, object>
             {
                 { "@JobExecutionID", currentExecution.JobExecutionID}
@@ -102,7 +104,7 @@ namespace SEIDR.JobExecutor
                 Queue(jb);
                 currentExecution = null;
             }
-
+            */
         }
         protected override void Work()
         {
@@ -119,7 +121,7 @@ namespace SEIDR.JobExecutor
                     if (h.ReturnValue != 0 || currentExecution == null)
                         return; //ThreadName will have been changed, but that should be okay.
                 }
-                currentJob = _Manager.SelectSingle<JobProfile>(currentExecution);
+                currentExecution.ExecutionJobProfile = _Manager.SelectSingle<JobProfile>(currentExecution);
                 SetExecutionStatus(false, true);
                 ExecutionStatus status = null;
                 bool success = false;
@@ -131,16 +133,21 @@ namespace SEIDR.JobExecutor
                             currentExecution.JobNameSpace,
                             out currentJobMetaData);
 #pragma warning restore 420
-
-                    if (!job.CheckThread(currentExecution, ThreadID, out newThread)
-                        && newThread % CallerService.ExecutorCount != ThreadID) 
+                    if (currentJobMetaData.RerunThreadCheck || !currentExecution.ThreadChecked)
                     {
-                        //if new thread goes over ExecutorCount, it's okay in this thread. if newThread % ExecutorCount is this ID
-                        currentExecution.RequiredThreadID = newThread;
-                        CallerService.QueueExecution(currentExecution);
-                        return;
+                        if (!job.CheckThread(currentExecution, ThreadID, out newThread)
+                            && newThread % CallerService.ExecutorCount != ThreadID)
+                        {
+                            //if new thread goes over ExecutorCount, it's okay in this thread. if newThread % ExecutorCount is this ID
+                            currentExecution.RequiredThreadID = newThread;
+                            Queue(currentExecution); //put it back into the queue. after being removed
+                            currentExecution.ThreadChecked = true;
+                            return;
+                        }
                     }
+                    currentExecution.Start();
                     success = job.Execute(this, currentExecution, ref status);
+                    currentExecution.Finish();
                 }
                 if (cancelSuccess)
                 {
@@ -155,16 +162,27 @@ namespace SEIDR.JobExecutor
 
                     SetExecutionStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
                     SendNotifications(currentExecution, success);
+                    if(!success && currentExecution.CanRetry)
+                    {
+                        currentExecution.DelayStart = DateTime.Now.AddMinutes(currentExecution.RetryDelay);
+                        Queue(currentExecution);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 SetExecutionStatus(false, false);
                 LogError("JobExecutor.Work()", ex);
+                if (currentExecution.CanRetry)
+                {
+                    currentExecution.DelayStart = DateTime.Now.AddMinutes(currentExecution.RetryDelay);
+                    Queue(currentExecution);
+                }
             }
             finally
             {
                 currentJobMetaData = null;
+                currentExecution = null;
             }
         }
         void SendNotifications(JobExecutionDetail executedJob, bool success)
@@ -205,7 +223,8 @@ namespace SEIDR.JobExecutor
                 { "@StepNumber", currentExecution.StepNumber },
                 { "@ExecutionStatusCode", statusCode },
                 { "@ExecutionStatusNameSpace", StatusNameSpace },
-                { "@Complete", false }
+                { "@Complete", false },
+                { nameof(currentExecution.ExecutionTimeSeconds), currentExecution.ExecutionTimeSeconds}
             };
             using (var i = _Manager.GetBasicHelper(Keys, SET_STATUS))
             {
@@ -216,17 +235,44 @@ namespace SEIDR.JobExecutor
                     Queue(next);
                 }
                 else
-                    currentExecution.Complete = (bool)i["@Complete"];
+                    currentExecution.Complete = (bool)i["@Complete"]; //completion notification
             }
         }
         public static void Queue(JobExecutionDetail job, bool Cut = false)
         {
             lock (workLockObj)
             {
+                if (workQueue.Exists(detail => detail.JobExecutionID == job.JobExecutionID))
+                {
+                    workQueue.RemoveAll(detail => detail.JobExecutionID == job.JobExecutionID && detail.DetailCreated <= job.DetailCreated);
+                    //shouldn't happen, but as a safety, keep the latest one.                    
+                    if (workQueue.Exists(detail => detail.JobExecutionID == job.JobExecutionID))
+                        return;
+                }
+
                 if (Cut)
                     workQueue.Insert(0, job);
                 else
+                {
                     workQueue.Add(job);
+                    workQueue.Sort((a, b) =>
+                    {
+                        //positive: a is greater.                    
+                        if (a.DelayStart.HasValue && b.DelayStart.HasValue)
+                        {
+                            if (a.DelayStart.Value > b.DelayStart.Value)
+                                return 1;
+                            return -1;
+                        }
+                        else if (a.DelayStart.HasValue)
+                            return 1;
+                        if (b.DelayStart.HasValue)
+                            return -1; // (int)DateTime.Now.Subtract(b.DelayStart.Value).TotalSeconds; //Treat b as greater
+                        if (a.WorkPriority > b.WorkPriority)
+                            return 1;
+                        return a.WorkPriority < b.WorkPriority ? -1 : 0;
+                    });
+                }
             }
         }
         /// <summary>
@@ -250,30 +296,7 @@ namespace SEIDR.JobExecutor
                 }
             }
 
-        }/*
-        void CheckLibrary()
-        {
-            if (LastLibraryCheck.AddMinutes(15) >= DateTime.Now)
-                return;
-            //libraryLock.Acquire(Lock.Exclusive);
-
-            //lock (libraryLock)
-            using (new LockHelper(libraryLock, Lock.Exclusive))
-            {
-                //  Don't care so much if validate has an exception, 
-                //  but don't care errors from loading library itself         
-                Library.RefreshLibrary();
-                try
-                {
-
-                    Library.ValidateOperationTable(_Manager);
-                }
-                finally
-                {
-                    LastLibraryCheck = DateTime.Now;
-                }
-            }
-        }*/
+        }
         /// <summary>
         /// Goes through the work queue. If something workable is found, removes it from the queue and returns it
         /// </summary>
@@ -283,11 +306,9 @@ namespace SEIDR.JobExecutor
             lock (NameLock)
                 SetThreadName(null);
             lock (workLockObj)
-            {
-                SortWork();
+            {                
                 if (workQueue.UnderMaximumCount(Match, 0))
-                    return null;
-                
+                    return null;                
                 foreach (var detail in workQueue)
                 {
                     if (!Match(detail))
@@ -296,15 +317,17 @@ namespace SEIDR.JobExecutor
                     string threadName = detail.JobThreadName;
                     if (string.IsNullOrWhiteSpace(threadName))
                         threadName = $"{detail.JobNameSpace}.{detail.JobName}";
+
                     lock (NameLock)
-                    {
-                        SetThreadName(threadName);
+                    {                        
                         //If we already have this ThreadName, don't need to check other threads, so skip
                         //If job is considered single threaded, need to check for any other thread running the job.
-                        if (!CallerService.CheckSingleThreadedJobThread(detail, ThreadID))
-                        {
+                        if (detail.JobSingleThreaded && !CallerService.CheckSingleThreadedJobThread(detail, ThreadID))
+                        {                            
                             if (detail.RequiredThreadID != null)
                                 detail.DelayStart = DateTime.Now.AddMinutes(1);
+
+
                             continue;
                             /*
                                 If ThreadID is specified(not null, matches current threadID), then another thread is running with this JobName, 
@@ -312,33 +335,16 @@ namespace SEIDR.JobExecutor
                                 Add a delay and check the next record.
                                 */
                         }
+                        else
+                            SetThreadName(threadName);
+
                     }
                     workQueue.Remove(detail);
                     return detail;
                 }            
             }
             return null;
-        }
-        void SortWork()
-        {
-            workQueue.Sort((a, b) =>
-               {
-                    //positive: a is greater.                    
-                    if (a.DelayStart.HasValue && b.DelayStart.HasValue)
-                   {
-                       if (a.DelayStart.Value > b.DelayStart.Value)
-                           return 1;
-                       return -1;
-                   }
-                   else if (a.DelayStart.HasValue)
-                       return 1;
-                   if (b.DelayStart.HasValue)
-                       return -1; // (int)DateTime.Now.Subtract(b.DelayStart.Value).TotalSeconds; //Treat b as greater
-                    if (a.WorkPriority > b.WorkPriority)
-                       return 1;
-                   return a.WorkPriority < b.WorkPriority ? -1 : 0;
-               });
-        }
+        } 
         /* --Deprecated via static list - only threads without a requiredThreadID can be redistributed and they are all in the same queue.
         /// <summary>
         /// Removes up to <paramref name="count"/> records from the back of the queue.
@@ -415,14 +421,7 @@ namespace SEIDR.JobExecutor
         }
 
         protected override void CheckWorkLoad()
-        {
-            /*
-            List<JobExecution> temp = new List<JobExecution>();
-            if (CallerService.GrabShareableWork(this, temp))
-            {
-                DistributeWork(temp);
-                return;
-            }*/
+        {           
             lock (workLockObj)
             {
                 if(workQueue.HasMinimumCount(Match, 1))
@@ -441,6 +440,7 @@ namespace SEIDR.JobExecutor
                 lock (workLockObj)
                 {
                     workQueue.AddRange(_Manager.SelectList<JobExecutionDetail>(h));
+                    LogInfo("Added Jobs to WorkQueue. Queued Count:" + workQueue.Count(Match));
                 }
             }
         }
@@ -484,7 +484,7 @@ namespace SEIDR.JobExecutor
 
         public override void LogInfo(string message)
         {
-            int count = 10;
+            int count = 5;
             while(!CallerService.LogFileError(this, currentExecution, message) && count > 0)
             {
                 count--;

@@ -34,7 +34,11 @@ namespace SEIDR.JobBase
         /// </summary>
         [DefaultValue(false)]
         bool SafeCancel { get; }
-
+        /// <summary>
+        /// Indicates whether the job needs to rerun the thread check
+        /// </summary>
+        [DefaultValue(false)]
+        bool RerunThreadCheck { get; }
     }
     public interface IJob
     {
