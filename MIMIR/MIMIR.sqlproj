@@ -1,0 +1,115 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Name>MIMIR</Name>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>4.1</ProjectVersion>
+    <ProjectGuid>{87db26f2-7626-4760-89b1-9718e77ba70d}</ProjectGuid>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql130DatabaseSchemaProvider</DSP>
+    <OutputType>Database</OutputType>
+    <RootPath>
+    </RootPath>
+    <RootNamespace>MIMIR</RootNamespace>
+    <AssemblyName>MIMIR</AssemblyName>
+    <ModelCollation>1033,CI</ModelCollation>
+    <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
+    <DeployToDatabase>True</DeployToDatabase>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetLanguage>CS</TargetLanguage>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <SqlServerVerification>False</SqlServerVerification>
+    <IncludeCompositeObjects>True</IncludeCompositeObjects>
+    <TargetDatabaseSet>True</TargetDatabaseSet>
+    <DefaultSchema>SEIDR</DefaultSchema>
+    <DefaultCollation>SQL_Latin1_General_CP1_CI_AS</DefaultCollation>
+    <DefaultFilegroup>PRIMARY</DefaultFilegroup>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineDebug>false</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
+    <!-- Default to the v11.0 targets path if the targets file for the current VS version is not found -->
+    <SSDTExists Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets')">True</SSDTExists>
+    <VisualStudioVersion Condition="'$(SSDTExists)' == ''">11.0</VisualStudioVersion>
+  </PropertyGroup>
+  <Import Condition="'$(SQLDBExtensionsRefPath)' != ''" Project="$(SQLDBExtensionsRefPath)\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <Import Condition="'$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <ItemGroup>
+    <Folder Include="Properties" />
+    <Folder Include="SEIDR\" />
+    <Folder Include="SEIDR\Tables\" />
+    <Folder Include="SEIDR\Views\" />
+    <Folder Include="SEIDR\Functions\" />
+    <Folder Include="SEIDR\Stored Procedures\" />
+    <Folder Include="SEIDR\User Defined Types\" />
+    <Folder Include="Security\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Build Include="SEIDR\Tables\JobExecution_Note.sql" />
+    <Build Include="SEIDR\Tables\Priority.sql" />
+    <Build Include="SEIDR\Tables\ScheduleRule.sql" />
+    <Build Include="SEIDR\Tables\ScheduleRuleCluster.sql" />
+    <Build Include="SEIDR\Tables\ScheduleRuleCluster_ScheduleRule.sql" />
+    <Build Include="SEIDR\Tables\Schedule_ScheduleRuleCluster.sql" />
+    <Build Include="SEIDR\Tables\ExecutionStatus.sql" />
+    <Build Include="SEIDR\Tables\DM_Test.sql" />
+    <Build Include="SEIDR\Tables\Job.sql" />
+    <Build Include="SEIDR\Tables\JobProfile_Job.sql" />
+    <Build Include="SEIDR\Tables\Schedule.sql" />
+    <Build Include="SEIDR\Tables\JobExecution.sql" />
+    <Build Include="SEIDR\Tables\JobExecution_ExecutionStatus.sql" />
+    <Build Include="SEIDR\Tables\JobProfile.sql" />
+    <Build Include="SEIDR\Tables\JobExecutionError.sql" />
+    <Build Include="SEIDR\Views\vw_JobExecution.sql" />
+    <Build Include="SEIDR\Views\vw_JobExecutionHistory.sql" />
+    <Build Include="SEIDR\Functions\ufn_CheckScheduleRule.sql" />
+    <Build Include="SEIDR\Functions\ufn_CheckScheduleRuleCluster.sql" />
+    <Build Include="SEIDR\Functions\ufn_CheckSchedule.sql" />
+    <Build Include="SEIDR\Functions\ufn_GetDays.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobExecutionError_i.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_DataManagerTest.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_DatamanagerTest2.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_CheckSchedules.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_CheckMissingSchedules.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobExecution_StartWork.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobExecution_sl_Work.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobProfile_CheckSchedule.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_ExecutionStatus_i.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Job_Validate.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobExecution_SetStatus.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobExecution_Requeue.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_Job_RegisterFile.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_ExecutionStatus_sl.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobProfile_sl_FileWatch.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobProfile_u_InvalidPath.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobProfile_sl.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobProfile_iu.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobExecution_CleanWorking.sql" />
+    <Build Include="SEIDR\User Defined Types\udt_JobMetaData.sql" />
+    <Build Include="Security\SEIDR.sql" />
+  </ItemGroup>
+</Project>
