@@ -940,6 +940,20 @@
                     break;
             }
         }
+        /// <summary>
+        /// Transforms each record of the enumerable and returns it as a new enumerable
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        public static IEnumerable<T> TransformEach<T>(this IEnumerable<T> list, Func<T, T> func)
+        {
+            foreach(var ti in list)
+            {
+                yield return func(ti);
+            }
+        }
         public static void ForEachIndex<T>(this IEnumerable<T> list, Action<T, int> Update, int limit)
         {
             if (limit < 1)

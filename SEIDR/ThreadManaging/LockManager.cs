@@ -155,6 +155,10 @@
                 }
             }
         }
+        
+
+        #region lock release
+
         /// <summary>
         /// Release your lock. Useful even with nolock in the event that you MIGHT need to change to using a lock later on.
         /// <para> 
@@ -164,31 +168,66 @@
         /// Will throw an exception if you try to release an already unlocked LockManager.
         /// </remarks>
         /// </summary>
-        public void Release() => Release(false);
-        private void Release( bool safeMode)
+        public void Release()
         {
             var target = _LockTargets[_myTarget];
             var intent = _IntentTargets[_myTarget];
-            if(!safeMode)
-            {
-                if (disposedValue)
-                    throw new InvalidOperationException("LockManager has been disposed already.");
-                else if (_MyLock == Lock.Unlocked)
-                    throw new LockManagerException("Tried to release a lock but no lock exists.");
-                else if (_MyLock == Lock.Exclusive && !Monitor.IsEntered(target))
-                    throw new SynchronizationLockException("Tried to release a lock from a different thread from what acquired the lock.");
-            }
-            if (_MyLock == Lock.Unlocked)
-            {                 
-                return;                
-            }
+         
+            if (disposedValue)
+                throw new InvalidOperationException("LockManager has been disposed already.");
+            else if (_MyLock == Lock.Unlocked)
+                throw new LockManagerException("Tried to release a lock but no lock exists.");
+            else if (_MyLock == Lock.Exclusive && !Monitor.IsEntered(target))
+                throw new SynchronizationLockException("Tried to release a lock from a different thread from what acquired the lock.");
+            
+            release(target, intent);
+        }
+        private void release()
+        {
+            var target = _LockTargets[_myTarget];
+            var intent = _IntentTargets[_myTarget];
+            release(target, intent);
             //Only needed if this can affect the calling method. I would imagine it can as part of compiling code, but would need research to confirm..
             Thread.MemoryBarrier();
-            
-            if (_MyLock < LockBoundary)
+        }
+        private void exclusiveRelease(object target, object intent)
+        {            
+            DateTime d;
+            try
             {
-                _MyLock = Lock.Unlocked;                
-            }            
+                if(Monitor.IsEntered(target))
+                    Monitor.PulseAll(target); //exclusive, pulse all. Note: Needs to be done while we have the lock.
+                while (Monitor.IsEntered(target))
+                {
+                    //This can end up entered more times than expected for some reason, but that shouldn't hurt since it's the same Thread                    
+                    Monitor.Exit(target);
+                }
+                System.Diagnostics.Debug.WriteLine(_MyLock.ToString() + " Lock released for target '" + _myTarget + "'. LockID: " + LockID);
+            }
+            finally
+            {
+                lock (intent)
+                {
+                    if (_IntentHolder[_myTarget] == LockID)
+                    {
+                        if (_IntentExpiration.ContainsKey(_myTarget))
+                            _IntentExpiration.TryRemove(_myTarget, out d);
+                        _IntentHolder[_myTarget] = null;   
+                        Monitor.PulseAll(intent); //intent changed, pulse all                     
+                    }
+                }
+            }
+        }
+        private void release( object target,  object intent)
+        {
+            if (_MyLock == Lock.Unlocked)
+            {
+                return;  //No Change
+            }
+            else if (_MyLock < LockBoundary)
+            {
+                _MyLock = Lock.Unlocked;
+            }
             else if (_MyLock < ShareBoundary)
             {
                 lock (target)
@@ -197,39 +236,19 @@
                     System.Diagnostics.Debug.WriteLine("Share released for target '" + _myTarget + $"' on LockID {LockID}. Remaining sharecount: " + shares);
                     Monitor.PulseAll(target);
                     //pulsing here is for exclusives waiting for sharecount to go to 0. 
-                    //Need to pulse all in case there are exclusive intents trying to check for access to the exclusive flag, though                                                   
-
+                    //Need to pulse all in case there are exclusive intents trying to check for access to the exclusive flag, though
                     _MyLock = Lock.Unlocked;
                 }
             }                
             else if (_MyLock >= ShareBoundary)
             {
-                //Wouldn't want to move the lock forward early, but should be okay to move it down to Unlocked a little early
-                _MyLock = Lock.Unlocked; 
-                DateTime d;                    
-                try
-                {
-                    while (Monitor.IsEntered(target))
-                    {
-                        //This can end up entered more times than expected for some reason, but that shouldn't hurt since it's the same Thread
-                        Monitor.PulseAll(target); //exclusive, pulse all
-                        Monitor.Exit(target);                        
-                    }
-                    System.Diagnostics.Debug.WriteLine(_MyLock.ToString() + " Lock released for target '" + _myTarget + "'. LockID: " +LockID);
-                }
-                finally
-                {                        
-                    lock (intent)
-                    {
-                        if (_IntentExpiration.ContainsKey(_myTarget))
-                            _IntentExpiration.TryRemove(_myTarget, out d);
-                        if (_IntentHolder[_myTarget] == LockID)
-                            _IntentHolder[_myTarget] = null;
-                        Monitor.PulseAll(intent); //intent, pulse all
-                    }
-                }                                
+                //Wouldn't want to move the lock forward early, but should be okay to move it down to Unlocked a little early here.
+                _MyLock = Lock.Unlocked;
+                exclusiveRelease(target, intent);
             }                         
         }
+        #endregion
+
         /// <summary>
         /// Block until no other threads are trying to acquire locks.
         /// </summary>
@@ -239,6 +258,18 @@
             {
                 lock (_LockTargets[_myTarget]) { }
             }
+        }
+        bool CheckLock(object target, bool wait)
+        {            
+            if (Monitor.IsEntered(target))
+            {
+                return true;
+            }
+            else if (wait)
+            {
+                lock (target) { }                
+            }            
+            return false;
         }
         /// <summary>
         /// Checks if the LockManger has an exclusive lock on this thread.
@@ -257,7 +288,7 @@
         /// <param name="timeout"></param>
         /// <returns>True if this method returns without reaching the timeout.</returns>
         public bool Wait(int timeout)
-        {
+        {            
             object target = _LockTargets[_myTarget];
             if (Monitor.IsEntered(target))
             {
@@ -265,8 +296,11 @@
             }            
             bool taken = false;
             try
-            {                
-                Monitor.TryEnter(target, timeout, ref taken);
+            {
+                if (timeout <= 0)
+                    Monitor.Enter(target, ref taken);
+                else
+                    Monitor.TryEnter(target, timeout, ref taken);
                 return taken;
             }
             catch
@@ -282,83 +316,99 @@
             }
         }
         /// <summary>
+        /// Block until no other threads are trying to acquire a lock on the target.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="timeout">Timeout to wait. If less than or equal to 0, will be ignored.</param>
+        /// <returns>False if the timeout is reached, or if the target is not used by the LockManager functionality.</returns>
+        public static bool Wait(string target, int timeout = 0)
+        {
+            if (!_LockTargets.ContainsKey(target))
+                return false;
+            object lockTarget = _LockTargets[target];
+            if (Monitor.IsEntered(lockTarget))
+            {
+                return true; //Already in the lock, don't need to try
+            }
+            bool taken = false;
+            try
+            {
+                if (timeout <= 0)
+                    Monitor.Enter(lockTarget, ref taken);
+                else
+                    Monitor.TryEnter(lockTarget, timeout, ref taken);
+                return taken;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                if (taken)
+                {
+                    Monitor.Exit(lockTarget);
+                }
+            }
+        }
+        /// <summary>
         /// Maximum number of seconds that exclusive intent can be maintained without grabbing the actual exclusive lock.
         /// <para>(5 minutes)</para>
         /// </summary>
         public const int EXCLUSIVE_INTENT_EXPIRATION_SECONDS = 300;
+        const string ALREADY_DISPOSED = "LockManager has had Dispose called already.";
         /// <summary>
-        /// Determines whether the current lock needs to be released before calling <see cref="Acquire(Lock, bool)"/> in safe mode.
+        /// Determines whether the current lock needs to be released before calling <see cref="Acquire(Lock, bool, bool)"/> in safe mode.
         /// </summary>
         /// <param name="level">Lock level to be transitioned to.</param>
-        /// <returns>Result of <see cref="Acquire(Lock, bool)"/>, or true if the Lock is already at the desired level</returns>
+        /// <returns>Result of <see cref="Acquire(Lock, bool, bool)"/>, or true if the Lock is already at the desired level</returns>
         public bool TransitionLock(Lock level)
         {
+            if (disposedValue)
+            {
+                throw new InvalidOperationException(ALREADY_DISPOSED);
+            }
             if (_MyLock == level)
                 return true;
-            if (_MyLock == Lock.Exclusive)
-                Release(true);
-            if (_MyLock > level)
-                Release(true);
-            return Acquire(level, true);
-        }
-        /// <summary>
-        /// Try to acquire a lock.
-        /// <para>
-        /// An exception will be thrown if you try to acquire a lock on a lock manager that already has a lock.
-        /// </para>
-        /// <remarks>
-        /// If you try to acquire Lock.Unlocked, this will simply Release any lock the lock manager might have.
-        /// </remarks>
-        /// </summary>
-        /// <param name="level"></param>
-        /// <param name="safe">Returns immediately instead of throwing LockManagerExceptions if Parameter validation fails, or if the LockManager instance is already trying to acquire a lock.
-        /// <para>Does not stop errors thrown as a result of another thread calling dispose on the LockManager while it's trying to dispose.</para></param>
-        /// <param name="timeoutSafe">If true, returns false instead of throwing TimeOutExceptions for Exclusive and Exclusive Intent</param>
-        /// <returns>True if lock is successfully acquired.</returns>
-        public bool Acquire(Lock level,  bool safe = false, bool timeoutSafe = true)
-        {
+
 
             object target = _LockTargets[_myTarget];
             object intent = _IntentTargets[_myTarget];
-            #region Parameter Validation
-            if (disposedValue)
+
+            if (_MyLock == Lock.Exclusive)
             {
-                throw new InvalidOperationException("LockManager has been disposed already.");
+                CheckLock(target, wait: true); //If currently exclusive, make sure we wait if it's from another thread...
             }
+
+            if (_MyLock >= LockBoundary && level == Lock.Exclusive_Intent)
+                release();            
+
+            //if (_MyLock > level && level == Lock.Exclusive_Intent) //Going from lower to higher should only be an issue
+            //    release();
+
+            /*
+             Unlocked -> Anything
+             NoLock -> Anything
+             Shared -> Unlocked, NoLock: just release. Exclusive_Intent, with release.
+                        Exclusive: handled in acquire
+             Exclusive_Intent -> Unlocked, noLock: just release
+                                   Shared: handle in acquire
+                                   Exclusive: handle in acquire
+             Exclusive -> Unlocked, noLock: just release
+                            Shared: handle in acquire
+                            Exclusive_intent: release first
+
+             */
+            return acquire(level, target, intent, safe: true, timeoutSafe: true);
+        }
+
+        private bool acquire(Lock level, object target, object intentTarget, bool safe, bool timeoutSafe)
+        {
             if (level == Lock.Unlocked)
             {
-                Release();
+                release(target, intentTarget);
                 return true;
             }
-            if (Monitor.IsEntered(target))
-            {
-                if (safe)
-                {
-                    System.Diagnostics.Debug.WriteLineIf(acquiring == 0, "LockID: " + LockID + " - already has exclusive Lock. Return false.");
-                    System.Diagnostics.Debug.WriteLineIf(acquiring > 0, "LockID: " + LockID + " - already attempting to acquire a lock from another thread. Return false.");
-                    return false;
-                }
-                if(acquiring == 0)
-                    throw new LockManagerException("Tried to acquire a new lock on a manager that already has an exclusive lock.");
-                throw new LockManagerException("Trying to acquire a lock, but this LockManager is already attempting to acquire a lock from another thread.");
-            }
-            else if(_MyLock == Lock.Exclusive)
-            {
-                System.Diagnostics.Debug.WriteLine("Current lock level is 'Exclusive', but not in the monitor. Lock to wait other thread using lock manager to finish.");
-                lock (target) {  } 
-            }
-            if (_MyLock >= LockBoundary && level < Lock.Exclusive) //ExclusiveIntent is allowed to call again for acquiring Exclusive.
-            {
-
-                if (safe)
-                {
-                    System.Diagnostics.Debug.WriteLine($"LockID: {LockID} - cannot acquire lock {level.ToString()}, already have lock {_MyLock}. Return false.");
-                    return false;
-                }
-                throw new LockManagerException("Tried to Acquire a new lock on a manager that already holds a lock.");
-            }
-            #endregion
-            bool shareRelease = _MyLock.Between(LockBoundary, ShareBoundary, inclusiveRight: false);
 
             const int LOCK_WAIT = 500;
             const int MONITOR_WAIT_TIMEOUT = 300_000; //5 minutes
@@ -379,22 +429,22 @@
             #region NOLOCK
             if (level < LockBoundary)
             {
-                _MyLock = Lock.NoLock;                
-                System.Diagnostics.Debug.WriteLine($"LockID: {LockID} - NoLock.");                
+                _MyLock = Lock.NoLock;
+                System.Diagnostics.Debug.WriteLine($"LockID: {LockID} - NoLock.");
                 //Already know that _MyLock is < LockBoundary or an exception would have been thrown/false returned.           
                 return true;
                 //NoLock doesn't need to ACTUALLY register or do anything. 
                 //Still have the memory barrier from above, which might help by inserting a memory barrier into the compiled code..Would also need to research to confirm
-                
+
                 //This is mainly handled so that a Lock level can be variable
             }
             #endregion
             #region SHARE LOCKING
-            if (level < ShareBoundary) 
+            if (level < ShareBoundary)
             {
                 //Note that this is skipped for Exclusive/Exclusive intent (level is above ShareBoundary)                
                 bool waitForIntent = false;
-                lock (intent)
+                lock (intentTarget)
                 {
                     if (_IntentHolder[_myTarget] != null)
                     {
@@ -408,23 +458,33 @@
                 if (acquiring < 0)
                     throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                 if (waitForIntent)
-                    Thread.Sleep(LOCK_WAIT); 
+                    Thread.Sleep(LOCK_WAIT);
                 //Note: It's okay to have shared while exclusive intent is active. Just not while exclusive is active.
                 //Exclusive is accounted for by the lock statement, since it will hold onto this lock
                 lock (target)
                 {
                     System.Diagnostics.Debug.WriteLine("LockID " + LockID + " Share Lock acquired for '" + _myTarget + "'.");
                     _ShareCount[_myTarget]++;
+                    if (_MyLock >= ShareBoundary)
+                        exclusiveRelease(target, intentTarget); //do this after, since we're going to lose the lock.
                     _MyLock = Lock.Shared;
-                    if(Interlocked.Exchange(ref acquiring, 0) < 0)
+                    if (Interlocked.Exchange(ref acquiring, 0) < 0)
                     {
-                        Release(true);
+                        release(target, intentTarget);
                         throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                     }
-                    return true;                      
-                }                                    
+                    return true;
+                }
             }
             #endregion
+            bool shareRelease = _MyLock.Between(LockBoundary, ShareBoundary, inclusiveRight: false);
+            if (shareRelease)
+            {
+                lock(target)
+                {
+                    _ShareCount[_myTarget]--; //Can't call release, because _MyLock is exclusive Intent at this point.                    
+                }
+            }
             #region EXCLUSIVE LOCKING
             #region INTENT
             DateTime? deadline = null;
@@ -435,12 +495,12 @@
             //Get access to the intent flag for the target
             DateTime exp;
             uint? intentTargetHolder;
-            lock (intent)
-            {                
+            lock (intentTarget)
+            {
                 _IntentHolder.TryGetValue(_myTarget, out intentTargetHolder);
                 System.Diagnostics.Debug.WriteLine("IntentHolder: LockID " + intentTargetHolder.ToString());
                 if (intentTargetHolder == LockID && _IntentExpiration.ContainsKey(_myTarget))
-                {                        
+                {
                     //If we still have the intent holder and it's set to expire, remove the expiration time.
                     _IntentExpiration.TryRemove(_myTarget, out exp);
                     System.Diagnostics.Debug.WriteLine("LockID " + LockID + " - owns Exclusive intent. Remove Expiration.");
@@ -465,7 +525,7 @@
                             _MyLock = Lock.Exclusive_Intent;
                             if (Interlocked.Exchange(ref acquiring, 0) < 0)
                             {
-                                Release(true);
+                                release(target, intentTarget);
                                 throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                             }
                             System.Diagnostics.Debug.WriteLine("LockID " + LockID + " - acquired exclusive intent via Expiration.");
@@ -485,7 +545,7 @@
                         _MyLock = Lock.Exclusive_Intent;
                         if (Interlocked.Exchange(ref acquiring, 0) < 0)
                         {
-                            Release(true);
+                            release(target, intentTarget);
                             throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                         }
                         System.Diagnostics.Debug.WriteLine("LockID " + LockID + " - acquired exclusive intent for null IntentTargetHolder");
@@ -498,27 +558,23 @@
                     }
                     else
                         System.Diagnostics.Debug.WriteLine("LockID " + LockID + " - waiting for IntentHolder " + intentTargetHolder.ToString());
-                    if(acquiring < 0)
+                    if (acquiring < 0)
                         throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
                     if (deadline.HasValue && deadline.Value > DateTime.Now)
                     {
                         System.Diagnostics.Debug.WriteLine("Deadline exceeded for acquiring exclusive intent.");
-                        return timeoutSafe ? false : throw new TimeoutException("Deadline exceeded for acquiring exclusive intent.");                        
+                        return timeoutSafe ? false : throw new TimeoutException("Deadline exceeded for acquiring exclusive intent.");
                     }
-                    Monitor.Wait(intent, MONITOR_WAIT_TIMEOUT);//Note: need to be entered in Monitor/lock block
-                }              
+                    Monitor.Wait(intentTarget, MONITOR_WAIT_TIMEOUT);//Note: need to be entered in Monitor/lock block
+                }
             }
             #endregion                
             //Exclusive, once we're at this section, exclusive intent does not have an expiration.
             //lock (target)
             bool locked = false;
-            lock(target)
+            lock (target)
             {
-                if (shareRelease)
-                {
-                    _ShareCount[_myTarget]--; //Can't call release, because _MyLock is exclusive Intent at this point.                    
-                }
-                while(_ShareCount[_myTarget] != 0)
+                while (_ShareCount[_myTarget] != 0)
                 {
                     System.Diagnostics.Debug.WriteLine("Check Share Locks. Count: " + _ShareCount[_myTarget]);
                     //Release lock and wait for a share or exclusive to pulse, up to ~5 minutes and then checking again.
@@ -535,30 +591,96 @@
                 */
                 if (ExclusiveLockTimeout <= 0)
                     Monitor.Enter(target, ref locked);
-                else                                   
-                    Monitor.TryEnter(target, ExclusiveLockTimeout * 1000, ref locked);                                    
-#pragma warning restore 420                
+                else
+                    Monitor.TryEnter(target, ExclusiveLockTimeout * 1000, ref locked);
+#pragma warning restore 420
                 _MyLock = Lock.Exclusive;
                 if (Interlocked.Exchange(ref acquiring, 0) < 0)
                 {
-                    Release(true);
+                    release(target, intentTarget);
                     throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
 
                 }
                 if (!locked)
                 {
                     Monitor.PulseAll(target);
-                    Release(true);
+                    release(target, intentTarget);
                     System.Diagnostics.Debug.WriteLine("Exclusive Lock acquisition failed for LockID " + LockID);
                     if (!timeoutSafe)
                         throw new TimeoutException("Timed out attempting to acquire exclusive lock on LockManager ID " + LockID);
                 }
-                System.Diagnostics.Debug.WriteLineIf(locked, "LockID " + LockID + " - acquired exclusive lock."); 
-                return locked;                
+                System.Diagnostics.Debug.WriteLineIf(locked, "LockID " + LockID + " - acquired exclusive lock.");
+                return locked;
             }
+
+
+            #endregion
+        }
+
+        /// <summary>
+        /// Try to acquire a lock.
+        /// <para>
+        /// An exception will be thrown if you try to acquire a lock on a lock manager that already has a lock, unless moving to a higher lock level.
+        /// </para>
+        /// <remarks>
+        /// If you try to acquire Lock.Unlocked, this will simply Release any lock the lock manager might have.
+        /// </remarks>
+        /// </summary>
+        /// <param name="level"></param>
+        /// <param name="safe">Returns immediately instead of throwing LockManagerExceptions if Parameter validation fails, or if the LockManager instance is already trying to acquire a lock.
+        /// <para>Does not stop errors thrown as a result of another thread calling dispose on the LockManager while it's trying to dispose.</para></param>
+        /// <param name="timeoutSafe">If true, returns false instead of throwing TimeOutExceptions for Exclusive and Exclusive Intent</param>
+        /// <returns>True if lock is successfully acquired.</returns>
+        public bool Acquire(Lock level,  bool safe = false, bool timeoutSafe = true)
+        {
+            if(level == _MyLock)
+            {
+                System.Diagnostics.Debug.WriteLine("LockID: " + LockID + $" - attempting to gain lock '{level}', but manager is already at this level. Return false.");
+                return false;
+            }
+            object target = _LockTargets[_myTarget];
+            object intent = _IntentTargets[_myTarget];
+            #region Parameter Validation
+            if (disposedValue)
+            {
+                throw new InvalidOperationException(ALREADY_DISPOSED);
+            }
+            if (level == Lock.Unlocked)
+            {
+                release(target, intent);
+                return true;
+            }
+            if (Monitor.IsEntered(target))
+            {
+                if (safe)
+                {
+                    System.Diagnostics.Debug.WriteLineIf(acquiring == 0, "LockID: " + LockID + " - already has exclusive Lock. Return false.");
+                    System.Diagnostics.Debug.WriteLineIf(acquiring > 0, "LockID: " + LockID + " - already attempting to acquire a lock from another thread. Return false.");
+                    return false;
+                }
+                if(acquiring == 0)
+                    throw new LockManagerException("Tried to acquire a new lock on a manager that already has an exclusive lock.");
+                throw new LockManagerException("Trying to acquire a lock, but this LockManager is already attempting to acquire a lock from another thread.");
+            }
+            else if(_MyLock == Lock.Exclusive)
+            {
+                System.Diagnostics.Debug.WriteLine("Current lock level is 'Exclusive', but not in the monitor. Lock to wait for the other thread using lock manager to finish.");
+                //lock (target) {  } 
+                CheckLock(target, true);
+            }
+            if (_MyLock >= LockBoundary && level < _MyLock) //Allowed to call again when going to a higher lock.
+            {
+                if (safe)
+                {
+                    System.Diagnostics.Debug.WriteLine($"LockID: {LockID} - cannot acquire lock {level.ToString()}, already have lock {_MyLock}. Return false.");
+                    return false;
+                }
+                throw new LockManagerException("Tried to Acquire a new lock on a manager that already holds a lock.");
+            }
+            #endregion
+
+            return acquire(level, target, intent, safe, timeoutSafe);
             
-            
-            #endregion            
         }
 
         #region IDisposable Support
@@ -574,7 +696,7 @@
                     // TODO: dispose managed state (managed objects).
                 }
                 Interlocked.Exchange(ref acquiring, -1);                
-                Release(true);
+                release();
 
                 lock (_lock)
                 {

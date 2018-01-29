@@ -6,11 +6,34 @@ using System.Threading.Tasks;
 
 namespace SEIDR.ThreadManaging
 {
+    public sealed class LockHelper<RT> : LockHelper
+    {
+        public LockHelper(Lock lockLevel, int exclusiveTimeOut = 0, int ExclusiveIntentTimeout = 0, string alias = null)
+            : base(lockLevel, 
+                  CheckTarget(alias), 
+                  ExclusiveTimeout:exclusiveTimeOut,
+                  ExclusiveIntentTimeout: ExclusiveIntentTimeout)
+        {            
+        }
+        /// <summary>
+        /// Creates a simple alias that should be unique to the type and alias combination. Used for lock targets
+        /// </summary>
+        /// <param name="alias"></param>
+        /// <returns></returns>
+        public static string CheckTarget(string alias)
+        {
+            return typeof(RT).AssemblyQualifiedName + $"." + (string.IsNullOrWhiteSpace(alias) ? string.Empty : alias);
+        }
+    }
     /// <summary>
     /// Helper for using <see cref="LockManager"/> class
     /// </summary>
     public class LockHelper: IDisposable
     {
+        /// <summary>
+        /// Target of the underlying LockManager
+        /// </summary>
+        public string Target => mgr.Target;
         /// <summary>        
         /// Helper for using <see cref="LockManager"/> class
         /// </summary>
