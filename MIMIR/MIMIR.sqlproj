@@ -93,7 +93,6 @@
     <Build Include="SEIDR\Stored Procedures\usp_JobExecutionError_i.sql" />
     <Build Include="SEIDR\Stored Procedures\usp_DataManagerTest.sql" />
     <Build Include="SEIDR\Stored Procedures\usp_DatamanagerTest2.sql" />
-    <Build Include="SEIDR\Stored Procedures\usp_CheckMissingSchedules.sql" />
     <Build Include="SEIDR\Stored Procedures\usp_JobExecution_StartWork.sql" />
     <Build Include="SEIDR\Stored Procedures\usp_JobExecution_sl_Work.sql" />
     <Build Include="SEIDR\Stored Procedures\usp_JobProfile_CheckSchedule.sql" />

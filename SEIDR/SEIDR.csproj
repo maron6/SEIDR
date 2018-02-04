@@ -127,6 +127,8 @@
     <Compile Include="ThreadManaging\LockHelper.cs" />
     <Compile Include="ThreadManaging\LockManager.cs" />
     <Compile Include="ThreadManaging\LockManagerException.cs" />
+    <Compile Include="ThreadManaging\LockMangerExtensions.cs" />
+    <Compile Include="ThreadManaging\MultiLockHelper.cs" />
     <Compile Include="ThreadManaging\TimedLockHelper.cs" />
     <Compile Include="ThreadManaging\TimedLockManager.cs" />
     <Compile Include="UserFriendlyDateRegex.cs" />
