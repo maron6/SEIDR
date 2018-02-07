@@ -16,7 +16,7 @@ namespace SEIDR.JobExecutor
         const string INVALID = "SEIDR.usp_JobProfile_u_InvalidPath";
         object map;        
         List<JobProfile> work;
-        public Queue(DatabaseManager db, JobExecutorService caller)
+        public Queue( JobExecutorService caller, DatabaseManager db)
             : base(db, caller, ExecutorType.Maintenance)
         {
             

@@ -28,7 +28,7 @@ namespace SEIDR.JobExecutor
         private bool Cancel(JobExecutor jobThread, long ExecutionID)
         {
             bool? check = null;
-            check = jobThread.CheckWorkLoad(ExecutionID, true);
+            check = jobThread.CheckWorkQueue(ExecutionID, true);
             if (check == null)
                 return true;
             if (check.Value)

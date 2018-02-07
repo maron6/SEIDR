@@ -4,7 +4,8 @@ as
 BEGIN
 	UPDATE SEIDR.JobExecution
 	SET IsWorking = 1,
-		InWorkQueue = 0
+		InWorkQueue = 0,
+		PrioritizeNow = 0
 	WHERE JobExecutionID = @JobExecutionID
 	AND IsWorking = 0
 

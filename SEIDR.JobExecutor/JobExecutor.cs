@@ -59,7 +59,7 @@ namespace SEIDR.JobExecutor
         /// </summary>
         static object NameLock = new object();
 
-        public JobExecutor( DatabaseManager manager, JobExecutorService caller)
+        public JobExecutor( JobExecutorService caller, DatabaseManager manager)
             : base(manager, caller, ExecutorType.Job)
         {
             CheckStatus(new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.COMPLETE, Description = nameof(ExecutionStatus.COMPLETE), IsComplete = true, NameSpace = "SEIDR" });
@@ -142,9 +142,15 @@ namespace SEIDR.JobExecutor
                             return;
                         }
                     }
-                    LogStart();                    
-                    success = job.Execute(this, currentExecution, ref status);
-                    LogFinish();
+
+                    //extra safety. Enter the monitor for code if single threaded. (Essentially, conditional lock block)
+                    Lock jobLockTarget = currentJobMetaData.SingleThreaded ? Lock.Exclusive : Lock.NoLock; 
+                    using (new LockHelper(jobLockTarget, currentJobMetaData.NameSpace + "." + currentJobMetaData.JobName))
+                    {
+                        LogStart();
+                        success = job.Execute(this, currentExecution, ref status);
+                        LogFinish();
+                    }
                 }
                 if (cancelSuccess)
                 {
@@ -231,7 +237,13 @@ namespace SEIDR.JobExecutor
                 //    currentExecution.Complete = (bool)i["@Complete"]; //completion notification
             }
         }
-        public static void Queue(JobExecutionDetail job, bool Cut = false)
+        /// <summary>
+        /// Add the Execution Detail to the workQueue
+        /// </summary>
+        /// <param name="job">ExecutionDetail to queue for execution</param>
+        /// <param name="Cut">If true, adds to position 0 and skips sorting.</param>
+        /// <param name="replaceOnly">If true, will only add to the work queue if this is replacing an older version of the executionDetail.</param>
+        public static void Queue(JobExecutionDetail job, bool Cut = false, bool replaceOnly = false)
         {
             //lock (workLockObj)
             using(new LockHelper(Lock.Exclusive, WORK_LOCK_TARGET)) //pass target, static
@@ -243,6 +255,8 @@ namespace SEIDR.JobExecutor
                     if (workQueue.Exists(detail => detail.JobExecutionID == job.JobExecutionID))
                         return;
                 }
+                else if (replaceOnly)
+                    return;
 
                 if (Cut)
                     workQueue.Insert(0, job);
@@ -358,7 +372,7 @@ namespace SEIDR.JobExecutor
         /// <para>Null if it has been removed from the queue as a result of this call.</para>
         /// <para>False if the execution was not on this Executor's workload</para>
         /// </returns>
-        public bool? CheckWorkLoad(long JobExecutionID, bool remove)
+        public bool? CheckWorkQueue(long JobExecutionID, bool remove)
         {
             lock (WorkLock)
             {
@@ -384,7 +398,14 @@ namespace SEIDR.JobExecutor
             }
             return false;
         }
-
+        public static bool CheckWorkQueue(long jobExecutionID)
+        {
+            using(new LockHelper(Lock.Shared, WORK_LOCK_TARGET))
+            {
+                return workQueue.Exists(d => d.JobExecutionID == jobExecutionID);
+                    
+            }
+        }
         protected override void CheckWorkLoad()
         {           
             //lock (workLockObj)
@@ -477,8 +498,8 @@ namespace SEIDR.JobExecutor
                 Thread.Sleep(LOG_FAILURE_WAIT);
             }
         }
-
-        public override void LogInfo(string message)
+        void IJobExecutor.LogInfo(string message) => LogInfo(message, false);
+        public override void LogInfo(string message, bool shared = false)
         {
             int count = 5;
             while(!CallerService.LogToFile(this, currentExecution, message) && count > 0)

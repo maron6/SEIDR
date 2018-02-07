@@ -44,7 +44,6 @@ namespace SEIDR.JobExecutor
         }
         List<JobExecutor> jobList;
         List<Executor> executorList;        
-        const string CLEAN_LOCKS = "SEIDR.usp_Batch_CleanLocks";
         public JobExecutorService()
         {
             DataBase.DatabaseManagerHelperModel.DefaultRetryOnDeadlock = true;
@@ -149,6 +148,10 @@ namespace SEIDR.JobExecutor
             {
                 JobExecutorService om = new JobExecutorService();
                 om.Run();
+                while (om.ServiceAlive)
+                {
+
+                }
             }
             else
             {
@@ -173,19 +176,20 @@ namespace SEIDR.JobExecutor
             jobList = new List<JobExecutor>();
             for (byte i = 1; i <= ExecutionThreadCount; i++)
             {
-                var je = new JobExecutor(DataManager, this);
+                var je = new JobExecutor(this, DataManager);
                 executorList.Add(je);
                 jobList.Add(je);                
                 //MyOperators.Add(new OperationExecutor(this, i));
             }            
             for (byte i = 1; i <= QueueThreadCount; i++)
             {
-                executorList.Add(new Queue(DataManager, this));
+                executorList.Add(new Queue(this, DataManager));
                 //MyOperators.Add(new Queue(this, i));
             }
             //executorList.Add(new ReDistributor(DataManager, this, jobList));
             executorList.Add(new CancellationExecutor(this, DataManager, jobList));
             executorList.Add(new ScheduleChecker(this, DataManager));
+            executorList.Add(new ResetDelayExecutor(this, DataManager));
             //MyOperators.Add(new Queue(this, QUEUE_ID));
 
 

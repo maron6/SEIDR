@@ -28,6 +28,7 @@
     [ProcessingDateTime]           AS            (coalesce(CONVERT([datetime],[ProcessingDate])+CONVERT([datetime],[ProcessingTime]),[ProcessingDate])) PERSISTED NOT NULL,
     [ExecutionTimeSeconds]         INT           NULL,
     [ScheduleRuleClusterID]        INT           NULL,
+    [PrioritizeNow] BIT NOT NULL DEFAULT 0, 
     PRIMARY KEY CLUSTERED ([JobExecutionID] ASC),
     CHECK ([StepNumber]>(0)),
     FOREIGN KEY ([JobPriority]) REFERENCES [SEIDR].[Priority] ([PriorityCode]),
