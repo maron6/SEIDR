@@ -17,9 +17,7 @@ namespace SEIDR.JobExecutor
         public override int Workload => workList.Count;
 
         protected override void CheckWorkLoad()
-        {
-            if (Workload > 0)
-                return;
+        {            
             using (var h = _Manager.GetBasicHelper(true))
             {
                 h.QualifiedProcedure = "[SEIDR].[usp_JobExecutionDetail_RePrioritize]";

@@ -126,7 +126,7 @@ namespace SEIDR.ThreadManaging
         /// <param name="target"></param>
         /// <param name="skipFail"></param>
         /// <returns>True if all locks were able to transition. False if any did not reach the indicated target level.</returns>
-        public bool Transition(Lock target, bool skipFail = true)
+        public bool Transition(Lock target, bool skipFail = false)
         {
             if (disposedValue)
                 throw new InvalidOperationException(DISPOSED_MESSAGE);

@@ -109,7 +109,7 @@ namespace SEIDR.Test
             //Assert.AreEqual(5, pointer);
             l5.Acquire(Lock.Exclusive); //Do NOT release/acquire from different threads. Need to add a safety there..
             l4.Release();
-            while (l5.MyLock < Lock.Exclusive)
+            while (l5.LockLevel < Lock.Exclusive)
             {
                 System.Diagnostics.Debug.WriteLine("l5 waiting for exclusive. Sleep...");
                 Thread.Sleep(5 * 1000);                
@@ -173,6 +173,134 @@ namespace SEIDR.Test
              
              */
 
+        }
+        [TestMethod]
+        public void MultiLockTest()
+        {
+            string[] targetList = new string[] {  "T2", "T1", "L1" };
+            LockManager l1 = new LockManager("T1"); //6
+            l1.Acquire(Lock.Exclusive);
+            Thread t = new Thread(() =>
+            {
+
+                using (var m = new MultiLockHelper(Lock.Shared, targetList)) //7-9
+                {
+                    System.Diagnostics.Debug.WriteLine("Thread 1 - Entered MultiLockHelper!");
+                    if (m.Transition(Lock.Exclusive_Intent))
+                    {
+                        System.Diagnostics.Debug.WriteLine("Thread 1 - Exclusive_Intent!");
+                        if (m.Transition(Lock.Exclusive))
+                            System.Diagnostics.Debug.WriteLine("Thread 1 - Exclusive!");
+                    }
+                    Thread.Sleep(10_000);
+                    System.Diagnostics.Debug.WriteLine("Thread 1 - Ending");
+                }
+                System.Diagnostics.Debug.WriteLine("Thread 1 - End.");
+            })
+            {
+                IsBackground = true
+            };
+            t.Start();
+            Thread.Sleep(5000);
+            System.Diagnostics.Debug.WriteLine("Main - Wake");
+            l1.TransitionLock(Lock.Shared);
+            Thread t2 = new Thread(() =>
+            {
+                using (var m = new MultiLockHelper(Lock.Shared, targetList.Where(s => s.EndsWith("1")))) //10, 11
+                {
+                    System.Diagnostics.Debug.WriteLine("Thread 2 - Enterd MultiLockHelper");
+                    Thread.Sleep(15_000); 
+                }
+                System.Diagnostics.Debug.WriteLine("Thread 2 - Finish");
+            })
+            {
+                IsBackground = true
+            };
+            t2.Start();
+            Thread.Sleep(25_000);
+            Thread t3 = new Thread(() =>
+            {
+                System.Diagnostics.Debug.WriteLine("Thread 3 - Waiting for T2!");
+                LockManager.Wait("T2");
+                System.Diagnostics.Debug.WriteLine("Thread 3 - Finished wait!");                
+            })
+            {
+                IsBackground = true
+            };
+            t3.Start();
+            Thread.Sleep(15_000);
+            System.Diagnostics.Debug.WriteLine("Main - Release");
+            l1.Release();
+            System.Diagnostics.Debug.WriteLine("Main - Wait");
+            Thread.Sleep(15_000);
+            LockManager.Wait("T2");
+            LockManager.Wait("T1");
+            LockManager.Wait("L1");
+            Thread.Sleep(40_000);
+            System.Diagnostics.Debug.WriteLine("Main - Done");
+            /*
+             Output:
+ 
+            LockManager ID 6 - Check IntentHolder. Holder LockID: 
+            LockManager ID 6 - acquired exclusive intent for null IntentTargetHolder, for target 'T1'.
+            LockManager ID 6 - acquired exclusive lock for 'T1'.
+            LockManager ID 7 - Share Lock acquired for 'T2'.
+            Main - Wake
+            LockManager ID 6 - Share Lock acquired for 'T1'.
+            LockManager ID 8 - Share Lock acquired for 'T1'.
+            Exclusive Lock released for target 'T1'. LockID: 6
+            LockManager ID 9 - Share Lock acquired for 'L1'.
+            Thread 1 - Entered MultiLockHelper!
+            Share released for target 'T2' on LockID 7. Remaining sharecount: 0
+            LockManager ID 10 - Share Lock acquired for 'T1'.
+            LockManager ID 11 - Share Lock acquired for 'L1'.
+            
+            Thread 2 - Enterd MultiLockHelper
+            LockManager ID 7 - Check IntentHolder. Holder LockID: 
+            LockManager ID 7 - acquired exclusive intent for null IntentTargetHolder, for target 'T2'.
+            Share released for target 'T1' on LockID 8. Remaining sharecount: 2
+            LockManager ID 8 - Check IntentHolder. Holder LockID: 
+            LockManager ID 8 - acquired exclusive intent for null IntentTargetHolder, for target 'T1'.
+            Share released for target 'L1' on LockID 9. Remaining sharecount: 1
+            LockManager ID 9 - Check IntentHolder. Holder LockID: 
+            LockManager ID 9 - acquired exclusive intent for null IntentTargetHolder, for target 'L1'.
+            Thread 1 - Exclusive_Intent!
+
+            LockManager ID 7 - Check IntentHolder. Holder LockID: 7
+            LockManager ID 7 - owns Exclusive intent. Remove Expiration.
+            LockManager ID 7 - acquired exclusive lock for 'T2'.
+            LockManager ID 8 - Check IntentHolder. Holder LockID: 8
+            LockManager ID 8 - owns Exclusive intent. Remove Expiration.
+            LockManager ID 8 - Check Share Locks for 'T1'. Count: 2
+            
+
+            Share released for target 'T1' on LockID 10. Remaining sharecount: 1
+            Share released for target 'L1' on LockID 11. Remaining sharecount: 0
+            LockManager ID 8 - Check Share Locks for 'T1'. Count: 1
+            Thread 2 - Finish
+            
+
+            Thread 3 - Waiting for T2!
+            Main - Release
+            Share released for target 'T1' on LockID 6. Remaining sharecount: 0
+            Main - Wait
+            LockManager ID 8 - acquired exclusive lock for 'T1'.
+            LockManager ID 9 - Check IntentHolder. Holder LockID: 9
+            LockManager ID 9 - owns Exclusive intent. Remove Expiration.
+            LockManager ID 9 - acquired exclusive lock for 'L1'.
+            Thread 1 - Exclusive!
+            Thread 1 - Ending
+            Thread 3 - Finished wait!
+            
+
+            Exclusive Lock released for target 'T2'. LockID: 7
+            Exclusive Lock released for target 'T1'. LockID: 8
+            Exclusive Lock released for target 'L1'. LockID: 9
+            Thread 1 - End.
+            
+
+            Main - Done
+             */
         }
     }
 }

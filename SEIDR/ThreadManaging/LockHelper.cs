@@ -138,7 +138,7 @@ namespace SEIDR.ThreadManaging
         /// <summary>
         /// Gets the lock level of the underlying LockManager
         /// </summary>
-        public Lock LevelLevel => mgr.MyLock;
+        public Lock LevelLevel => mgr.LockLevel;
         LockManager mgr;
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
@@ -150,7 +150,7 @@ namespace SEIDR.ThreadManaging
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects).
-                    if (mgr.MyLock > Lock.Unlocked)
+                    if (mgr.LockLevel > Lock.Unlocked)
                         mgr.Release();
                 }
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

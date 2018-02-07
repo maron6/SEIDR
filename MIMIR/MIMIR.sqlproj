@@ -109,5 +109,6 @@
     <Build Include="SEIDR\Stored Procedures\usp_JobExecution_CleanWorking.sql" />
     <Build Include="SEIDR\User Defined Types\udt_JobMetaData.sql" />
     <Build Include="Security\SEIDR.sql" />
+    <Build Include="SEIDR\Stored Procedures\usp_JobExecutionDetail_RePrioritize.sql" />
   </ItemGroup>
 </Project>
