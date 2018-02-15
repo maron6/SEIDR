@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Data;
 using System.Reflection;
 using System.Data.SqlClient;
+using System.Collections;
 
 namespace SEIDR.DataBase
 {
@@ -43,10 +44,14 @@ namespace SEIDR.DataBase
             
             Type tInfo = typeof(RT);// work.GetType();
             Dictionary<string, PropertyInfo> md;
-            if (!mapCache.TryGetValue(tInfo, out md))
+
+            lock (((ICollection)mapCache).SyncRoot)
             {
-                md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p);
-                mapCache[tInfo] = md;
+                if (!mapCache.TryGetValue(tInfo, out md))
+                {
+                    md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p);
+                    mapCache[tInfo] = md;
+                }
             }
             foreach (DataRow r in dt.Rows)
             {
@@ -97,11 +102,14 @@ namespace SEIDR.DataBase
                 return work;                        
             Type tInfo = work.GetType();
             Dictionary<string, PropertyInfo> md;
-            if (!mapCache.TryGetValue(tInfo, out md))
+            lock (((ICollection)mapCache).SyncRoot)
             {
-                md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
-                mapCache[tInfo] = md; //don't worry about cached values becoming innacurate, since the TypeInfo isn't going to change after compilation.
-                                        //Even dynamic class matching is based on definition matching
+                if (!mapCache.TryGetValue(tInfo, out md))
+                {
+                    md = tInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
+                    mapCache[tInfo] = md; //don't worry about cached values becoming innacurate, since the TypeInfo isn't going to change after compilation.
+                                          //Even dynamic class matching is based on definition matching
+                }
             }
             Map(work, row, md, row.Table.Columns);
             return work;

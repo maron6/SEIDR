@@ -10,7 +10,7 @@
     {
         #region enum extend
         /// <summary>
-        /// Gets the description of the specified MemberInfo
+        /// Gets the description of the specified MemberInfo, the name of the MemberInfo if no Description attribute has been specified.
         /// </summary>
         /// <param name="val"></param>
         /// <returns></returns>
@@ -61,18 +61,24 @@
             Type rInfo = typeof(RT);
             List < PropertyInfo > md;
             Dictionary<string, PropertyInfo> td;
-            if (!cache || !mapCache.TryGetValue(rInfo, out md))
+            lock (((System.Collections.ICollection)mapCache).SyncRoot)
             {
-                md = rInfo.GetProperties().Where(p => p.CanRead).ToList(); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
-                if(cache)
-                    mapCache[rInfo] = md; //don't worry about cached values becoming innacurate, since the TypeInfo isn't going to change after compilation.
-                                      //Even dynamic class matching is based on definition matching
+                if (!cache || !mapCache.TryGetValue(rInfo, out md))
+                {
+                    md = rInfo.GetProperties().Where(p => p.CanRead).ToList(); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
+                    if (cache)
+                        mapCache[rInfo] = md; //don't worry about cached values becoming innacurate, since the TypeInfo isn't going to change after compilation.
+                                              //Even dynamic class matching is based on definition matching
+                }
             }
-            if(!cache || !mapWriteCache.TryGetValue(iInfo, out td))
+            lock (((System.Collections.ICollection)mapWriteCache).SyncRoot)
             {
-                td = iInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
-                if(cache)
-                    mapWriteCache[iInfo] = td;
+                if (!cache || !mapWriteCache.TryGetValue(iInfo, out td))
+                {
+                    td = iInfo.GetProperties().Where(p => p.CanWrite).ToDictionary(p => p.Name, p => p); //Cache this in a limited dictionary of <Type, Dictionary<string, PropertyInfo>> ?
+                    if (cache)
+                        mapWriteCache[iInfo] = td;
+                }
             }
             Map(inheritor, map, td,  md);
             return inheritor;

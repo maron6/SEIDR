@@ -7,7 +7,10 @@ using System.Data.SqlClient;
 
 namespace SEIDR.DataBase
 {
-    public class ParamStore
+    /// <summary>
+    /// Cache SQLCommand information
+    /// </summary>
+    public sealed class ParamStore
     {
         /// <summary>
         /// Creates a new param store, for caching SQL Parameters of commands
@@ -22,9 +25,12 @@ namespace SEIDR.DataBase
         /// <param name="cmd"></param>
         public void Remove(SqlCommand cmd)
         {
-            string Key = cmd.CommandText.Replace("[", "").Replace("]", "").ToUpper(); ;
-            if (cmdParams.ContainsKey(Key))
-                cmdParams.Remove(Key);
+            string Key = cmd.CommandText.Replace("[", "").Replace("]", "").ToUpper();
+            lock (((System.Collections.ICollection)cmdParams).SyncRoot)
+            {
+                if (cmdParams.ContainsKey(Key))
+                    cmdParams.Remove(Key);
+            }
         }
         Dictionary<string, SqlParameter[]> cmdParams;
         /// <summary>
@@ -42,32 +48,38 @@ namespace SEIDR.DataBase
             string Procedure = cmd.CommandText;
             //ParamStore will be per DatabaseManager, so connection doesn't need to be part of the key            
             string Key =  Procedure.Replace("[", "").Replace("]", "").ToUpper(); 
-            SqlParameter[] spc;            
-            if (cmdParams.TryGetValue(Key, out spc))
+            SqlParameter[] spc;
+            lock (((System.Collections.ICollection)cmdParams).SyncRoot)
             {
-                foreach (SqlParameter parm in spc)
+                if (cmdParams.TryGetValue(Key, out spc))
                 {
-                    SqlParameter clone = new SqlParameter
+                    foreach (SqlParameter parm in spc)
                     {
-                        ParameterName = parm.ParameterName
-                        ,UdtTypeName = parm.UdtTypeName
-                        ,TypeName = parm.TypeName
-                        ,IsNullable = parm.IsNullable                        
-                        ,Size = parm.Size
-                        ,Direction = parm.Direction
-                        ,Precision = parm.Precision
-                        ,Scale = parm.Scale
-                        ,DbType = parm.DbType
-                        ,SqlDbType = parm.SqlDbType
-                    };
-                    cmd.Parameters.Add(clone);
-                }
-                return;
-            }                            
+                        SqlParameter clone = new SqlParameter
+                        {
+                            ParameterName = parm.ParameterName,
+                            UdtTypeName = parm.UdtTypeName,
+                            TypeName = parm.TypeName,
+                            IsNullable = parm.IsNullable,
+                            Size = parm.Size,
+                            Direction = parm.Direction,
+                            Precision = parm.Precision,
+                            Scale = parm.Scale,
+                            DbType = parm.DbType,
+                            SqlDbType = parm.SqlDbType
+                        };
+                        cmd.Parameters.Add(clone);
+                    }
+                    return;
+                }                            
+            }
             SqlCommandBuilder.DeriveParameters(cmd);
             spc = new SqlParameter[cmd.Parameters.Count];
             cmd.Parameters.CopyTo(spc, 0);
-            cmdParams[Key] = spc;
+            lock (((System.Collections.ICollection)cmdParams).SyncRoot)
+            {
+                cmdParams[Key] = spc;
+            }
         }
         
     }

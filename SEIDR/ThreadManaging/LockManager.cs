@@ -136,6 +136,7 @@
             _MyLock = Lock.Unlocked;
             lock (_lock)
             {
+                
                 if (reclaimedLockIDList.HasMinimumCount(1))
                 {
                     LockID = reclaimedLockIDList[0];
@@ -143,7 +144,9 @@
                 }
                 else
                     LockID = ++_IDCounter;
-
+                LockID = (uint)Thread.CurrentThread.ManagedThreadId; //Replace reclaimedLockIDList.
+                //Set LockID again whenever acquiring. If doing transition or acquire and we have a lock, should throw an exception or wait if not matched.
+                //potential issues with tracking mutliple lock managers on same thread with same target? I think it should be okay.
 
                 _myTarget = TARGET.ToUpper();
                 if (!_LockTargets.ContainsKey(_myTarget))

@@ -1031,10 +1031,15 @@ namespace SEIDR.DataBase
         /// <param name="TableOrView"></param>
         /// <returns></returns>
         public DataRow SelectRowWithKey(string Key, object value, string TableOrView)
-            => SelectWithKey(Key, value, TableOrView).GetFirstRowOrNull();        
+            => SelectWithKey(Key, value, TableOrView).GetFirstRowOrNull();
         #region Parameter/mapping management
         private void FillCommandParameters(SqlCommand cmd, object paramObj, Dictionary<string, object> Keys, string[] ignore)
-            => FillCommandParameters(cmd, paramObj, Keys, ignore, _Parameters, ref _PopulateParameter);
+        {
+            lock (((System.Collections.ICollection)_PopulateParameter).SyncRoot)
+            {
+                FillCommandParameters(cmd, paramObj, Keys, ignore, _Parameters, ref _PopulateParameter);
+            }
+        }
 
         ParamStore _Parameters;
         Dictionary<string, Action<SqlParameterCollection, object, Dictionary<string, object>, string[]>> _PopulateParameter = null;
