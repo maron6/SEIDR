@@ -42,7 +42,20 @@ namespace SEIDR.JobExecutor
         /// </summary>
         public DateTime? DelayStart;
 
-        public bool CanStart => DelayStart == null || DelayStart < DateTime.Now;
+        public bool CanStart
+        {
+            get
+            {
+                if (DelayStart == null)
+                    return true;
+                if(DelayStart < DateTime.Now)
+                {
+                    DelayStart = null;
+                    return true;
+                }
+                return false;
+            }
+        }
 
 
         public bool CanRetry { get; set; }

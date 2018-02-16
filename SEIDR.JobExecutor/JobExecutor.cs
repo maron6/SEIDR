@@ -19,8 +19,9 @@ namespace SEIDR.JobExecutor
         volatile static List<ExecutionStatus> statusList = new List<ExecutionStatus>();
         public static void PopulateStatusList(DatabaseManager manager)
         {
-            //lock (statusListLock)
-            using(new LockHelper(Lock.Exclusive, STATUS_TARGET))
+            //maybe switch over to readWrite lock, to reduce overhead? 
+            //Possible ToDo: Wrapper for readWrite, since it's kind of bulkier to set up and needs extra try/catches, especially if transitioning to/from a Write lock..
+            using (new LockHelper(Lock.Exclusive, STATUS_TARGET)) 
             {
                 statusList.Clear();
                 statusList = manager.SelectList<ExecutionStatus>(Schema:"SEIDR");
@@ -124,6 +125,7 @@ namespace SEIDR.JobExecutor
                 bool success = false;
                 using (new LockHelper(Lock.Shared, libraryLock))
                 {
+                    //Volatile warning as ref
 #pragma warning disable 420
                     int newThread;
                     IJob job = Library.GetOperation(currentExecution.JobName,
@@ -197,13 +199,14 @@ namespace SEIDR.JobExecutor
         {
             string subject;
             string MailTo = string.Empty;
+            string Message = string.Empty;
             if (success)
             {
                 if (string.IsNullOrWhiteSpace(executedJob.SuccessNotificationMail)
                     || !executedJob.Complete) //Out parameter on set status.
                     return;
                 MailTo = executedJob.SuccessNotificationMail;
-                subject = "Job Execution completed: JobProfile " + executedJob.JobProfileID;
+                subject = "Job Execution completed: JobProfile " + executedJob.JobProfileID;                
             }
             else
             {
@@ -212,7 +215,10 @@ namespace SEIDR.JobExecutor
                 MailTo = executedJob.FailureNotificationMail;
                 subject = $"Job Execution Step failure: Job Profile {executedJob.JobProfileID}, Step {executedJob.StepNumber}";
             }
-            
+            Message = $"JobExecutionID: {executedJob.JobExecutionID}{Environment.NewLine} Cancelled? {cancelSuccess}{Environment.NewLine} Execution Start Time: {executedJob.DetailCreated}"
+                + (executedJob.ExecutionTimeSeconds.HasValue ? ". Execution Duration: " + executedJob.ExecutionTimeSeconds.ToString() : string.Empty);
+
+            CallerService.TrySendMail(MailTo, subject, Message);
 
         }
         void SetExecutionStatus(bool success, bool working, string statusCode = null, string StatusNameSpace = "SEIDR")
@@ -382,7 +388,7 @@ namespace SEIDR.JobExecutor
             if (currentExecution.JobExecutionID == JobExecutionID)
                 return true;
             //lock (workLockObj)
-            using(var h = new LockHelper(Lock.Exclusive_Intent, WORK_LOCK_TARGET))
+            using(var h = new LockHelper(Lock.Shared_Exclusive_Intent, WORK_LOCK_TARGET))
             {
                 int i = workQueue.FindIndex(je => je.JobExecutionID == JobExecutionID);
                 if (i >= 0)
@@ -438,7 +444,7 @@ namespace SEIDR.JobExecutor
         bool Match(JobExecutionDetail check)
         {
             if (check.RequiredThreadID == null)
-                return true;
+                return check.CanStart;
             if (check.RequiredThreadID % JobExecutorCount != ThreadID)
                 return false;
             return check.CanStart;
@@ -447,8 +453,7 @@ namespace SEIDR.JobExecutor
         public override int Workload
         {
             get
-            {
-                //lock (workLockObj)
+            {                
                 using(new LockHelper(Lock.Shared, WORK_LOCK_TARGET))
                     return workQueue.Count(Match);
             }
@@ -523,7 +528,7 @@ namespace SEIDR.JobExecutor
             if (CallerService.ServiceAlive && (currentJobMetaData?.SafeCancel == true))
             {
                 CancelRequested = true;
-                return false; //Thread does not need to be restarted
+                return false;
             }            
             return base.Stop();
         }

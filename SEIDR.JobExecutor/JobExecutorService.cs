@@ -15,9 +15,8 @@ using SEIDR.JobBase;
 using SEIDR.JobBase.Status;
 
 namespace SEIDR.JobExecutor
-{
-    [Export(typeof(IOperatorManager))]
-    public class JobExecutorService : ServiceBase//, IOperatorManager
+{    
+    public partial class JobExecutorService : ServiceBase
     {       
         /// <summary>
         /// Called if job meta data indicates single threaded. Makes sure there isn't another thread running the job.
@@ -109,17 +108,20 @@ namespace SEIDR.JobExecutor
                 LogFileMessage("Library set up error - " + ex.Message);
                 throw;
             }
-            Mailer.SMTPServer = appSettings["SmtpServer"];
+
+            System.Net.Mail.MailAddress sender = new System.Net.Mail.MailAddress(appSettings["MailSender"], appSettings["SenderDisplayName"]);
+            _Mailer = new Mailer(sender, SendTo: appSettings["StatusMailTo"]);            
+            _Mailer.SMTPServer = appSettings["SmtpServer"];
             Mailer.Domain = appSettings["MailDomain"];
 
-            _Mailer = new Mailer("SEIDR.OperatorManager", appSettings["StatusMailTo"]);
-            //OperationExecutor.ExecutionAlerts = new Mailer("SEIDR.Operator");
-
             temp = appSettings["ThreadCount"];
+            const int MAX_EXECUTOR_COUNT = 45;
+            const int MAX_QUEUE_COUNT = 16;
+
             if (!int.TryParse(temp, out tempInt))
                 tempInt = 4;
-            else if (tempInt > 15)
-                tempInt = 15;
+            else if (tempInt > MAX_EXECUTOR_COUNT)
+                tempInt = MAX_EXECUTOR_COUNT;
 
             byte ThreadCount;            
             ThreadCount = (byte)tempInt;
@@ -128,8 +130,8 @@ namespace SEIDR.JobExecutor
             temp = appSettings["QueueThreadCount"];
             if (!byte.TryParse(temp, out ThreadCount) || ThreadCount < 1)
                 ThreadCount = 1;
-            else if (ThreadCount > 6)
-                ThreadCount = 6;
+            else if (ThreadCount > MAX_QUEUE_COUNT)
+                ThreadCount = MAX_QUEUE_COUNT;
             QueueThreadCount = ThreadCount;
 
             /*
@@ -299,7 +301,7 @@ namespace SEIDR.JobExecutor
             while(WorkingCount > 0 && WaitLoops < MaxWaitLoops)
             {
                 RequestAdditionalTime(14 * 1000);
-                Thread.Sleep(11 * 1000);
+                Thread.Sleep(11 * 1000); //JobExecutors work with Background threads, so will be forced to stop once foreground thread is done.
                 WaitLoops++;
             }
         }
@@ -318,6 +320,19 @@ namespace SEIDR.JobExecutor
         
         #region Logging
         Mailer _Mailer; //Send success/failure notifications for Executors.
+        public bool TrySendMail(string To, string Subject, string Message)
+        {
+            try
+            {
+                _Mailer.SendMail(Subject, Message, recipient: new System.Net.Mail.MailAddress(To));
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
 
         public bool LogExecutionStartFinish(Executor caller, JobExecutionDetail je, bool start)
             => LogToFile(caller, je, start? "START" : $"FINISH. Duration: {je.ExecutionTimeSeconds.ToString()} seconds.", true);
@@ -344,7 +359,7 @@ namespace SEIDR.JobExecutor
         }        
         public bool LogExecutionError(Executor caller, JobExecution errBatch, string Message, int? ExtraID)
         {
-            caller.Status.SetStatus(Message, ThreadStatus.StatusType.Error);
+            caller.SetStatus(Message, ThreadStatus.StatusType.Error);
             bool a = LogExecutionError(errBatch, Message, ExtraID, caller.ThreadID);
             bool b = LogToFile(caller, errBatch, (ExtraID.HasValue? ExtraID.Value + "::":"") + Message + Environment.NewLine);
             return a && b;
@@ -362,7 +377,7 @@ namespace SEIDR.JobExecutor
             }
             catch
             {                
-                callingOperator.Status.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);                
+                callingOperator.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);                
                 return false;
             }
             if (shared)
@@ -374,7 +389,7 @@ namespace SEIDR.JobExecutor
                 }
                 catch
                 {
-                    callingOperator.Status.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);
+                    callingOperator.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);
                     return false;
                 }
             }
@@ -442,26 +457,22 @@ namespace SEIDR.JobExecutor
             var orderedJobThreads = executorList.OrderBy(e => (int)e.ExecutorType * 1000 + e.ThreadID);
             foreach (var ex in orderedJobThreads)
             {
-                Message += PARA + ex.ThreadName + $"({ex.LogName})" + PARA_END + PARA
-                    + ex.Status.LastStatusMessage
-                    + (ex.Status.LastStatus.HasValue
-                        ? (" - " + ex.Status.LastStatus.Value.ToString("MMM dd, yyyy hh:mm"))
-                        : string.Empty)
-                    + PARA_END + PARA + "Working ? " + ex.IsWorking.ToString()
-                    + "     Work Load Size: " + ex.Workload
-                    + PARA_END + BREAK;
+                lock (ex.Status)
+                {
+                    Message += PARA + ex.ThreadName + $"({ex.LogName})" + PARA_END + PARA
+                        + ex.Status.LastStatusMessage
+                        + (ex.Status.LastStatus.HasValue
+                            ? (" - " + ex.Status.LastStatus.Value.ToString("MMM dd, yyyy hh:mm"))
+                            : string.Empty)
+                        + PARA_END + PARA + "Working ? " + ex.IsWorking.ToString()
+                        + "     Work Load Size: " + ex.Workload
+                        + PARA_END + BREAK;
+                }
             }
             return Message + BREAK + BREAK;
         }
 
         #endregion
 
-        public byte QueueLimitMargin
-        {
-            get
-            {
-                return 4;
-            }
-        }
     }
 }

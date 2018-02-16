@@ -8,12 +8,8 @@
         /// <summary>
         /// Mostly the same effect as unlocked. Differentiated for intent.
         /// <para>
-        /// NoLock is for accepting dirty reads, incomplete changes to objects.
+        /// NoLock is for accepting that objects may be in an incomplete state.
         /// </para>
-        /// <remarks>
-        /// <para>NOTE: A NoLock is still considered a lock and will throw an Exception if you 
-        /// </para>possess a NoLock and try to acquire a new lock.
-        /// </remarks>
         /// </summary>
         NoLock = -1,
         /// <summary>
@@ -24,6 +20,10 @@
         /// Shared allows many threads to look at the same object without having to worry about it being updated.
         /// </summary>
         Shared = 0,
+        /// <summary>
+        /// Contribute to shareCount, but obtain exclusive intent
+        /// </summary>        
+        Shared_Exclusive_Intent = 3,
         /// <summary>
         /// Exclusive intent will eventually be the same as an exclusive lock but will wait longer for any share locks to finish
         /// </summary>

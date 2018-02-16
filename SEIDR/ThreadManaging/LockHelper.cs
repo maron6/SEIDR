@@ -21,7 +21,7 @@ namespace SEIDR.ThreadManaging
         /// <param name="alias"></param>
         /// <returns></returns>
         public static string CheckTarget(string alias)
-        {
+        {            
             return typeof(RT).AssemblyQualifiedName + $"." + (string.IsNullOrWhiteSpace(alias) ? string.Empty : alias);
         }
     }
@@ -101,6 +101,7 @@ namespace SEIDR.ThreadManaging
         public bool Wait(int timeout) => mgr.Wait(timeout);
         /// <summary>
         /// Attempts to transition the lock to another lock level. Returns true if the lock is at the target level at the end of the call.
+        /// <para>Note: If there's no timeout, this will always either return true or throw an exception.</para>
         /// </summary>
         /// <param name="transitionTarget"></param>
         /// <returns></returns>

@@ -25,18 +25,16 @@ namespace SEIDR.JobExecutor
         {
             return null;
         }
-        private bool Cancel(JobExecutor jobThread, long ExecutionID)
+        private bool Cancel(JobExecutor jobWorker, long ExecutionID)
         {
             bool? check = null;
-            check = jobThread.CheckWorkQueue(ExecutionID, true);
+            check = jobWorker.CheckWorkQueue(ExecutionID, true);
             if (check == null)
                 return true;
             if (check.Value)
             {
-                if (jobThread.Stop()) //Calls thread Join, so should wait for the job to finish                                
-                    jobThread.Call(); 
-                //If above returned false, stop request came from somewhere else, so don't call. 
-                //Work that needed to stop has stopped, though, so return true
+
+                jobWorker.Stop();
                 return true;                                
             }
             return false;

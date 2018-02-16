@@ -149,8 +149,14 @@
         /// </summary>
         public void Release()
         {
-            var target = _LockTargets[_myTarget];
-            var intent = _IntentTargets[_myTarget];
+
+            object target;
+            object intent;
+            lock (_lock)
+            {
+                target = _LockTargets[_myTarget];
+                intent = _IntentTargets[_myTarget];
+            }
 
             if (disposedValue)
                 throw new InvalidOperationException("LockManager has been disposed already.");
@@ -171,8 +177,13 @@
         }
         private void release()
         {
-            var target = _LockTargets[_myTarget];
-            var intent = _IntentTargets[_myTarget];
+            object target;
+            object intent;
+            lock (_lock)
+            {
+                target = _LockTargets[_myTarget];
+                intent = _IntentTargets[_myTarget];
+            }
             release(target, intent);
             //Only needed if this can affect the calling method. I would imagine it can as part of compiling code, but would need research to confirm..
             Thread.MemoryBarrier();
@@ -238,9 +249,17 @@
         /// </summary>
         public void Wait()
         {
-            lock (_IntentTargets[_myTarget])
+
+            object target;
+            object intent;
+            lock (_lock)
             {
-                lock (_LockTargets[_myTarget]) { }
+                target = _LockTargets[_myTarget];
+                intent = _IntentTargets[_myTarget];
+            }
+            lock (target)
+            {
+                lock (intent) { }
             }
         }
         bool CheckLock(object target, bool wait)
@@ -270,7 +289,9 @@
         {
             if (_MyLock != Lock.Exclusive)
                 return false;
-            object target = _LockTargets[_myTarget];
+            object target;
+            lock(_lock)
+                target = _LockTargets[_myTarget];
             return Monitor.IsEntered(target);
         }
         /// <summary>
@@ -279,8 +300,10 @@
         /// <param name="timeout"></param>
         /// <returns>True if this method returns without reaching the timeout.</returns>
         public bool Wait(int timeout)
-        {            
-            object target = _LockTargets[_myTarget];
+        {
+            object target;
+            lock(_lock)
+                target = _LockTargets[_myTarget];
             if (Monitor.IsEntered(target))
             {
                 return true; //Already in the lock, don't need to try
@@ -314,9 +337,13 @@
         /// <returns>False if the timeout is reached, or if the target is not used by the LockManager functionality.</returns>
         public static bool Wait(string target, int timeout = 0)
         {
-            if (!_LockTargets.ContainsKey(target))
-                return false;
-            object lockTarget = _LockTargets[target];
+            object lockTarget;
+            lock (_lock)
+            {
+                if (!_LockTargets.ContainsKey(target))
+                    return false;
+                lockTarget = _LockTargets[target];
+            }
             if (Monitor.IsEntered(lockTarget))
             {
                 return true; //Already in the lock, don't need to try
@@ -368,22 +395,21 @@
                 throw new LockManagerSynchronizationException(calling, LockManagementID); 
             }
             else
-                LockManagementID = calling; //Should be okay for shared....?
+                LockManagementID = calling; //Might be okay for shared....?
 
 
-            object target = _LockTargets[_myTarget];
-            object intent = _IntentTargets[_myTarget];
 
-            if (_MyLock == Lock.Exclusive)
+            object target;
+            object intent;
+            lock (_lock)
             {
-                CheckLock(target, wait: true); //If currently exclusive, make sure we wait if it's from another thread...
+                target = _LockTargets[_myTarget];
+                intent = _IntentTargets[_myTarget];
             }
+            
 
-            if (_MyLock >= LockBoundary && level == Lock.Exclusive_Intent) //Targeting intent.
-                release();            
-
-            //if (_MyLock > level && level == Lock.Exclusive_Intent) //Going from lower to higher should only be an issue
-            //    release();
+            if (_MyLock >= LockBoundary && level.In(Lock.Exclusive_Intent, Lock.Shared_Exclusive_Intent)) //Targeting intent.
+                release(target, intent);                        
 
             /*
              Unlocked -> Anything
@@ -471,7 +497,7 @@
                 }
                 if (acquiring < 0)
                     throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
-                if (waitForIntent)
+                if (waitForIntent && !Thread.Yield())
                     Thread.Sleep(LOCK_WAIT);
                 //Note: It's okay to have shared while exclusive intent is active. Just not while exclusive is active.
                 //Exclusive is accounted for by the lock statement, since it will hold onto this lock
@@ -488,10 +514,19 @@
                 if (_MyLock >= ShareBoundary)
                     exclusiveRelease(target, intentTarget); //do this after setting ShareCount, since we're going to lose the lock. 
                 _MyLock = Lock.Shared;
+                if (_MyLock == Lock.Shared_Exclusive_Intent)
+                {
+                    if (!GetExclusiveIntent(level, target, intentTarget, MONITOR_WAIT_TIMEOUT, timeoutSafe))
+                    {
+                        release(target, intentTarget);
+                        return false;
+                    }
+                    _MyLock = Lock.Shared_Exclusive_Intent;
+                }
                 return true;
             }
             #endregion
-            bool shareRelease = _MyLock.Between(LockBoundary, ShareBoundary, inclusiveRight: false);
+            bool shareRelease = _MyLock >= LockBoundary && _MyLock < ShareBoundary;                
             if (shareRelease)
             {
                 lock(target)
@@ -499,90 +534,11 @@
                     _ShareCount[_myTarget]--; //Can't call release, because _MyLock is exclusive Intent at this point.                    
                 }
             }
-            #region EXCLUSIVE LOCKING
-            #region INTENT
-            DateTime? deadline = null;
-            if (ExclusiveIntentAcquisitionTimeout >= 0)
-                deadline = DateTime.Now.AddSeconds(ExclusiveIntentAcquisitionTimeout);
-
-
-            //Get access to the intent flag for the target
-            DateTime exp;
-            int? intentTargetHolder;
-            lock (intentTarget)
-            {
-                _IntentHolder.TryGetValue(_myTarget, out intentTargetHolder);
-                System.Diagnostics.Debug.WriteLine(DebugName + " - Check IntentHolder. Holder LockID: " + intentTargetHolder.ToString());
-                if (intentTargetHolder == LockManagementID && _IntentExpiration.ContainsKey(_myTarget))
-                {
-                    //If we still have the intent holder and it's set to expire, remove the expiration time.
-                    _IntentExpiration.TryRemove(_myTarget, out exp);
-                    System.Diagnostics.Debug.WriteLine(DebugName + " - owns Exclusive intent. Remove Expiration.");
-                }
-                while (intentTargetHolder != LockManagementID)
-                {
-                    _IntentHolder.TryGetValue(_myTarget, out intentTargetHolder);
-                    if (acquiring < 0)
-                        throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
-                    if (_IntentExpiration.TryGetValue(_myTarget, out exp))
-                    {
-                        if (exp < DateTime.Now)
-                        {
-                            //If expired, then the first LockManager to get here with the lock on target gets to take Intent
-                            _IntentExpiration.TryRemove(_myTarget, out exp);
-                            if (!_IntentHolder.TryUpdate(_myTarget, LockManagementID, intentTargetHolder))
-                                continue;
-
-                            _IntentHolder[_myTarget] = LockManagementID;
-                            //Remove intent. Note that expiration is only set when grabbing exclusive intent but not exclusive.
-                            //Removed when grabbing exclusive     
-                            _MyLock = Lock.Exclusive_Intent;
-                            if (Interlocked.Exchange(ref acquiring, 0) < 0)
-                            {
-                                release(target, intentTarget);
-                                throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
-                            }
-                            System.Diagnostics.Debug.WriteLine(DebugName + " - acquired exclusive intent via Expiration for '" + _myTarget + "'.");
-                            if (level < Lock.Exclusive)
-                            {
-                                _IntentExpiration.TryAdd(_myTarget, DateTime.Now.AddSeconds(EXCLUSIVE_INTENT_EXPIRATION_SECONDS));
-                                return true; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
-                            }
-                            break; //intent claimed.
-                        }
-                    }
-                    else if (intentTargetHolder == null)
-                    {
-                        if (!_IntentHolder.TryUpdate(_myTarget, LockManagementID, intentTargetHolder))
-                            continue;
-
-                        _MyLock = Lock.Exclusive_Intent;
-                        if (Interlocked.Exchange(ref acquiring, 0) < 0)
-                        {
-                            release(target, intentTarget);
-                            throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
-                        }
-                        System.Diagnostics.Debug.WriteLine(DebugName + " - acquired exclusive intent for null IntentTargetHolder, for target '" + _myTarget + "'.");
-                        if (level < Lock.Exclusive)
-                        {
-                            _IntentExpiration.TryAdd(_myTarget, DateTime.Now.AddSeconds(EXCLUSIVE_INTENT_EXPIRATION_SECONDS));
-                            return true; //Stopped after getting the intent. Don't actually have access yet, just have it reserved
-                        }
-                        break;
-                    }
-                    else
-                        System.Diagnostics.Debug.WriteLine(DebugName + " - waiting for IntentHolder " + intentTargetHolder.ToString());
-                    if (acquiring < 0)
-                        throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
-                    if (deadline.HasValue && deadline.Value > DateTime.Now)
-                    {
-                        System.Diagnostics.Debug.WriteLine(DebugName + " - Deadline exceeded for acquiring exclusive intent.");
-                        return timeoutSafe ? false : throw new TimeoutException("Deadline exceeded for acquiring exclusive intent.");
-                    }
-                    Monitor.Wait(intentTarget, MONITOR_WAIT_TIMEOUT);//Note: need to be entered in Monitor/lock block
-                }
-            }
-            #endregion                
+            if (!GetExclusiveIntent(level, target, intentTarget, MONITOR_WAIT_TIMEOUT, timeoutSafe))
+                return false;
+            if (level < Lock.Exclusive)
+                return true;
+            #region EXCLUSIVE LOCKING       
             //Exclusive, once we're at this section, exclusive intent does not have an expiration.
             //lock (target)
             bool locked = false;
@@ -630,6 +586,97 @@
 
             #endregion
         }
+        /// <summary>
+        /// Mark exclusive intent in concurrentDictionary.
+        /// </summary>
+        /// <param name="level"></param>
+        /// <param name="target"></param>
+        /// <param name="intentTarget"></param>
+        /// <param name="MONITOR_WAIT_TIMEOUT"></param>
+        /// <param name="timeoutSafe"></param>
+        /// <returns></returns>
+        bool GetExclusiveIntent(Lock level, object target, object intentTarget, int MONITOR_WAIT_TIMEOUT, bool timeoutSafe)
+        {
+            DateTime? deadline = null;
+            if (ExclusiveIntentAcquisitionTimeout >= 0)
+                deadline = DateTime.Now.AddSeconds(ExclusiveIntentAcquisitionTimeout);
+            
+            //Get access to the intent flag for the target
+            DateTime exp;
+            int? intentTargetHolder;
+            lock (intentTarget)
+            {
+                _IntentHolder.TryGetValue(_myTarget, out intentTargetHolder);
+                System.Diagnostics.Debug.WriteLine(DebugName + " - Check IntentHolder. Holder LockID: " + intentTargetHolder.ToString());
+                if (intentTargetHolder == LockManagementID && _IntentExpiration.ContainsKey(_myTarget))
+                {
+                    //If we still have the intent holder and it's set to expire, remove the expiration time.
+                    _IntentExpiration.TryRemove(_myTarget, out exp);
+                    System.Diagnostics.Debug.WriteLine(DebugName + " - owns Exclusive intent. Remove Expiration.");
+                }
+                while (intentTargetHolder != LockManagementID)
+                {
+                    _IntentHolder.TryGetValue(_myTarget, out intentTargetHolder);
+                    if (acquiring < 0)
+                        throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
+                    if (_IntentExpiration.TryGetValue(_myTarget, out exp))
+                    {
+                        if (exp < DateTime.Now)
+                        {
+                            //If expired, then the first LockManager to get here with the lock on target gets to take Intent
+                            _IntentExpiration.TryRemove(_myTarget, out exp);
+                            if (!_IntentHolder.TryUpdate(_myTarget, LockManagementID, intentTargetHolder))
+                                continue;
+
+                            _IntentHolder[_myTarget] = LockManagementID;
+                            //Remove intent. Note that expiration is only set when grabbing exclusive intent but not exclusive.
+                            //Removed when grabbing exclusive     
+                            _MyLock = Lock.Exclusive_Intent;
+                            if (Interlocked.Exchange(ref acquiring, 0) < 0)
+                            {
+                                release(target, intentTarget);
+                                throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
+                            }
+                            System.Diagnostics.Debug.WriteLine(DebugName + " - acquired exclusive intent via Expiration for '" + _myTarget + "'.");
+                            if (level < Lock.Exclusive)
+                            {
+                                _IntentExpiration.TryAdd(_myTarget, DateTime.Now.AddSeconds(EXCLUSIVE_INTENT_EXPIRATION_SECONDS));                                
+                            }                            
+                            return true;
+                        }
+                    }
+                    else if (intentTargetHolder == null)
+                    {
+                        if (!_IntentHolder.TryUpdate(_myTarget, LockManagementID, intentTargetHolder))
+                            continue;
+
+                        _MyLock = Lock.Exclusive_Intent;
+                        if (Interlocked.Exchange(ref acquiring, 0) < 0)
+                        {
+                            release(target, intentTarget);
+                            throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
+                        }
+                        System.Diagnostics.Debug.WriteLine(DebugName + " - acquired exclusive intent for null IntentTargetHolder, for target '" + _myTarget + "'.");
+                        if (level < Lock.Exclusive)
+                        {
+                            _IntentExpiration.TryAdd(_myTarget, DateTime.Now.AddSeconds(EXCLUSIVE_INTENT_EXPIRATION_SECONDS));                            
+                        }
+                        return true;
+                    }
+                    else
+                        System.Diagnostics.Debug.WriteLine(DebugName + " - waiting for IntentHolder " + intentTargetHolder.ToString());
+                    if (acquiring < 0)
+                        throw new LockManagerException("Attempting to acquire lock, but LockManager Dispose is being called");
+                    if (deadline.HasValue && deadline.Value > DateTime.Now)
+                    {
+                        System.Diagnostics.Debug.WriteLine(DebugName + " - Deadline exceeded for acquiring exclusive intent.");
+                        return timeoutSafe ? false : throw new TimeoutException("Deadline exceeded for acquiring exclusive intent.");
+                    }
+                    Monitor.Wait(intentTarget, MONITOR_WAIT_TIMEOUT);//Note: need to be entered in Monitor/lock block
+                }
+            }
+            return true; //while loop skipped, already had intent
+        }
 
         /// <summary>
         /// Try to acquire a lock.
@@ -652,8 +699,13 @@
                 System.Diagnostics.Debug.WriteLine(DebugName + $" - attempting to gain lock '{level}', but manager is already at this level. Return false.");
                 return false;
             }
-            object target = _LockTargets[_myTarget];
-            object intent = _IntentTargets[_myTarget];
+            object target;
+            object intent;
+            lock (_lock)
+            {
+                target = _LockTargets[_myTarget];
+                intent = _IntentTargets[_myTarget];
+            }
             #region Parameter Validation
             if (disposedValue)
             {
