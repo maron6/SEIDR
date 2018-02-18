@@ -1,0 +1,36 @@
+﻿<base:SessionWindow x:Class="SEIDR.WindowMonitor.GridDashboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:base="clr-namespace:SEIDR.WindowMonitor"
+        Title="GridDashboardWindow" Height="400" Width="530"
+        MinWidth="530" MinHeight="300" Background="LightSteelBlue">
+    <DockPanel LastChildFill="True">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" VerticalAlignment="Center">
+            <Button Name="Refresh" 
+                    Click="Refresh_Click"
+                    Margin="30, 10, 10, 10"                    
+                    Width="80">
+                Refresh
+            </Button>
+            
+            <Button Name="CloseB" 
+                    Width="80" 
+                    Click="Close_Click" Margin="15, 10, 10,10">
+                Close Page
+            </Button>
+            <Separator Width="20" Height="30"></Separator>
+            <Button Name="PerformExport" Click="PerformExport_Click" Margin="15,10,10,10" Width="100">Export Results</Button>
+            <ComboBox x:Name="ExportFormat" Width="120" Margin="15,10,10,10" SelectedIndex="0"
+                      IsEditable="False" >
+                <ComboBoxItem>Pipe Delimited</ComboBoxItem>
+                <ComboBoxItem>CSV</ComboBoxItem>
+                <ComboBoxItem>Excel</ComboBoxItem>
+            </ComboBox>            
+        </StackPanel>
+        <DataGrid Name="DashboardData" AllowDrop="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                  CanUserReorderColumns="True" CanUserResizeRows="True" CanUserResizeColumns="True" Margin="10,10,10,0"
+                  AutoGeneratingColumn="DashboardData_AutoGeneratingColumn" LoadingRow="DashboardData_LoadingRow">
+            
+        </DataGrid>
+    </DockPanel>
+</base:SessionWindow>

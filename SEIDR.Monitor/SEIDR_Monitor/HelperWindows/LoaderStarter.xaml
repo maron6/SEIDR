@@ -1,0 +1,19 @@
+﻿<Window xmlns:DS_LoaderMonitor="clr-namespace:SEIDR.WindowMonitor"  x:Class="SEIDR.WindowMonitor.LoaderStarter"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="Start Loader" Height="130" Width="300" Background="LightSteelBlue" WindowStartupLocation="CenterOwner">
+    <DockPanel LastChildFill="False">
+        <StackPanel DockPanel.Dock="Top">
+            <Label Margin="15,0">Threads</Label>
+            <Controls:NumericUpDown Name="ThreadCounter" Value="4" Speedup="False"
+                                    Margin="15,0,15,0" ValueChanged="ThreadCounter_ValueChanged"
+                                    HasDecimals="False" Minimum="1" Maximum="10"></Controls:NumericUpDown>
+            <!--<TextBox Name="ThreadCounter" TextChanged="TextBox_TextChanged">4</TextBox> -->               
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+            <Button Name="OK" Click="OK_Click" Margin="80,10,10,10" Width="60">OK</Button>
+            <Button Name="Cancel" Click="Cancel_Click" Margin="5, 10" Width="60">Cancel</Button>
+        </StackPanel>
+    </DockPanel>
+</Window>

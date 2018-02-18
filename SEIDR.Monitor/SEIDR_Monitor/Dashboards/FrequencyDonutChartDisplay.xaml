@@ -1,0 +1,19 @@
+﻿<seidr:SessionWindow x:Class="SEIDR.WindowMonitor.Dashboards.FrequencyDonutChartDisplay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SEIDR.WindowMonitor.Dashboards"
+        xmlns:seidr="clr-namespace:SEIDR.WindowMonitor"
+        xmlns:chart="clr-namespace:De.TorstenMandelkow.MetroChart;assembly=De.TorstenMandelkow.MetroChart"
+        mc:Ignorable="d" Background="LightSteelBlue"
+        Title="ChartDisplay" Height="600" Width="1000">
+
+    <chart:DoughnutChart Name="DisplayChart"            
+            ChartTitle="Minimal Doughnut Chart"
+            InnerRadiusRatio=".3"
+            ChartSubTitle=""
+            SelectedItem="{Binding Path=SelectedItem, Mode=TwoWay}" 
+            Height="Auto" Margin="10,10" Width="Auto" Background="White">
+    </chart:DoughnutChart>
+</seidr:SessionWindow>

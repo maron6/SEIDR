@@ -1,0 +1,27 @@
+﻿<base:BasicSessionWindow x:Class="SEIDR_ProfileManager.OrganizationSelector"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:base="clr-namespace:Ryan_UtilityCode.Dynamics.Configurations;assembly=Ryan_UtilityCode.Dynamics"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Organization Selector" Height="300" Width="375" Background="LightSteelBlue" WindowStartupLocation="CenterOwner">
+    <DockPanel LastChildFill="True">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+            <Button Name="Select" Click="Select_Click" Margin="10,10">Select Organization</Button>
+            <Button Name="Cancel" Click="Cancel_Click" 
+                    Margin="10"
+                    Width="70">
+                Cancel
+            </Button>
+            <Button Name="ForceRefresh" Click="ForceRefresh_Click" Margin="10" Width="95">Force refresh</Button>
+        </StackPanel>
+        <ScrollViewer DockPanel.Dock="Top" Margin="5,5">
+            <DataGrid Margin="5,10,10,0" 
+                      Name="OrganizationData" ScrollViewer.CanContentScroll="True"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      
+                      MouseDoubleClick="ListBoxItem_MouseDoubleClick">
+            </DataGrid>
+        </ScrollViewer>
+        
+    </DockPanel>
+</base:BasicSessionWindow>

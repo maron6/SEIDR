@@ -1,0 +1,23 @@
+﻿<Window x:Class="SEIDR.WindowMonitor.GetNumeric"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GetNumeric" Height="120" Width="200" Background="LightSteelBlue" WindowStartupLocation="CenterOwner">
+    <DockPanel>
+        <TextBox DockPanel.Dock="Top" Margin="10,10" 
+                 Name="Numeric" TextAlignment="Center" Width="100"
+                 TextChanged="TextBox_TextChanged">
+            0
+        </TextBox>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" Height="45">
+            <Button Name="Accept" 
+                    Click="Accept_Click"
+                    Margin="40,0,0,0" Height="30">
+                Accept
+            </Button>
+            <Button Name="Cancel" Click="Cancel_Click"
+                    Height="30" Margin="30, 0">
+                Cancel
+            </Button>
+        </StackPanel>
+    </DockPanel>
+</Window>

@@ -1,0 +1,21 @@
+﻿<DS_LoaderMonitor:SessionWindow xmlns:DS_LoaderMonitor="clr-namespace:SEIDR.WindowMonitor"  
+        x:Class="SEIDR.WindowMonitor.SettingWindows.CloneNameConfirm"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SEIDR.WindowMonitor.SettingWindows" WindowStartupLocation="CenterOwner"
+        Background="LightSteelBlue"
+        mc:Ignorable="d"
+        Title="Clone Configuration Setting" Height="210" Width="300" MinHeight="210" MaxHeight="210">
+    <StackPanel>
+        <DS_LoaderMonitor:LabelBox x:Name="Original"  Label="Original Name" Text="" IsEnabled="False"/>
+        <DS_LoaderMonitor:LabelBox x:Name="Clone" Label="Name for Cloned Setting" Text=""/>
+        <StackPanel Orientation="Horizontal" Margin="40,5">
+            
+            <Button Name="OK" Click="OK_Click">OK, Clone</Button>
+            <Line Width="40"></Line>
+            <Button Name="Cancel" Click="Cancel_Click">Cancel</Button>
+        </StackPanel>
+    </StackPanel>
+</DS_LoaderMonitor:SessionWindow>

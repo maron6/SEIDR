@@ -1,0 +1,180 @@
+﻿<base:SessionWindow x:Class="SEIDR.WindowMonitor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:base="clr-namespace:SEIDR.WindowMonitor"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:model="clr-namespace:SEIDR.WindowMonitor.ConfigurationViewModels"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="SEIDR - Window" Background="LightSteelBlue" Icon="seidr_G9S_icon.ico"
+        MinWidth="880" MinHeight="420" Height="700" Width="880" SizeChanged="Window_SizeChanged"
+        ResizeMode="CanResizeWithGrip" Activated="MainWindow_Activated" Deactivated="Window_Deactivated">
+    <Window.Resources>
+        <ImageBrush x:Key="QueueStop" ImageSource="Icons\StopQueue.png"></ImageBrush>
+        <ImageBrush x:Key="QueueStart" ImageSource="Icons\StartQueue.png"></ImageBrush>
+    </Window.Resources>
+    <DockPanel LastChildFill="True">
+        <Menu DockPanel.Dock="Top" Name="AllMenu">
+            <Menu Name="QueryMenu" VerticalAlignment="Center"
+                      ItemsSource="{Binding QueryModels}">
+                <Menu.ItemTemplate>
+                    <HierarchicalDataTemplate DataType="{x:Type model:QueryMenuViewModel}">
+                        <MenuItem Header="{Binding Path=Header}" Tag="{Binding Path=.}">
+                            <MenuItem.Icon>
+                                <Image Source="Icons\Query.png" Width="20" Height="20" Visibility="{Binding Path=IconVis}"></Image>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </HierarchicalDataTemplate>
+                </Menu.ItemTemplate>
+                <!--
+                <MenuItem.Icon>
+                    <Image Source="Icons\Query.png" Width="20" Height="20" Visibility="{Binding Path=IconVis}"></Image>
+                </MenuItem.Icon>-->                
+            </Menu>
+            <Menu Name="SettingEditor" VerticalAlignment="Center"
+                      ItemsSource="{Binding EditorModel}">
+                <Menu.ItemTemplate>
+                    <HierarchicalDataTemplate DataType="{x:Type model:EditorMenuViewModel}">
+                        <MenuItem Header="{Binding Path=Header}" Tag="{Binding Path=.}">
+                            <MenuItem.Icon>
+                                <Image Source="Icons\Query.png" Width="20" Height="20" Visibility="{Binding Path=IconVis}"></Image>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </HierarchicalDataTemplate>
+                </Menu.ItemTemplate>
+                <!--
+                <MenuItem.Icon>
+                    <Image Source="Icons\Query.png" Width="20" Height="20" Visibility="{Binding Path=IconVis}"></Image>
+                </MenuItem.Icon>-->
+            </Menu>
+<!--
+            <MenuItem Name="SettingsMain" Header="_Settings" VerticalAlignment="Center">
+                <MenuItem.Icon>
+                    <Image Source="Icons\Edit.png" Width="20" Height="20"></Image>
+                </MenuItem.Icon>
+                <MenuItem Name="SettingQuery" Header="_Open Query settings" Click="SettingQuery_Click">
+                    <MenuItem.Icon>
+                        <Image Source="Icons\Query.png" Width="20" Height="20"/>
+                    </MenuItem.Icon>
+                    <MenuItem Header="_My Settings" Click="SettingQuery_Click"></MenuItem>
+                    <MenuItem Name="DefaultMerge_Query" Header="_Merge Default Queries with MyQueries" Click="DefaultMerge_Query_Click"></MenuItem>
+                    <MenuItem Name="TeamMerge_Query" Header="_MERGE TEAM QUERIES" Click="TeamMerge_Query_Click" Visibility="Collapsed"></MenuItem>
+                </MenuItem>
+                <MenuItem Name="SettingConnection" Header="_Open Database Connection settings" Click="SettingConnection_Click">
+                    <MenuItem.Icon>
+                        <Image Source="Icons\DBConnections.png" Width="20" Height="20"/>
+                    </MenuItem.Icon>
+                    <MenuItem Header="_My Connections" Click="SettingConnection_Click"></MenuItem>
+                    <MenuItem Name="DefaultMerge_Connection" 
+                              Header="_Merge Default Connections with MyConnections" Click="DefaultMerge_Connection_Click"></MenuItem>
+                    <MenuItem Name="TeamMerge_Connection" Header="_MERGE TEAM CONNECTIONS" Click="DefaultMerge_Team_Click"
+                              Visibility="Collapsed"
+                              >
+                    </MenuItem>
+                </MenuItem>
+                <MenuItem Name="SettingContext" Header="_Open Context Menu Settings" Click="SettingContext_Click">
+                    <MenuItem.Icon>
+                        <Image Source="Icons\ContextBase.png" Width="20" Height="20"/>
+                    </MenuItem.Icon>
+                    <MenuItem Header="My Context Menus" Click="SettingContext_Click"></MenuItem>
+                    <MenuItem Name="DefaultMerge_Context" Header="_Merge Default Context Menus with MyMenuItems"
+                              Click="DefaultMerge_Context_Click"></MenuItem>
+                    <MenuItem Name="TeamMerge_Context" Header="_MERGE TEAM CONTEXT MENU"
+                              Click="TeamMerge_Context_Click" Visibility="Collapsed"></MenuItem>
+                    <Separator Visibility="{Binding ElementName=AddonRefresh, Path=Visibility}"></Separator>
+                    <MenuItem Name="AddonRefresh" Header="_Refresh Addon Libraries"
+                              Click="AddonRefresh_Click">
+                        <MenuItem.Icon>
+                            <Image Source="Icons\Refresh.png" Width="20" Height="20"></Image>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Name="AddonFolder_Open" Header="_Open Addon Folder"
+                              Visibility="{Binding ElementName=AddonRefresh, Path=Visibility}"
+                              Click="AddonFolder_Open_Click"></MenuItem>
+                    <MenuItem Name ="PluginFolder_Open" Header="_Open Plugin Folder"
+                              Visibility="{Binding ElementName=AddonRefresh, Path=Visibility}"
+                              Click="PluginFolder_Open_Click"></MenuItem>
+                </MenuItem>
+                <MenuItem Name="SettingWindowAddon" Header="_PlugIn Settings" Click="SettingWindowAddon_Click">
+                    <MenuItem.Icon>
+                        <Image Source="Icons\PlugInMenu.png" Width="20" Height="20"></Image>
+                    </MenuItem.Icon>
+                    <MenuItem Header="My Pluggin Settings" Click="SettingWindowAddon_Click"></MenuItem>
+                    <MenuItem Name="DefaultMerge_Plugin" Header="_Merge Default Plugin Settings with MyPlugIns"
+                              Click="DefaultMerge_Plugin_Click"></MenuItem>
+                    <MenuItem Name="TeamMerge_Plugin" Header="_MERGE TEAM PLUGINS"
+                              Click="TeamMerge_Plugin_Click" Visibility="Collapsed"></MenuItem>
+                </MenuItem>
+                <MenuItem Name="SettingMisc" Header="_MISC Settings" Click="SettingMisc_Click"/>
+                
+                <MenuItem Name="SettingFolder" Header="_Open Settings File Folder" Click="SettingFolder_Click"/>
+                <MenuItem Name="SettingForceRefresh" Header="_Force Refresh Settings from File" 
+                          Click="SettingForceRefresh_Click">
+                    <MenuItem.Icon>
+                        <Image Source="Icons\Refresh.png" Width="20" Height="20"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            -->
+            <MenuItem Name="PluginMain" Header="_PlugIns" >
+                <MenuItem.Icon>
+                    <Image Source="Icons\PlugInMenu.png" Width="20" Height="20"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Name="ExportMain" Header="_DataSet Export" IsEnabled="False" VerticalAlignment="Center"
+                      Visibility="{Binding ElementName=QueryMenu, Path=Visibility, UpdateSourceTrigger=PropertyChanged}">
+                <MenuItem.Icon>
+                    <Image Source="Icons\Export.png" Width="20" Height="20"/>
+                </MenuItem.Icon>
+                <MenuItem Name="Export_pipe" Header="_Export as PipeDelimited" Click="Export_pipe_Click"/>
+                <MenuItem Name="Export_csv" Header="_Export as CSV" Click="Export_csv_Click"/>
+                <MenuItem Name="Export_XLSX" Header="_Export as EXCEL" Click="Export_XLS_Click"/>
+            </MenuItem>
+            <!--
+            <MenuItem Name="AdminMenu" Header="_Admin Management" VerticalAlignment="Center">
+                <MenuItem Name="Admin_Users" Header="Manage Users" Click="Admin_Users_Click"/>
+                <MenuItem Name="Admin_Queries" Header="Manage Default Queries" Click="Admin_Queries_Click"/>
+                <MenuItem Name="Admin_DBs" Header="Manage Default Database Connections" Click="Admin_DBs_Click"/>
+                <MenuItem Name="Admin_Context" Header="Manage Default Context Menus" Click="Admin_Context_Click"/>
+                <MenuItem Name="Admin_Addons" Header="Manage Default Addon Options" Click="Admin_Addons_Click"/>
+            </MenuItem>!-->
+            <MenuItem Header="_Help" Name="menu_Help">
+                <MenuItem Name="about_Menu" Header="_About" Click="help_Menu_Click"></MenuItem>
+                <MenuItem Name="query_Details" Header="_Detail Procedures" Click="query_Details_Click"></MenuItem>
+                <MenuItem Name="context_Details" Header="_Context Menu Help" Click="context_Details_Click"/>
+                <MenuItem Name="plugins" Header="_Plugin Help" Click="plugins_Click"></MenuItem>
+                <MenuItem Name="charts" Header="_Charts Help" Click="charts_Click"></MenuItem> 
+                <!-- Folder opens..-->
+                <MenuItem Name="logFolder" Header="_Open Log Folder" Click="logFolder_Click"></MenuItem>
+            </MenuItem>
+        </Menu>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" Margin="0,0,8,3">
+            <Line Width="10" Name="ID_Line"></Line>
+            <Label Name="MyID">SWID:</Label>
+            <Line Width="10"></Line>
+            <Label Name="RefreshTime" Width="150">Last Refresh:</Label>
+            <Controls:MetroProgressBar Width="150" Name="multiSelectProgress" 
+                    Margin="10,0,11,0" Height="18" Background="Black" Foreground="Green"
+                         ValueChanged="multiSelectProgress_ValueChanged"
+                         BorderBrush="Snow" BorderThickness="2,3" ></Controls:MetroProgressBar>
+            <Button Width="25" Name="Queue_Stop" Click="Queue_Control_Click" Background="{StaticResource QueueStop}">
+            </Button>
+            <Button Width="25" Name="Queue_Start" Click="Queue_Control_Click" Background="{StaticResource QueueStart}" Visibility="Collapsed"></Button>
+            <Line Width="50" Name="DividerMiddleLine"></Line>
+            <Label Name="PageNumber" Visibility="{Binding ElementName=MonitorData, Path=Visibility}">Page Number:</Label>
+            <Controls:NumericUpDown Name="PagePicker" HasDecimals="False" Minimum="1" 
+                                    Margin="20,0,15,0" Visibility="Hidden"
+                                    Width="50"></Controls:NumericUpDown>
+            <Button Name="GoToPage" Click="GoToPage_Click" Visibility="{Binding ElementName=PagePicker, Path=Visibility}" Margin="0,0,15,0">Go To Page</Button>
+            <Line Width="2"></Line>
+            <Label x:Name="WindowAddonLabel" HorizontalAlignment="Right" Visibility="Hidden" Background="White" Width="200" Margin="0,0,8,0" Content="Test" />
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <DataGrid Name="MonitorData" CanUserAddRows="False" CanUserDeleteRows="False"
+                      CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserResizeRows="True"
+                      IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                      Margin="10,10,8,5" LoadingRow="MonitorData_LoadingRow"
+                      AutoGeneratingColumn="MonitorData_AutoGeneratingColumn">                
+            </DataGrid>
+        </ScrollViewer>
+    </DockPanel>
+    
+</base:SessionWindow>

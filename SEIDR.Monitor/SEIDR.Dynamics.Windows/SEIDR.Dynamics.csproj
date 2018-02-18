@@ -1,0 +1,296 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{EF23FE80-015A-450B-AB49-8326DDF70272}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>SEIDR.Dynamics</RootNamespace>
+    <AssemblyName>SEIDR.Dynamics</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <WarningLevel>4</WarningLevel>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\SEIDR.Dynamics.xml</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="MahApps.Metro, Version=1.2.4.0, Culture=neutral, PublicKeyToken=f4fb5a3c4d1e5b4f, processorArchitecture=MSIL">
+      <HintPath>..\packages\MahApps.Metro.1.2.4.0\lib\net45\MahApps.Metro.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Windows.Interactivity, Version=4.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\MahApps.Metro.1.2.4.0\lib\net45\System.Windows.Interactivity.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xaml">
+      <RequiredTargetFramework>4.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Configurations\AddonConfiguration\ContextAddonConfiguration.cs" />
+    <Compile Include="Configurations\AddonConfiguration\ContextAddonList.cs" />
+    <Compile Include="Configurations\AddonConfiguration\WindowAddonConfiguration.cs" />
+    <Compile Include="Configurations\AddonConfiguration\WindowAddonList.cs" />
+    <Compile Include="Configurations\ConfigurationListBrokerMetaData.cs" />
+    <Compile Include="Configurations\ConfigurationParentPicker.xaml.cs">
+      <DependentUpon>ConfigurationParentPicker.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\ContextMenuConfiguration\ContextMenuConfiguration.cs" />
+    <Compile Include="Configurations\ContextMenuConfiguration\ParameterInfo.cs" />
+    <Compile Include="Configurations\DatabaseConfiguration\DatabaseConfiguration.cs" />
+    <Compile Include="Configurations\DatabaseConfiguration\DatabaseConfigurationList.cs" />
+    <Compile Include="Configurations\DefaultConfigurationBroker.cs" />
+    <Compile Include="Configurations\DynamicEditor\TeamEditor.xaml.cs">
+      <DependentUpon>TeamEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\DynamicEditor\DatabaseConnectionEditor.xaml.cs">
+      <DependentUpon>DatabaseConnectionEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\DynamicEditor\ContextMenuEditor.xaml.cs">
+      <DependentUpon>ContextMenuEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\DynamicEditor\QueryEditor.xaml.cs">
+      <DependentUpon>QueryEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\DynamicEditor\WindowAddonEditor.xaml.cs">
+      <DependentUpon>WindowAddonEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\DynamicEditor\ContextAddonEditor.xaml.cs">
+      <DependentUpon>ContextAddonEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\DynamicEditor\FlagPicker.xaml.cs">
+      <DependentUpon>FlagPicker.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\DynamicEditor\BaseEditorWindow.cs" />
+    <Compile Include="Configurations\DynamicEditor\UserEditor.xaml.cs">
+      <DependentUpon>UserEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\EmptyWindowConfiguration.cs" />
+    <Compile Include="Configurations\iNotifyControl.cs" />
+    <Compile Include="Configurations\WindowConfiguration.cs" />
+    <Compile Include="Configurations\QueryConfiguration\DefaultQueryConfiguration.cs" />
+    <Compile Include="Configurations\UserConfiguration\AdminLevel.cs" />
+    <Compile Include="Configurations\UserConfiguration\BasicUser.cs" />
+    <Compile Include="Configurations\BasicUserSessionManager.cs" />
+    <Compile Include="Configurations\ConfigFolder.cs" />
+    <Compile Include="Configurations\DynamicEditor\ConfigurationColorPicker.xaml.cs">
+      <DependentUpon>ConfigurationColorPicker.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Configurations\ConfigurationListBroker.cs" />
+    <Compile Include="Configurations\DBConnections.cs" />
+    <Compile Include="Configurations\iConfigList.cs" />
+    <Compile Include="Configurations\iConfigList_Singleton.cs" />
+    <Compile Include="Configurations\LookupSource.cs" />
+    <Compile Include="Configurations\BasicSessionWindow.cs" />
+    <Compile Include="Configurations\QueryConfiguration\QueryConfiguration.cs" />
+    <Compile Include="Configurations\QueryConfiguration\QueryList.cs" />
+    <Compile Include="Configurations\QueryConfiguration\QueryParameter.cs" />
+    <Compile Include="Configurations\SQLDbTypeHelper.cs" />
+    <Compile Include="Configurations\UserConfiguration\TeamConfiguration.cs" />
+    <Compile Include="Configurations\UserAccessMode.cs" />
+    <Compile Include="Configurations\UserConfiguration\TeamList.cs" />
+    <Compile Include="Configurations\UserConfiguration\WindowUserCollection.cs" />
+    <Compile Include="Configurations\WindowConfigurationList.cs" />
+    <Compile Include="Configurations\UserConfiguration\WindowUser.cs" />
+    <Compile Include="Configurations\WindowConfigurationLoadModel.cs" />
+    <Compile Include="Dynamics.cs" />
+    <Compile Include="Encryption\AESWrapper.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="SEIDR_WindowAddOn.cs" />
+    <Compile Include="ExceptionManager.cs" />
+    <Compile Include="Windows\Alert.xaml.cs">
+      <DependentUpon>Alert.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\ComboDisplay.cs" />
+    <Compile Include="Windows\EditableObjectInfoAttribute.cs" />
+    <Compile Include="Windows\EditableObjectDisplay.xaml.cs">
+      <DependentUpon>EditableObjectDisplay.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\EditableDashboardDisplay.xaml.cs">
+      <DependentUpon>EditableDashboardDisplay.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\FileSaveHelper.cs" />
+    <Compile Include="Windows\CRUDWindow.xaml.cs">
+      <DependentUpon>CRUDWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\GetNumeric.xaml.cs">
+      <DependentUpon>GetNumeric.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\MenuItemBuilder.cs" />
+    <Compile Include="Windows\Password.cs" />
+    <Compile Include="Windows\SEIDR_MenuItemLibrary.cs" />
+    <Compile Include="Windows\SEIDR_Window.cs" />
+    <Compile Include="Windows\SEIDR_WindowMenuAddOn.cs" />
+    <Compile Include="Windows\SelectorWindow.xaml.cs">
+      <DependentUpon>SelectorWindow.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Properties\AssemblyInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <None Include="Windows\packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <AppDesigner Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Configurations\DynamicEditor\ConfigurationColorPicker.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Configurations\ConfigurationParentPicker.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\TeamEditor.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\DatabaseConnectionEditor.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\ContextMenuEditor.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\QueryEditor.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\WindowAddonEditor.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\ContextAddonEditor.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\FlagPicker.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Configurations\DynamicEditor\UserEditor.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\Alert.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Windows\EditableObjectDisplay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Windows\EditableDashboardDisplay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Windows\CRUDWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Windows\GetNumeric.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Windows\SelectorWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="IWshRuntimeLibrary">
+      <Guid>{F935DC20-1CF0-11D0-ADB9-00C04FD58A0B}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Windows\Icons\Edit.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Windows\Icons\Refresh.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Windows\Icons\Copy.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Windows\Icons\Remove.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Windows\Icons\Add.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\SEIDR\SEIDR.csproj">
+      <Project>{81417f92-b840-4476-96b7-6d87d224fd78}</Project>
+      <Name>SEIDR</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

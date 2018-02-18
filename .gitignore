@@ -16,3 +16,5 @@ properties/
 *.jfm
 .vs/SEIDR.Loader/v15/.suo
 MIMIR/Import Schema Logs/
+SEIDR.Monitor/packages/
+*.exe

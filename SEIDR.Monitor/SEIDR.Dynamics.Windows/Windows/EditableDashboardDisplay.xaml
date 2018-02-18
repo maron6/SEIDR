@@ -1,0 +1,44 @@
+﻿<base:BasicSessionWindow x:Class="SEIDR.Dynamics.Windows.EditableDashboardDisplay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:base="clr-namespace:SEIDR.Dynamics.Configurations"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="DashboardDisplay" Height="150" Width="800" MinWidth="600" MinHeight="150"
+        Background="LightSteelBlue" ShowInTaskbar="True" WindowStartupLocation="CenterOwner" SizeToContent="Height">
+    <Window.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="_Refresh" Name="RefreshContextMenuItem" Click="RefreshContextMenuItem_Click"/>
+        </ContextMenu>
+    </Window.ContextMenu>
+    <DockPanel LastChildFill="False" >
+        <StackPanel DockPanel.Dock="Top"  Margin="10,10,10,10">
+
+            <TextBox Name="DashboardName" TextAlignment="Center"  IsReadOnly="True" Height="25" BorderThickness="15,4"
+                     Background="White">Dashboard</TextBox>
+            <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto" 
+                          HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="10,10,10,10"
+                      Name="DashboardData">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"></ColumnDefinition>
+                        <ColumnDefinition Width="*"></ColumnDefinition>
+                        <ColumnDefinition Width="*"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                </Grid>
+            </ScrollViewer>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" VerticalAlignment="Center">
+            <Button Name="Save" 
+                    Click="Save_Click"
+                    Margin="30, 10, 10, 10"                    
+                    Width="80">
+                Save
+            </Button>
+            <Button Name="CloseB" 
+                    Width="80" 
+                    Click="Close_Click" Margin="15, 10, 10,10">
+                Close
+            </Button>
+        </StackPanel>
+    </DockPanel>
+</base:BasicSessionWindow>

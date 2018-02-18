@@ -1,0 +1,47 @@
+﻿<base:BasicSessionWindow x:Class="SEIDR.Dynamics.Windows.CRUDWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:base="clr-namespace:SEIDR.Dynamics.Configurations"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="GridDashboardWindow" Height="400" Width="550"
+        MinWidth="550" MinHeight="300" Background="LightSteelBlue">
+    <DockPanel LastChildFill="True">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" VerticalAlignment="Center">
+            <Button Name="Refresh" 
+                    Click="Refresh_Click"
+                    Margin="30, 10, 10, 10"                    
+                    Width="80">
+                Refresh
+            </Button>
+            
+            <Button Name="CloseB" 
+                    Width="80" 
+                    Click="Close_Click" Margin="15, 10, 10,10">
+                Close Page
+            </Button>
+            <Line Width="50"></Line>
+            <Label Name="PageNumber" Width="90"></Label>
+            <Controls:NumericUpDown Name="PagePicker" Minimum="1" Width ="80" Margin="5,5"></Controls:NumericUpDown>
+            <Button Name="GoToPage" Margin="10,10">Go To Page</Button>
+        </StackPanel>
+        <DataGrid Name="DashboardData" AllowDrop="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  CanUserReorderColumns="True" CanUserResizeRows="True" CanUserResizeColumns="True" Margin="10,10,10,0"
+                  AutoGeneratingColumn="DashboardData_AutoGeneratingColumn" LoadingRow="DashboardData_LoadingRow"
+                  MouseDoubleClick="DashboardData_MouseDoubleClick">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Name="Create" Click="Create_Click" Header="Add New Record"/>
+                    <MenuItem Name="Edit" Click="Edit_Click" Header="Edit Record"/>
+                    <MenuItem Name="Delete" Click="Delete_Click" Header="Delete Record"/>
+                    <Separator/>
+                    <MenuItem Name="RefreshMenu" Click="Refresh_Click" Header="Refresh">
+                    <MenuItem.Icon>
+                        <Image Source="Icons\Refresh.png" Width="20" Height="20"></Image>
+                    </MenuItem.Icon>
+                    </MenuItem>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+        </DataGrid>
+    </DockPanel>
+</base:BasicSessionWindow>

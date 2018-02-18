@@ -1,0 +1,52 @@
+﻿<DS_LoaderMonitor:SessionWindow xmlns:DS_LoaderMonitor="clr-namespace:SEIDR.WindowMonitor"  
+        x:Class="SEIDR.WindowMonitor.AddonEditor"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="Window Addon Editor" Height="350" Width="753.35" Background="LightSteelBlue"
+        MinWidth="750" MinHeight="210" MaxWidth="775" MaxHeight="240" WindowStartupLocation="CenterOwner"
+        >
+    <DockPanel LastChildFill="True">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+            <Button Margin="15,5" Name="Accept" Click="Accept_Click" 
+                            IsEnabled="{Binding ElementName=OwnerBox}">Accept</Button>
+            <Button Margin="5,5" Name="Cancel" Click="Cancel_Click" Width="60">Cancel</Button>
+        </StackPanel>
+        <ScrollViewer Width="719">
+            <Grid ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"></ColumnDefinition>
+                    <ColumnDefinition Width="*"></ColumnDefinition>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Label VerticalAlignment="Top" >Addon Menu Item Name (Internal)</Label>
+                <TextBox Grid.Column="0" Margin ="5,0,5,0" x:Name="MyName" 
+                    VerticalAlignment="Bottom"  ToolTip="Naming Convention: 'A_AddonMenuName' (A_ will be added if missing)"
+                    Text="" TextChanged="MyName_TextChanged"/>
+                <!-- 
+                    <DS_LoaderMonitor:LabelBox Grid.Column="1" Margin ="5,0,5,0" x:Name="Owner" Label="Owner - Query or Other Context Menu Item" Text=""/>
+                    -->
+                <StackPanel Grid.Column="1" Margin="5,0,5,0">
+                    <Label>Addon - The addon to be set up</Label>
+                    <ComboBox Name="AddonCombo"  Margin="5,0,5,0" SelectionChanged="AddonCombo_SelectionChanged"
+                              VerticalAlignment="Bottom"
+                              IsReadOnly="True"></ComboBox>
+                </StackPanel>
+                <Label Grid.Row="1" Grid.Column="1" VerticalAlignment="Top">Database Connection</Label>
+                <ComboBox Name="DB_List" Grid.Column="1" Grid.Row="1" VerticalAlignment="Bottom" Margin="10,0,10,0"
+                          IsReadOnly="True"></ComboBox>
+                <Button Name="ParameterMapping" Grid.Column="1" Grid.Row="2" 
+                        Click="ParameterMapping_Click" Margin="10,10" HorizontalAlignment="Right">Manage Parameters</Button>
+
+                <Label VerticalAlignment="Top" Grid.Row="1">Display Name</Label>
+                <TextBox Grid.Row="1" x:Name="Display" Margin="5,0,5,0" VerticalAlignment="Bottom"
+                                    TextChanged="Display_TextChanged" Text=""></TextBox>
+                
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</DS_LoaderMonitor:SessionWindow>

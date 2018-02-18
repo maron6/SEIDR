@@ -1,0 +1,18 @@
+﻿<UserControl x:Class="SEIDR.WindowMonitor.ValidationBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" Margin="5,5" Background="Snow"
+             d:DesignHeight="53" d:DesignWidth="150" MaxHeight="53" MinHeight="53" MaxWidth="300" MinWidth="100">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="23"></RowDefinition>
+            <RowDefinition Height="30"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Label Grid.Row="0" FontSize="9" Name="BoxLabel">Name</Label>
+        <TextBox Name="NonDateType" Grid.Row="1" TextChanged="NonDateType_TextChanged"></TextBox>
+        <DatePicker Name="DateType" Grid.Row="1" Visibility="Hidden" SelectedDateChanged="DateType_SelectedDateChanged"></DatePicker>
+        <CheckBox Name="BitType" IsThreeState="True" Grid.Row="1" Visibility="Hidden" Checked="CheckBox_Checked"></CheckBox>
+    </Grid>
+</UserControl>

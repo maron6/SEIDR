@@ -1,0 +1,101 @@
+﻿<DS_LoaderMonitor:SessionWindow xmlns:DS_LoaderMonitor="clr-namespace:SEIDR.WindowMonitor"  x:Class="SEIDR.WindowMonitor.QueryAdder"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"        
+        xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
+        Title="Add Query Menu Item" Height="400" Width="600" ResizeMode="NoResize" 
+        ShowInTaskbar="False" Topmost="True" WindowStartupLocation="CenterOwner" Background="LightSteelBlue">
+    
+    <DockPanel LastChildFill="True">        
+        <ScrollViewer>
+        <Grid Name="QueryOptions" DockPanel.Dock="Top" ScrollViewer.VerticalScrollBarVisibility="Auto"
+              ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="65"></RowDefinition>
+                    <RowDefinition Height="65"></RowDefinition>
+                    <RowDefinition Height="65"></RowDefinition>
+                    <RowDefinition Height="65"></RowDefinition>
+                    <RowDefinition Height="65"></RowDefinition>
+                    <RowDefinition Height="65"></RowDefinition>
+                    <RowDefinition Height="65"></RowDefinition>
+                    <RowDefinition></RowDefinition>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Column="0" Grid.Row="0" >
+                <Label Margin="5,0">Query Name
+                </Label>
+                <TextBox Name="Queryname" Text="Q_"
+                     ToolTip="Suggested Naming Convention: 'Q_QueryName'" TextChanged="Queryname_TextChanged"
+                     Margin="5,0">                    
+                </TextBox>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Grid.Row="0" >
+                <Label Margin="5,0">Procedure Call</Label>
+                <TextBox Name="Procedure" Margin="5,0"></TextBox>
+            </StackPanel>
+            <DS_LoaderMonitor:LabelBox x:Name="FromDate" Label="FromDate[datetime] Parameter Name"
+                Grid.Column="0" Grid.Row="1"
+                ToolTip="Leave blank if not used" Text="">
+            </DS_LoaderMonitor:LabelBox>
+            <DS_LoaderMonitor:LabelBox x:Name="ThroughDate" Label="ThroughDate[datetime] Parameter Name"
+                Grid.Column="1" Grid.Row="1"
+                ToolTip="Leave blank if not used" Text="">
+            </DS_LoaderMonitor:LabelBox>
+            <DS_LoaderMonitor:LabelBox x:Name="Active" Label="Active[bit] Record Parameter Name"
+                Grid.Column="0" Grid.Row="2"
+                ToolTip="Leave blank if not used" Text="">
+            </DS_LoaderMonitor:LabelBox>               
+            <DS_LoaderMonitor:LabelBox x:Name="ExtraParamName" Label="Extra Parameter (varchar)"
+                    Grid.Column="1" Grid.Row="2"
+                    ToolTip="Leave blank if not used" Text="" Loaded="ExtraParamName_Loaded">                
+            </DS_LoaderMonitor:LabelBox>
+                <DS_LoaderMonitor:LabelBox ToolTip="Parameter int 1" x:Name="IntParam1" Label="Int Parameter # 1" Grid.Column="0" Grid.Row="3"
+                                    Text=""></DS_LoaderMonitor:LabelBox>
+                <DS_LoaderMonitor:LabelBox ToolTip="Parameter int 2" x:Name="IntParam2" Label="Int Parameter # 2" Grid.Column="1" Grid.Row="3"
+                                    Text=""></DS_LoaderMonitor:LabelBox>
+                <StackPanel Grid.Column="0" Grid.Row="4">
+                    <Label>Query Category</Label>
+                    <ComboBox x:Name="Category" Grid.Column="0" Grid.Row="4" Margin="10,10" IsEditable="True"
+                              ToolTip="Leave blank to avoid Categorizing the Query"      
+                              TextBoxBase.TextChanged ="Category_TextChanged"
+                              SelectionChanged="Category_SelectionChanged"                              
+                                    Text=""></ComboBox>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Grid.Row="4">
+                    <Label>Query SubCategory</Label>
+                    <ComboBox x:Name="SubCategory" Grid.Column="0" Grid.Row="4" Margin="10,10" IsEditable="True"
+                                    Text=""></ComboBox>
+                </StackPanel>                
+            <StackPanel Grid.Column="0" Grid.Row="5">
+            <Label Margin="5,0">Database Connection Name</Label>
+                <ComboBox Name="DBConn" ToolTip="See the database connection settings"
+                          SelectionChanged="DBConn_SelectionChanged"
+                      Margin="5,0"></ComboBox>
+            </StackPanel>
+                <DS_LoaderMonitor:LabelBox x:Name="DisplayName" Text="" Label="Display Name" Grid.Row="5" Grid.Column="1"></DS_LoaderMonitor:LabelBox>
+                <StackPanel Grid.Row="6" Grid.Column="0">
+                    <Label>Query Refresh Time (Minutes)</Label>
+                    <Controls:NumericUpDown Minimum="0" Maximum="67" Name="AutoRefreshTime" HasDecimals="False"
+                        ToolTip="Approximate time for query to auto-refresh (only while window is active)"/>
+                </StackPanel>
+            <StackPanel Name="Finish" Orientation="Horizontal" DockPanel.Dock="Bottom" Grid.Row="6" Grid.Column="1">
+                <Button Name="OK" 
+                    Margin="90, 10, 20, 10" 
+                    Width="50"  Height="25"
+                    ToolTip="Add the above settings as a query menu Item" Click="OK_Click">
+                    OK
+                </Button>
+                <Button Name="Cancel" 
+                    Margin="0, 10" 
+                    Width="50" Height="25"
+                    ToolTip="Don't add a new query menu item" Click="Cancel_Click"
+                    >
+                    Cancel
+                </Button>
+            </StackPanel>
+        </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</DS_LoaderMonitor:SessionWindow>

@@ -1,0 +1,144 @@
+﻿<base:BasicSessionWindow xmlns:ProfileMgr="clr-namespace:SEIDR_ProfileManager"  x:Class="SEIDR_ProfileManager.ProfileManager"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"      
+        xmlns:base="clr-namespace:Ryan_UtilityCode.Dynamics.Configurations;assembly=Ryan_UtilityCode.Dynamics"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="Data Services Profile Manager" Height="420" Width="680"
+        MinWidth="700" MinHeight="440"
+        Background="LightSteelBlue" WindowStartupLocation="CenterOwner"
+        >
+    <DockPanel LastChildFill="True" Margin="0,0,2,0">
+        <Menu Name="ProfileMenu" DockPanel.Dock="Top">
+            <MenuItem Name="Profile" Header="_Profile">                
+                <MenuItem Name="ProfileChooser" Header="_Choose Profile" 
+                          Click="ProfileChooser_Click">                    
+                </MenuItem>
+                <MenuItem Name="CreateProfile" Header="_Create New Profile"
+                          Click="CreateProfile_Click">                    
+                </MenuItem>                
+                <MenuItem Name="SaveProfile" Header="_Save Profile" Click="SaveProfile_Click">                    
+                </MenuItem>
+                <Separator></Separator>
+                <MenuItem Name="LoaderProfileOptions" Header="_Loader Options"> 
+                    <Label Name="CurrentProfileID">Current LoadProfileID:</Label>                    
+                    <MenuItem Name="Position" Header="_Set Position" Click="Position_Click">                        
+                    </MenuItem>
+                    <MenuItem Name="HoldDate" Header="_Set Profile Hold Date">
+                        <DatePicker Name="HoldDatePicker" SelectedDateChanged="HoldDatePicker_SelectedDateChanged"></DatePicker>
+                        <Button Name="ClearHoldDate" Click="HoldDate_Click">Clear Hold Date</Button>
+                    </MenuItem>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Name="SSIS" Header="_SSIS Packages">
+                <MenuItem Header="_Upload">
+                    <MenuItem Name ="ProfileUploadPackage" 
+                              Click="ProfileUploadPackage_Click"
+                              Header="_Choose Profile">                        
+                    </MenuItem>
+                    <MenuItem Name="GeneralUploadPackage"
+                              Click="GeneralUploadPackage_Click"
+                              Header="_Upload for this Profile">                        
+                    </MenuItem>
+                </MenuItem>
+                <MenuItem Header="_Download">
+                    <MenuItem Name="ProfileDownloadPackage"
+                              Header="_Choose Profile"
+                              Click="ProfileDownloadPackage_Click">
+                    </MenuItem>
+                    <MenuItem Name="General"
+                              Header="_This Profile Package"
+                              Click="General_Click">
+                    </MenuItem>
+                </MenuItem>                
+            </MenuItem>
+            <MenuItem Header="_Folders" Name="FolderMenu" IsEnabled="False">
+                <MenuItem Name="Folder_Input" Header="Open InputFolder" Click="Folder_Input_Click"></MenuItem>
+                <MenuItem Name="Folder_Output" Header="Open OutputFolder" Click="Folder_Output_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Loader Magic" Name="LoaderMagicMain" >
+                <MenuItem Header="Loader Magic Step" Name="LM_STEP" IsEnabled="False" Click="LM_STEP_Click"></MenuItem>
+                <MenuItem Header="Loader Magic Operations" Name="LM_OPS" Click="LM_OPS_Click"/>
+            </MenuItem>
+        </Menu>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Name="TopPanel" IsEnabled="False">
+            <Label  Margin="5,5,0,0" 
+                   FontSize="9">Current Profile:</Label>
+            <Label Name="CurrentProfileLabel"
+                   FontSize="9" Width="120" Margin="0,5">(NoProfile Chosen)</Label>            
+            <CheckBox Name="Active" IsChecked="True" Margin="20,10" FontSize="9" ToolTip="If unchecked, LoadProfile will NOT be pick up files but may still be a parent to other profiles."
+                      Checked="Active_Checked">Active</CheckBox>
+            <CheckBox Name="RegisterOnly" IsChecked="False" Margin="20,10" FontSize="9" ToolTip="If checked, new LoadBatches for this profile will go to 'C' immediately, for use as a parent or LoaderMagic."
+                      Checked="RegisterOnly_Checked">Register Only</CheckBox>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Left" Width="220" Margin="10,0" Name="LeftPanel" IsEnabled="False">
+            <Label FontSize="9">Profile Description</Label>
+            <TextBox Name="ProfileDescription">Name Profile</TextBox>
+            <Line Height="10"></Line>
+            <Label FontSize="9" Name="LongProfileDescription">Long Description</Label>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBox Name="LongDescription" AcceptsReturn="True" AcceptsTab="False" Height="120" 
+                             >                
+                </TextBox>
+            </ScrollViewer>
+            <Label>Trimming Table</Label><TextBox Name="TrimTable" Text="" Margin="0,10,0,5"/>
+            <Label>Trimming Schema</Label>
+            <TextBox Name="TrimSchema" Text="" Margin="0,5"/>
+        </StackPanel>
+        <StackPanel Margin="10, 0" Width="155" Name="MiddlePanel" IsEnabled="False">
+            <Label FontSize="9">
+                BatchType
+            </Label>
+            <ComboBox Name="BatchTypeList" IsEditable="True"></ComboBox>
+            <Line Height="10"></Line>
+            <Label FontSize="9">
+                InputFileDate Format
+            </Label>
+            <TextBox Name="InputFileDateFormat">
+                *yyyyMMdd*
+            </TextBox>
+            <Line Height="10"></Line>
+            <Label FontSize="9">Day Offset</Label>            
+            <Controls:NumericUpDown ValueChanged="DayOffset_ValueChanged"
+                Name="DayOffset" HasDecimals="False" 
+                Value="0">                
+            </Controls:NumericUpDown>
+            <Line Height="10"/>
+            <Label>ServerInstanceName</Label> <TextBox Name="ServerInstance" Text="SDSRV06.CYMETRIX.COM" Margin="0,10"/>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Right" Margin="10,0" Name="RightPanel" IsEnabled="False">            
+            <Label FontSize="9">Organization</Label>
+            <Button Name="Organization" Click="Organization_Click">(No Organization Selected)</Button>
+            <Line Height="10"></Line>
+            <Label FontSize="9">File Mask</Label>
+            <TextBox Name="FileMask">*.txt</TextBox>
+            <Line Height="10"/>
+            <Label FontSize="9">Primary Parent</Label>
+            <StackPanel Orientation="Horizontal">
+                <Button Name="ChooseParent" Width="90"
+                        Click="ChooseParent_Click">
+                    Choose Parent
+                </Button>
+                <Button Name="ClearParent" Margin="10,0" Width="90"
+                        Click="ClearParent_Click">
+                    Clear Parent
+                </Button>
+            </StackPanel>
+            <Line Height="10"/>
+            <CheckBox Checked="CheckBox_Checked" Name="LoadSequence">Load In Sequence Order</CheckBox>
+            <Line Height="10"/>
+            <ScrollViewer Margin="5,0,0,0">
+                <ListBox Name="ComplexParentList" Height="80" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"></ListBox>
+            </ScrollViewer>
+            <Line Height="10"/>
+            <StackPanel Orientation="Horizontal">                
+                <Button Name="AddComplexParent"
+                        Click="AddComplexParent_Click">Add Complex Parent</Button>
+                <Button Name="DropComplex" Margin="15,0" Width="130"
+                        Click="DropComplex_Click">
+                    Drop Complex Parent
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </DockPanel>
+</base:BasicSessionWindow>

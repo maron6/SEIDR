@@ -1,0 +1,89 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27004.2005
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEIDR.Window", "SEIDR_MONITOR\SEIDR.Window.csproj", "{96E08C03-87E9-4D4D-813A-88962036D8DE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{EF23FE80-015A-450B-AB49-8326DDF70272} = {EF23FE80-015A-450B-AB49-8326DDF70272}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEIDR_Window.AddonTest", "SEIDR_Windodw.AddonTest\SEIDR_Window.AddonTest.csproj", "{5A8048DF-EB17-49EB-BF71-541B15A38A41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RowColumnProcessor", "RowColumnProcessor\RowColumnProcessor.csproj", "{70557A61-46C7-4357-B0ED-5C0ED3979DBA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEIDR.Dynamics", "SEIDR.Dynamics.Windows\SEIDR.Dynamics.csproj", "{EF23FE80-015A-450B-AB49-8326DDF70272}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceControllerMenu", "ServiceControllerMenu\ServiceControllerMenu.csproj", "{DCDA3010-1D39-4AC5-8C77-9D947C2D704C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocumentLoader", "DocumentLoader\DocumentLoader.csproj", "{3C4AA430-C12E-469B-8F83-784A16ADC10E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocLoadertest", "DocLoadertest\DocLoadertest.csproj", "{F9A3E2BB-B879-46EC-B913-87BCD75C9EA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEIDR.DataEmailer", "SEIDR.DataEmailer\SEIDR.DataEmailer.csproj", "{290E2248-D02B-44BC-AA89-349C5FF7526C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Profile_PathCheck", "Profile_PathCheck\Profile_PathCheck.csproj", "{E035E08A-ABDC-4C06-B08F-FB11BBA83F6F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{B6066A0F-3698-40B0-9CED-97D580B7B4EB}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+		.nuget\NuGet.targets = .nuget\NuGet.targets
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEIDR", "..\SEIDR\SEIDR.csproj", "{81417F92-B840-4476-96B7-6D87D224FD78}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{96E08C03-87E9-4D4D-813A-88962036D8DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96E08C03-87E9-4D4D-813A-88962036D8DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96E08C03-87E9-4D4D-813A-88962036D8DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96E08C03-87E9-4D4D-813A-88962036D8DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A8048DF-EB17-49EB-BF71-541B15A38A41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A8048DF-EB17-49EB-BF71-541B15A38A41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A8048DF-EB17-49EB-BF71-541B15A38A41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A8048DF-EB17-49EB-BF71-541B15A38A41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70557A61-46C7-4357-B0ED-5C0ED3979DBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70557A61-46C7-4357-B0ED-5C0ED3979DBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70557A61-46C7-4357-B0ED-5C0ED3979DBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70557A61-46C7-4357-B0ED-5C0ED3979DBA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF23FE80-015A-450B-AB49-8326DDF70272}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF23FE80-015A-450B-AB49-8326DDF70272}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF23FE80-015A-450B-AB49-8326DDF70272}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF23FE80-015A-450B-AB49-8326DDF70272}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCDA3010-1D39-4AC5-8C77-9D947C2D704C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCDA3010-1D39-4AC5-8C77-9D947C2D704C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCDA3010-1D39-4AC5-8C77-9D947C2D704C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCDA3010-1D39-4AC5-8C77-9D947C2D704C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C4AA430-C12E-469B-8F83-784A16ADC10E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C4AA430-C12E-469B-8F83-784A16ADC10E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C4AA430-C12E-469B-8F83-784A16ADC10E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C4AA430-C12E-469B-8F83-784A16ADC10E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9A3E2BB-B879-46EC-B913-87BCD75C9EA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9A3E2BB-B879-46EC-B913-87BCD75C9EA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9A3E2BB-B879-46EC-B913-87BCD75C9EA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9A3E2BB-B879-46EC-B913-87BCD75C9EA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{290E2248-D02B-44BC-AA89-349C5FF7526C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{290E2248-D02B-44BC-AA89-349C5FF7526C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{290E2248-D02B-44BC-AA89-349C5FF7526C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{290E2248-D02B-44BC-AA89-349C5FF7526C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E035E08A-ABDC-4C06-B08F-FB11BBA83F6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E035E08A-ABDC-4C06-B08F-FB11BBA83F6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E035E08A-ABDC-4C06-B08F-FB11BBA83F6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E035E08A-ABDC-4C06-B08F-FB11BBA83F6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{81417F92-B840-4476-96B7-6D87D224FD78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{81417F92-B840-4476-96B7-6D87D224FD78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{81417F92-B840-4476-96B7-6D87D224FD78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{81417F92-B840-4476-96B7-6D87D224FD78}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2E2584FD-0354-42E6-97F3-4DE41DE81AD5}
+	EndGlobalSection
+EndGlobal

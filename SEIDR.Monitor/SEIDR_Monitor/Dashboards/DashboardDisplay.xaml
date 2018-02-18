@@ -1,0 +1,43 @@
+﻿<base:SessionWindow x:Class="SEIDR.WindowMonitor.DashboardDisplay"
+        xmlns:base="clr-namespace:SEIDR.WindowMonitor"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DashboardDisplay" Height="150" Width="600"
+        Background="White" ShowInTaskbar="True" WindowStartupLocation="CenterOwner" SizeToContent="Height">
+    <DockPanel LastChildFill="False" Background="LightSteelBlue">
+        <StackPanel DockPanel.Dock="Top" RenderTransformOrigin="0.5,0.5" Margin="10,10,10,10">
+            <StackPanel.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform/>
+                    <SkewTransform AngleX="-7.659"/>
+                    <RotateTransform/>
+                    <TranslateTransform X="1.479"/>
+                </TransformGroup>
+            </StackPanel.RenderTransform>
+            <TextBox Name="DashboardName" TextAlignment="Center">Dashboard</TextBox>
+            <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto" 
+                          HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="10,10,10,10"
+                      Name="DashboardData">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"></ColumnDefinition>
+                        <ColumnDefinition Width="*"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                </Grid>
+            </ScrollViewer>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" VerticalAlignment="Center">
+            <Button Name="Refresh" 
+                    Click="Refresh_Click"
+                    Margin="30, 10, 10, 10"                    
+                    Width="80">
+                Refresh
+            </Button>
+            <Button Name="CloseB" 
+                    Width="80" 
+                    Click="Close_Click" Margin="15, 10, 10,10">
+                Close Page
+            </Button>
+        </StackPanel>
+    </DockPanel>
+</base:SessionWindow>

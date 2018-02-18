@@ -1,0 +1,31 @@
+﻿<c:iNotifyControl x:Class="SEIDR.Dynamics.Configurations.DynamicEditor.FlagPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SEIDR.Dynamics.Configurations.DynamicEditor"
+             xmlns:c ="clr-namespace:SEIDR.Dynamics.Configurations"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+    <Grid Visibility="{Binding Path=HasOptions}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Label Name="FlagLabel" Grid.Row="0" Margin="10,10, 0, 0" FontSize="16"
+               Content="{Binding Path=TypeName}"></Label>
+        <ScrollViewer Grid.Row="1">
+        <ListBox Name="FlagList" Grid.Row="1" ScrollViewer.CanContentScroll="False"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"                 
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <CheckBox IsChecked="{Binding Checked}" 
+                              Checked="CheckBox_Checked" Tag="{Binding value}"
+                              Content="{Binding Key}"></CheckBox>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        </ScrollViewer>
+    </Grid>
+</c:iNotifyControl>

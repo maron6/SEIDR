@@ -1,0 +1,166 @@
+﻿<DS_LoaderMonitor:SessionWindow xmlns:DS_LoaderMonitor="clr-namespace:SEIDR.WindowMonitor"  
+        x:Class="SEIDR.WindowMonitor.ContextMenuEditor"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="ContextMenuEditor" Height="350" Width="753.35" Background="LightSteelBlue"
+        MinWidth="750" MinHeight="350" MaxWidth="775" MaxHeight="400" WindowStartupLocation="CenterOwner"
+        >
+    <Window.ContextMenu>
+        <ContextMenu Name="ScopeMenu">
+            <MenuItem Name="Scope_ALL" Click="Scope_ALL_Click" Header="Owner Scope - ALL"></MenuItem>
+            <MenuItem Name="Scope_Q" Click="Scope_Q_Click" Header="Owner Scope - Queries"/>
+            <MenuItem Name="Scope_D" Click="Scope_D_Click" Header="Owner Scope - Dashboard"/>
+            <MenuItem Name="Scope_C" Click="Scope_C_Click" Header="Owner Scope - Context Menu Item"/>
+            <MenuItem Name="Scope_A" Click="Scope_A_Click" Header="Owner Scope - AddOns"/>
+        </ContextMenu>
+    </Window.ContextMenu>
+    <TabControl Margin="5,5" Name="ContextTabs">
+        <TabItem Name="Standard" Header="_Standard" Background="Snow">
+            <DockPanel LastChildFill="True">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+                    <Button Margin="15,5" Name="Accept" Click="Accept_Click" 
+                            IsEnabled="{Binding ElementName=OwnerBox}">Accept</Button>
+                    <Button Margin="5,5" Name="Cancel" Click="Cancel_Click">Cancel</Button>
+                </StackPanel>
+                <ScrollViewer Width="719">
+                    <Grid ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"></ColumnDefinition>
+                            <ColumnDefinition Width="*"></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <!-- 
+                    <DS_LoaderMonitor:LabelBox Grid.Column="1" Margin ="5,0,5,0" x:Name="Owner" Label="Owner - Query or Other Context Menu Item" Text=""/>
+                    -->
+                        <StackPanel Grid.Column="1" Margin="5,0,5,0">
+                            <Label>Owner - Query or Other Context Menu Item</Label>
+                            <ComboBox Name="OwnerBox"  Margin="5,0,5,0" SelectionChanged="OwnerBox_SelectionChanged" ></ComboBox>
+                        </StackPanel>
+                        <DS_LoaderMonitor:LabelBox Grid.Column="0" Grid.Row="1" Margin ="5,0,10,0" 
+                                               ToolTip="This procedure will be called on the same database as the owner"
+                                               x:Name="Procedure" Label="Procedure to Call" Text=""/>
+                        <DS_LoaderMonitor:LabelBox Grid.Column="1" ToolTip="The data in the specified column will attempt to open. E.g., InputFolder" 
+                                                   Visibility="Collapsed" IsEnabled="False"
+                                               Grid.Row="1" Margin="5,0,5,0" x:Name="OpenCol" Label="Column Data to run (e.g., Open file path)" Text=""/>
+                        <DS_LoaderMonitor:LabelBox Grid.Column="0" Grid.Row="2"  Margin ="10,0,10,0" x:Name="Dashboard"
+                                               ToolTip="Naming Convention: 'D_DashboardName'\r\nNote that Dashboards will be ignored if the Owner scope is a Dashboard"
+                                                   TextChanged="Dashboard_TextChanged"
+                                               Label="Dashboard (Blank if none)" WarnEmpty="False" Text="" Loaded="Dashboard_Loaded"/>
+                        <DS_LoaderMonitor:LabelBox Grid.Column="1" Grid.Row="2" Label="Detail Accept Proc" x:Name="DetailAccept" TextChanged="DetailAccept_TextChanged"
+                                               ToolTip="If Single Detail View is checked, this will be called when Accepting Changes"
+                                               Text="" Margin="10,0,10,0"></DS_LoaderMonitor:LabelBox>
+                        <CheckBox Name="MultiSelect" Grid.Column="1"  Checked="MultiSelect_Checked"
+                              ToolTip="If multiple rows are selected, this Procedure will be performed for each selected row if enabled.\nOtherwise, only the FIRST selected row will be passed to the procedure/Detail view.\nAlso, see the misc setting for limiting multi select (Affects limit for Queue as well)"
+                              Grid.Row="3" Margin="5,5,5,0">Allow Multi-Select</CheckBox>
+                        <CheckBox Name="SingleDetail" Grid.Column="0" HorizontalAlignment="Left"
+                              ToolTip="Open Results in a single Detail View which can allow editing, if Detail Accept Proc is specified to save the form. Requires a Dashboard name" Checked="SingleDetail_Checked"
+                              Grid.Row="3" Margin="5,5,5,0">Single Detail view Dashboard</CheckBox>
+                        <CheckBox Name="UseQueue" Grid.Column="1" Margin="5,5,5,0"
+                                  HorizontalAlignment="Right" ToolTip="Queue context actions to be run in background. Queue size Limited to the Misc Setting for multi-select"
+                                  Grid.Row="3">Use Queue for Multi-Select</CheckBox>
+                        <DS_LoaderMonitor:LabelBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="5,0,0,15"
+                                     Label="ProcID" ToolTip="Name of ID Parameter to pass to procedure for extra context(e.g., ThreadID, or Position)" Width="130"
+                                    Text="" x:Name="ProcIDName"></DS_LoaderMonitor:LabelBox>
+                        <Controls:NumericUpDown Name="ProcID" Grid.Row="1" Grid.Column="1"
+                                            Margin="15,15" Width="160"
+                                            HorizontalAlignment="Right">
+                        </Controls:NumericUpDown>
+                        <DS_LoaderMonitor:LabelBox Grid.Row="0" x:Name="Display" Margin="5,0,5,0"
+                                    Label="Display Name" Text="" Loaded="Display_Loaded"></DS_LoaderMonitor:LabelBox>
+                        <!--
+                    <DataGrid ItemsSource="{Binding DataRowMappings}" CanUserAddRows="True" CanUserDeleteRows="True"
+                              Name="DataRowMapping" HorizontalAlignment="Left" AutoGenerateColumns="False"
+                              Margin="5,5,5,0"
+                              Grid.Column="0" Grid.Row="3"    
+                                  >
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Column To Map Name" Width="*"/>
+                            </DataGrid.Columns>                    
+                        </DataGrid>                
+                
+                    <DS_LoaderMonitor:OptionListBox 
+                        x:Name="DataRowMapping" Margin="5,0,5,0" HorizontalAlignment="Left" Width="260"
+                        Label="Mapping From Query Result (Column Name)" Height="131"/> 
+                    <DS_LoaderMonitor:EditDictionaryControl x:Name="HardDataMapping" />-->
+                    </Grid>
+                </ScrollViewer>
+            </DockPanel>
+        </TabItem>
+        <TabItem Name="Switch" Header="_Switch" Background="Snow" Selector.Selected="Switch_Selected"
+                 Selector.Unselected="Switch_Unselected">
+            <DockPanel LastChildFill="True" >
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+                    <Button Name="SW_accept" Margin="10,10" Click="SW_accept_Click"
+                            ToolTip="Note that for Switches, they cannot be edited later on, only removed.\nThe Context Menu's actual display is determined by the target at run time.">Accept</Button>
+                    <Button Name="SW_Cancel" Margin="10,10" Click="Cancel_Click">Cancel</Button>
+                </StackPanel>
+                <StackPanel>
+                    <Label>Source</Label>
+                    <ComboBox Width="230" Name="Source" HorizontalAlignment="Left"
+                              SelectionChanged="OwnerBox_SelectionChanged"></ComboBox>
+                    <Separator Width="180" HorizontalAlignment="Left" Margin="20,10"></Separator>
+                    <Label>Target Query</Label>
+                    <ComboBox Width="230" Name="Target" HorizontalAlignment="Left"
+                              SelectionChanged="OwnerBox_SelectionChanged"></ComboBox>
+                </StackPanel>
+            </DockPanel>
+        </TabItem>
+        <TabItem Name="Addon" Header="_AddOn" Background="Snow">
+            <DockPanel LastChildFill="True">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+                    <Button Margin="15,5" x:Name="Accept1" Click="Accept1_Click" Content="Accept"/>
+                    <Button Margin="5,5" x:Name="Cancel1" Click="Cancel_Click" Content="Cancel"/>
+                </StackPanel>
+                <ScrollViewer DockPanel.Dock="Top">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="55"></RowDefinition>
+                            <RowDefinition Height="55"></RowDefinition>
+                            <RowDefinition Height="55"></RowDefinition>
+                            <RowDefinition Height="55"></RowDefinition>
+                            <RowDefinition Height="55"></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3*"></ColumnDefinition>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="3*"></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                        <Button Name="ParameterMapper" Click="ParameterMapper_Click"
+                                Grid.Row="2" Margin="10,10" Grid.Column="2">
+                            Map Parameters
+                        </Button>
+                        <Label Name="AddonProcIDName" VerticalAlignment="Top" Grid.Row="2"
+                               Visibility="Collapsed"
+                               HorizontalAlignment="Left">PLACEHOLDER</Label>
+                        <Controls:NumericUpDown Name="AddonProcID" HasDecimals="False"  VerticalAlignment="Bottom"
+                                                HorizontalAlignment="Left" Margin="5,0,0,5" Grid.Row="2" Visibility="Collapsed"
+                                                Width="120"></Controls:NumericUpDown>
+                        <Label Name="AddonProcStringName" VerticalAlignment="Top" Grid.Row="2" Margin="0,0,115,0"
+                               HorizontalAlignment="Right" Grid.ColumnSpan="2" Visibility="Collapsed">PLACEHOLDER</Label>
+                        <TextBox Name="AddonProcString" Width="189" Grid.Row="2" HorizontalAlignment="Right"
+                                 Margin="0,0,15,5" Visibility="Collapsed"
+                                 VerticalAlignment="Bottom" Grid.ColumnSpan="2"></TextBox>
+                        <CheckBox x:Name="MultiSelect_Copy" Grid.Column="2" Margin="15,15,4.5,5"
+                        	ToolTip="If multiple rows are selected, this Item will be performed for each selected row if enabled." 
+                        	Grid.Row="1"  Content="Allow Multi-Select" />
+                        <ComboBox x:Name="OwnerBox_Copy"  Margin="10,0,10.5,4" Grid.Column="2" VerticalAlignment="Bottom"
+                                  SelectionChanged="OwnerBox_SelectionChanged" />
+                        <Label Grid.Column="2" VerticalAlignment="Top" Margin="0,0,0.5,0">Owner - Query or Other Context Menu Item</Label>
+                        <DS_LoaderMonitor:LabelBox  x:Name="Display_Copy" WarnEmpty="True"
+                                                   Label="Display Name" Text="" Margin="5,0,12,5" Grid.ColumnSpan="2" />
+                        <ComboBox x:Name="Addon_Box" Margin="10,0,10.5,4" Grid.Column="0" VerticalAlignment="Bottom" Grid.Row="1"
+                                  SelectionChanged="Addon_Box_SelectionChanged" Grid.ColumnSpan="2"/>
+                        <Label Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" Margin="0,0,0.5,0">Add On to Call</Label>
+                    </Grid>
+                </ScrollViewer>
+            </DockPanel>
+        </TabItem>
+    </TabControl>
+</DS_LoaderMonitor:SessionWindow>

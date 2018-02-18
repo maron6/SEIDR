@@ -1,0 +1,36 @@
+﻿<local:iNotifyControl x:Class="SEIDR.Dynamics.Configurations.ConfigurationParentPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SEIDR.Dynamics.Configurations"
+             mc:Ignorable="d" MinHeight="80" MinWidth="250" MaxHeight="120"
+             d:DesignHeight="80" d:DesignWidth="300">
+    <Grid Visibility="{Binding Path=HasOptions}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*"></ColumnDefinition>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40">
+            </RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Label Name="ParentTypeLabel" Grid.Row="0" Margin="10,5,0,0" FontSize="16">Default</Label>
+        <ComboBox Name="ParentListComboBox" SelectedItem="{Binding Path=Picked}" 
+                  IsEditable="False" SelectionChanged="ParentListComboBox_SelectionChanged"
+                  Grid.Row="1" Grid.ColumnSpan="2">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <ComboBoxItem Content="{Binding Path=Key}" ToolTip="{Binding Path=Description}"
+                                  Tag="{Binding Path=.}"></ComboBoxItem>
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+        <ComboBox Name="ScopeFilter" Grid.Row="0" Grid.Column="1"                   
+                  ItemsSource="{Binding Path=ScopeList}" IsEditable="False"
+                  SelectionChanged="ScopeFilter_SelectionChanged"
+                  SelectedItem="{Binding Path=CurrentScope}">
+        </ComboBox>
+    </Grid>
+</local:iNotifyControl>

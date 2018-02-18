@@ -1,0 +1,25 @@
+﻿<seidr:SessionWindow x:Class="SEIDR.WindowMonitor.Dashboards.PieChartDisplay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SEIDR.WindowMonitor.Dashboards"
+        xmlns:seidr="clr-namespace:SEIDR.WindowMonitor"
+        xmlns:metroChart="clr-namespace:De.TorstenMandelkow.MetroChart;assembly=De.TorstenMandelkow.MetroChart"
+        mc:Ignorable="d" Background="LightSteelBlue"
+        Title="ChartDisplay" Height="600" Width="1000">
+
+    <metroChart:PieChart Name="DisplayChart"            
+            ChartTitle="Minimal Pie Chart"
+            ChartSubTitle="Chart with fixed width and height"
+            SelectedItem="{Binding Path=SelectedItem, Mode=TwoWay}" 
+            Height="Auto" Margin="10,10" Width="Auto" Background="White">
+        <metroChart:PieChart.Series>
+            <metroChart:ChartSeries
+                SeriesTitle="dataCollection"
+                DisplayMember="Description"
+                ValueMember="value"
+                ItemsSource="{Binding Path=dataCollection}" />
+        </metroChart:PieChart.Series>
+    </metroChart:PieChart>
+</seidr:SessionWindow>
