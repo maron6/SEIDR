@@ -16,7 +16,9 @@ namespace SEIDR.Dynamics.Configurations
             ConfigurationListBrokerMetaData brokerMetaData)
         {
             if (brokerMetaData == null)
-                ImpersonationAllowed = false;            
+                ImpersonationAllowed = false;
+            else
+                ImpersonationAllowed = brokerMetaData.SupportImpersonation;
             Broker = broker;
         }
         public abstract UserAccessMode CurrentAccessMode { get; }

@@ -18,6 +18,7 @@
     [ScheduleFromDate]        DATETIME      NULL,
     [ScheduleThroughDate]     DATETIME      NULL,
     [ScheduleValid]           AS            (CONVERT([bit],case when [ScheduleID] IS NULL then (0) when [ScheduleFromDate] IS NULL OR [ScheduleFromDate]>getdate() then (0) when [ScheduleThroughDate] IS NULL then (1) when [ScheduleThroughDate]<=[ScheduleFromDate] then (0) else (1) end)),
+    [ScheduleNoHistory] BIT NOT NULL DEFAULT 0, 
     PRIMARY KEY CLUSTERED ([JobProfileID] ASC),
     FOREIGN KEY ([JobPriority]) REFERENCES [SEIDR].[Priority] ([PriorityCode]),
     FOREIGN KEY ([ScheduleID]) REFERENCES [SEIDR].[Schedule] ([ScheduleID])

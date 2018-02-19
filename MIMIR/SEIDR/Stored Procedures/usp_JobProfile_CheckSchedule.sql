@@ -31,10 +31,13 @@ BEGIN
 	
 	INSERT INTO SEIDR.JobExecution(JobProfileID, UserKey, UserKey1, UserKey2,
 			StepNumber, ExecutionStatusCode, 
-			ProcessingDate, ScheduleRuleClusterID)
+			ProcessingDate, 
+			ScheduleRuleClusterID)
 	SELECT js.JobProfileID, jp.UserKey, jp.UserKey1, jp.UserKey2, 
 			1, 'S',
-			ScheduleDate, [MatchingRuleClusterID]
+			CASE WHEN jp.ScheduleNoHistory =1 then @Now --When no history, use today's date for the ProcessingDate (Date not null).
+				else ScheduleDate end,					-- Else use the matched date
+			[MatchingRuleClusterID]
 	FROM #JobSchedule js
 	JOIN SEIDR.JobProfile jp
 		ON js.JobProfileID = jp.JobProfileID
@@ -50,10 +53,15 @@ BEGIN
 
 	INSERT INTO SEIDR.JobExecution(JobProfileID, UserKey, UserKey1, UserKey2,
 			StepNumber, ExecutionStatusCode, 
-			ProcessingDate, ProcessingTime, ScheduleRuleClusterID)
+			ProcessingDate, 
+			ProcessingTime, 
+			ScheduleRuleClusterID)
 	SELECT js.JobProfileID, jp.UserKey, jp.UserKey1, jp.UserKey2, 
 			1, 'S',
-			ScheduleDate, @Now, [MatchingRuleClusterID]
+			CASE WHEN jp.ScheduleNoHistory =1 then @Now --When no history, use today's date for the ProcessingDate (Date not null).
+				else ScheduleDate end,					-- Else use the matched date
+			@Now, 
+			[MatchingRuleClusterID]
 	FROM #JobSchedule js
 	JOIN SEIDR.JobProfile jp
 		ON js.JobProfileID = jp.JobProfileID
@@ -91,7 +99,8 @@ BEGIN
 		ProcessingDate, ProcessingTime)
 	SELECT JobProfileID, UserKey, UserKey1, UserKey2, 
 			1, 'S', [MatchingRuleClusterID],
-			js.ScheduleFromDate, @Now
+			CASE WHEN js.ScheduleNoHistory = 1 then @now --If no history, then just use Today as the starting date.
+				ELSE js.ScheduleFromDate end, @Now
 	FROM SEIDR.JobProfile js		
 	CROSS APPLY(SELECT SEIDR.ufn_CheckSChedule(js.ScheduleID, @Now, js.ScheduleFromDate))s(MatchingRuleClusterID)
 	WHERE js.ScheduleValid = 1 AND js.Active = 1	
