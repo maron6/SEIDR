@@ -68,7 +68,7 @@ namespace SEIDR.Test
                 System.Diagnostics.Debug.WriteLine("Entered, t0. t3 Acquire exclusive");
                 System.Diagnostics.Debug.WriteLine("Current ThreadID: " + Thread.CurrentThread.ManagedThreadId);
                 l3.Acquire(Lock.Exclusive);
-                Thread.Sleep(10_000);
+                Thread.Sleep(10000);
                 l3.Release();
             });
             
@@ -192,7 +192,7 @@ namespace SEIDR.Test
                         if (m.Transition(Lock.Exclusive))
                             System.Diagnostics.Debug.WriteLine("Thread 1 - Exclusive!");
                     }
-                    Thread.Sleep(10_000);
+                    Thread.Sleep(10000);
                     System.Diagnostics.Debug.WriteLine("Thread 1 - Ending");
                 }
                 System.Diagnostics.Debug.WriteLine("Thread 1 - End.");
@@ -209,7 +209,7 @@ namespace SEIDR.Test
                 using (var m = new MultiLockHelper(Lock.Shared, targetList.Where(s => s.EndsWith("1")))) //10, 11
                 {
                     System.Diagnostics.Debug.WriteLine("Thread 2 - Enterd MultiLockHelper");
-                    Thread.Sleep(15_000); 
+                    Thread.Sleep(15000); 
                 }
                 System.Diagnostics.Debug.WriteLine("Thread 2 - Finish");
             })
@@ -217,7 +217,7 @@ namespace SEIDR.Test
                 IsBackground = true
             };
             t2.Start();
-            Thread.Sleep(25_000);
+            Thread.Sleep(25000);
             Thread t3 = new Thread(() =>
             {
                 System.Diagnostics.Debug.WriteLine("Thread 3 - Waiting for T2!");
@@ -228,15 +228,15 @@ namespace SEIDR.Test
                 IsBackground = true
             };
             t3.Start();
-            Thread.Sleep(15_000);
+            Thread.Sleep(15000);
             System.Diagnostics.Debug.WriteLine("Main - Release");
             l1.Release();
             System.Diagnostics.Debug.WriteLine("Main - Wait");
-            Thread.Sleep(15_000);
+            Thread.Sleep(15000);
             LockManager.Wait("T2");
             LockManager.Wait("T1");
             LockManager.Wait("L1");
-            Thread.Sleep(40_000);
+            Thread.Sleep(40000);
             System.Diagnostics.Debug.WriteLine("Main - Done");
             /*
              Output:

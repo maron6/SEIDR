@@ -48,7 +48,7 @@ namespace SEIDR
         string _display;
         public string SenderDisplayName
         {
-            get => _display;
+            get { return _display; }
             set
             {
                 if (string.IsNullOrWhiteSpace(value))

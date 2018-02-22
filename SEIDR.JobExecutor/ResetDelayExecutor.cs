@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace SEIDR.JobExecutor
 {
+    /// <summary>
+    /// Removes delay for any JobExecution records that have been flagged to 'RunNow'.
+    /// Also increases the priority and triggers sorting the JobExecutor WorkQueue
+    /// </summary>
     class ResetDelayExecutor : Executor
     {
         public ResetDelayExecutor( JobExecutorService caller, DataBase.DatabaseManager manager)

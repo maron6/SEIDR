@@ -65,7 +65,8 @@ namespace SEIDR.JobExecutor
         public volatile bool IsWorking;
         public abstract int Workload { get; }
         protected abstract void Work();
-        protected abstract string HandleAbort();
+        [Obsolete("Should not be aborting the thread.", true)]
+        protected virtual string HandleAbort() { return null;}
         public void SetStatus(string message, ThreadStatus.StatusType status = ThreadStatus.StatusType.General)
         {
             lock (Status) //Not best practice, but it is a status for 'this'
@@ -132,13 +133,13 @@ namespace SEIDR.JobExecutor
                     }
                     Work();
                     SetStatus("Finish Work", ThreadStatus.StatusType.Finish);
-                }
+                }/*
                 catch(ThreadAbortException)//shouldn't happen anymore.
                 {                                        
                     var m = HandleAbort();
                     if (!string.IsNullOrWhiteSpace(m))
                         SetStatus(m, ThreadStatus.StatusType.Unknown);                    
-                }
+                }*/
                 catch(Exception ex)
                 {
                     CallerService.LogToFile(null, ex.Message, false);

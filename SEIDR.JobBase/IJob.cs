@@ -14,6 +14,7 @@ namespace SEIDR.JobBase
         string Description { get; }
         /// <summary>
         /// Limit 128 characters. Should be able to keep your job unique, as well as isolate your statuses and some other special handling.
+        /// Possible example: Need specific handling for different vendors with the same file. You might use the same JobName for sorting purposes, but keep them unique via NameSpace
         /// </summary>
         string NameSpace { get; }
         /// <summary>

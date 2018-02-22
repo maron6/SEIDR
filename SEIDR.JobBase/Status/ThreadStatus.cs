@@ -65,7 +65,7 @@ namespace SEIDR.JobBase.Status
                     break;
             }
         }
-        public DataTable GetStatusSest(IEnumerable<ThreadStatus> statusList)
+        public static DataTable GetStatusSet(IEnumerable<ThreadStatus> statusList)
         {
             DataTable dt = new DataTable();
             dt.Columns.Add("Thread", typeof(ThreadInfo));

@@ -451,7 +451,7 @@
             }
 
             const int LOCK_WAIT = 500;
-            const int MONITOR_WAIT_TIMEOUT = 300_000; //5 minutes
+            const int MONITOR_WAIT_TIMEOUT = 300000; //5 minutes
 
 
             if (Interlocked.Exchange(ref acquiring, 1) == 1)
@@ -670,7 +670,9 @@
                     if (deadline.HasValue && deadline.Value > DateTime.Now)
                     {
                         System.Diagnostics.Debug.WriteLine(DebugName + " - Deadline exceeded for acquiring exclusive intent.");
-                        return timeoutSafe ? false : throw new TimeoutException("Deadline exceeded for acquiring exclusive intent.");
+                        if(!timeoutSafe)
+                            throw new TimeoutException("Deadline exceeded for acquiring exclusive intent.");
+                        return false;
                     }
                     Monitor.Wait(intentTarget, MONITOR_WAIT_TIMEOUT);//Note: need to be entered in Monitor/lock block
                 }

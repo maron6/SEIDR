@@ -311,7 +311,7 @@
             //bool matched = false;
             DateTime start = DateTime.Now;
             const int LOCK_WAIT = 500;
-            const int MONITOR_WAIT_TIMEOUT = 60_000;
+            const int MONITOR_WAIT_TIMEOUT = 60000;
             object target = _LockTargets[_myTarget];
 
             #region NOLOCK

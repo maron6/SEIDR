@@ -14,8 +14,17 @@ namespace SEIDR.JobBase
         public DateTime DC { get; set; } = DateTime.Now;
         public DateTime LU { get; set; } = DateTime.Now;
         public DateTime? DD { get; set; } = null;
+        /// <summary>
+        /// Specifies the folder location to search for files to create JobExecutions under this JobProfileID
+        /// </summary>
         public string RegistrationFolder { get; set; }
+        /// <summary>
+        /// Used for parsing a File ProcessingDate based on the fileName.
+        /// </summary>
         public string FileDateMask { get; set; }
+        /// <summary>
+        /// Filters the files using DOS. Ex: *.* or testFile_2018*.txt
+        /// </summary>
         public string FileFilter { get; set; }
 
         public int UserKey { get; set; }
@@ -25,7 +34,7 @@ namespace SEIDR.JobBase
         /// <summary>
         /// Allows specifying that a JobProfile needs to run a specific thread number. Can be overridden at execution level.
         /// </summary>
-        public byte? RequiredThreadID { get; private set; }
+        public int? RequiredThreadID { get; private set; }
         /// <summary>
         /// For creating JobExecutions without folder monitoring
         /// </summary>
@@ -37,9 +46,14 @@ namespace SEIDR.JobBase
         public long? JobExecutionID { get; private set; }
         
         public int JobProfileID { get; private set; }
-
+        /// <summary>
+        /// Bridge JobProfile to an IJob, based on StepNumber and status (If specific status handling is specified)
+        /// </summary>
         public int JobProfile_JobID { get; private set; }
         public int StepNumber { get; private set; }
+        /// <summary>
+        /// Identifies the IJob to use based on what's in the Database
+        /// </summary>
         public int JobID { get; private set; }
 
 
@@ -49,6 +63,9 @@ namespace SEIDR.JobBase
 
         public DateTime ProcessingDate { get; private set; }
         public string ExecutionStatusCode { get; private set; }
+        public string ExecutionStatusNameSpace { get; private set; }
+
+
         public string FilePath { get; set; }
         public long FileSize { get; set; }
         public string FileHash { get; set; }

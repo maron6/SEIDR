@@ -1,0 +1,176 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="FullSignature">
+  <Class Name="SEIDR.JobBase.JobProfile">
+    <Position X="3.25" Y="0.5" Width="3" />
+    <Members>
+      <Property Name="Creator" Hidden="true" />
+      <Property Name="DC" Hidden="true" />
+      <Property Name="DD" Hidden="true" />
+      <Property Name="LU" Hidden="true" />
+    </Members>
+    <AssociationLine Name="JobProfileID" Type="System.Int32" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="5.25" Y="2.95" />
+        <Point X="5.25" Y="3.688" />
+        <Point X="8.25" Y="3.688" />
+        <Point X="8.25" Y="3.562" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="1.287" Y="0.515" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <AssociationLine Name="RequiredThreadID" Type="System.Int32" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="6.25" Y="2.438" />
+        <Point X="8.25" Y="2.438" />
+        <Point X="8.25" Y="3" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="0.027" Y="0.734" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>AAAQAAAAAAAgEAAEAgIAQAAAAgIAAIAAEAAEAEAAAAQ=</HashCode>
+      <FileName>JobBase.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="JobProfileID" />
+      <Property Name="RequiredThreadID" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="SEIDR.JobBase.JobExecution">
+    <Position X="7" Y="4.5" Width="3" />
+    <Members>
+      <Property Name="FileHash" Hidden="true" />
+      <Property Name="FileName" Hidden="true" />
+      <Property Name="FileSize" Hidden="true" />
+      <Method Name="JobExecution" Hidden="true" />
+    </Members>
+    <AssociationLine Name="JobProfileID" Type="System.Int32">
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="-1.117" Y="0.498" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <AssociationLine Name="FilePath" Type="System.String" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="7" Y="5.375" />
+        <Point X="5.062" Y="5.375" />
+        <Point X="5.062" Y="5.75" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="-0.433" Y="0.548" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>AAQQAAAAAAAAEAhAAAAAAAABAAAAAIIAAABADUBAAAA=</HashCode>
+      <FileName>JobBase.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="JobProfileID" />
+      <Property Name="FilePath" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="SEIDR.JobBase.ExecutionStatus">
+    <Position X="11.25" Y="5.25" Width="2.5" />
+    <Members>
+      <Field Name="CANCELLED" Hidden="true" />
+      <Field Name="COMPLETE" Hidden="true" />
+      <Field Name="FAILURE" Hidden="true" />
+      <Property Name="Queueable" Hidden="true" />
+      <Field Name="REGISTERED" Hidden="true" />
+      <Field Name="SCHEDULED" Hidden="true" />
+      <Field Name="STEP_COMPLETE" Hidden="true" />
+      <Field Name="WORKING" Hidden="true" />
+    </Members>
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AwAAAAAAAAAhAAAgAAAAAAAAAAAFAAAABAAAARAgCgA=</HashCode>
+      <FileName>JobBase.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SEIDR.JobBase.RegistrationFile">
+    <Position X="1.25" Y="3.25" Width="3" />
+    <Members>
+      <Field Name="_FileDate" Hidden="true" />
+      <Field Name="_StepNumber" Hidden="true" />
+      <Method Name="CheckSQLDateValid" Hidden="true" />
+      <Field Name="REGISTER_SPROC" Hidden="true" />
+    </Members>
+    <AssociationLine Name="JobProfileID" Type="System.Int32" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="4.25" Y="3.688" />
+        <Point X="8.25" Y="3.688" />
+        <Point X="8.25" Y="3.562" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="1.304" Y="0.509" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <AssociationLine Name="FilePath" Type="System.String" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="4.25" Y="5.375" />
+        <Point X="5.062" Y="5.375" />
+        <Point X="5.062" Y="5.75" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="-0.416" Y="0.564" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>AAQCAAAAAAAAEEBIABAAAAIACAABAAIAAABBAABAACA=</HashCode>
+      <FileName>RegistrationFile.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="JobProfileID" />
+      <Property Name="FilePath" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="System.String" Collapsed="true">
+    <Position X="4.5" Y="5.75" Width="2.25" />
+    <TypeIdentifier />
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Struct Name="System.Int32" Collapsed="true">
+    <Position X="7.75" Y="3" Width="1.5" />
+    <TypeIdentifier />
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Struct>
+  <Interface Name="SEIDR.JobBase.IJobMetaData">
+    <Position X="13.75" Y="0.75" Width="2.25" />
+    <TypeIdentifier>
+      <HashCode>IAAAAAEAAAAgAAAAAAAAAAAAAAIgAAAAAAAAAAAACAQ=</HashCode>
+      <FileName>IJob.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="SEIDR.JobBase.IJob">
+    <Position X="10.25" Y="3.75" Width="5.75" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAQQAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>IJob.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="SEIDR.JobBase.IJobExecutor">
+    <Position X="10.25" Y="0.75" Width="3.25" />
+    <AssociationLine Name="ThreadID" Type="System.Int32" FixedFromPoint="true" FixedToPoint="true">
+      <Path>
+        <Point X="10.25" Y="2.375" />
+        <Point X="8.25" Y="2.375" />
+        <Point X="8.25" Y="3" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="-1.003" Y="0.713" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>AAAAAAEEAIAAAAAAAAABAAIAIAQpAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>iJobExecutor.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="job" />
+      <Property Name="ThreadID" />
+    </ShowAsAssociation>
+  </Interface>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

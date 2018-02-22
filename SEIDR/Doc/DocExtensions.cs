@@ -195,7 +195,8 @@ namespace SEIDR.Doc
                     int year = Int32.Parse(s.Substring(0, yy));
                     int month = Int32.Parse(s.Substring(yy + yOffset, mm - yy - yOffset));
                     int day = Int32.Parse(s.Substring(mm + mOffset, dd - mm - mOffset));
-                    if (!maps.TryGetValue(k, out DateTime d))
+                    DateTime d;
+                    if (!maps.TryGetValue(k, out d))
                         d = fileDate;
                     d = d.AddDays(day);
                     d = d.AddMonths(month);

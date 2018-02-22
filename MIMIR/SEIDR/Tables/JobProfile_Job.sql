@@ -6,7 +6,7 @@
     [TriggerExecutionStatusCode] VARCHAR (2)   NULL,
     [TriggerExecutionNameSpace]  VARCHAR (128) NULL,
     [CanRetry]                   BIT           DEFAULT ((0)) NOT NULL,
-    [RequiredThreadID]           TINYINT       NULL,
+    [RequiredThreadID]           INT       NULL,
     [FailureNotificationMail]    VARCHAR (500) NULL,
     [RetryDelay]                 SMALLINT      NULL,
     [SequenceScheduleID]         INT           NULL,
