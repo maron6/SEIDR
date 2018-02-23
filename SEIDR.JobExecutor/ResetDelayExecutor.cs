@@ -37,7 +37,7 @@ namespace SEIDR.JobExecutor
             while(workList.HasMinimumCount(1))
             {
                 var detail = workList[0];
-                JobExecutor.Queue(detail, false, replaceOnly: true);
+                JobExecutor.Queue(detail, false); 
                 LogInfo("Reprioritized JobID: " + detail.JobExecutionID);
                 //Replace older version of the execution detail.
                 workList.RemoveAt(0);                

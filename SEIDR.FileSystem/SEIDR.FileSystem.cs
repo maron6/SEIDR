@@ -10,13 +10,13 @@ using System.Text.RegularExpressions;
 
 namespace SEIDR.FileSystem
 {
-    [ExportMetadata("JobName", nameof(FileSystem)),
-        ExportMetadata("NameSpace", FS_NAMESPACE),
-        ExportMetadata("Description", "File and directory management"),
-        ExportMetadata("SingleThreaded", false)]
-    public class FileSystem : IJob
+    [ExportMetadata(nameof(IJobMetaData.JobName), nameof(FileSystemJob)),
+        ExportMetadata(nameof(IJobMetaData.NameSpace), FS_NAMESPACE),
+        ExportMetadata(nameof(IJobMetaData.Description), "File and directory management"),
+        ExportMetadata(nameof(IJobMetaData.SingleThreaded), false)]
+    public class FileSystemJob : IJob
     {
-        const string FS_NAMESPACE = "SEIDR_FS";
+        const string FS_NAMESPACE = nameof(SEIDR.FileSystem);
         const string GET_EXECUTION_INFO = "SEIDR.usp_FileSystem_ss_JobExecution";
 
         public bool CheckThread(JobExecution jobCheck, int passedThreadID, out int NewThreadID)

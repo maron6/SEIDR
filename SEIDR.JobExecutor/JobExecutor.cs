@@ -258,8 +258,7 @@ namespace SEIDR.JobExecutor
         /// </summary>
         /// <param name="job">ExecutionDetail to queue for execution</param>
         /// <param name="Cut">If true, adds to position 0 and skips sorting.</param>
-        /// <param name="replaceOnly">If true, will only add to the work queue if this is replacing an older version of the executionDetail.</param>
-        public static void Queue(JobExecutionDetail job, bool Cut = false, bool replaceOnly = false)
+        public static void Queue(JobExecutionDetail job, bool Cut = false)
         {
             //lock (workLockObj)
             using(new LockHelper(Lock.Exclusive, WORK_LOCK_TARGET)) //pass target, static
@@ -271,8 +270,8 @@ namespace SEIDR.JobExecutor
                     if (workQueue.Exists(detail => detail.JobExecutionID == job.JobExecutionID))
                         return;
                 }
-                else if (replaceOnly)
-                    return;
+                //else if (replaceOnly) //Execution is going to be validated and refreshed before actually starting work anyway, so safe to add to the queue anyway.
+                //    return;
 
                 if (Cut)
                     workQueue.Insert(0, job);
