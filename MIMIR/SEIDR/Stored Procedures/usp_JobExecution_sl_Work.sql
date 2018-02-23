@@ -12,7 +12,10 @@ BEGIN
 	FROM SEIDR.vw_JobExecution
 	WHERE CanQueue = 1
 	AND InSequence = 1
-	AND (RequiredThreadID is null or RequiredThreadID % @ThreadCount = @ThreadID)
+	AND (
+		RequiredThreadID is null 
+		or (RequiredThreadID % @ThreadCount) + 1 = @ThreadID  --Mod is 0 based, ThreadID 1 based
+		)
 	ORDER BY RequiredThreadID desc, WorkPriority desc, ProcessingDate asc, ExecutionPriority DESC
 
 	SET @BatchSize = @@ROWCOUNT

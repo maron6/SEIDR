@@ -10,8 +10,8 @@ using System.Text.RegularExpressions;
 
 namespace SEIDR.FileSystem
 {
-    [ExportMetadata("JobName", "FileSystem"),
-        ExportMetadata("NameSpace", "SEIDR_FS"),
+    [ExportMetadata("JobName", nameof(FileSystem)),
+        ExportMetadata("NameSpace", FS_NAMESPACE),
         ExportMetadata("Description", "File and directory management"),
         ExportMetadata("SingleThreaded", false)]
     public class FileSystem : IJob

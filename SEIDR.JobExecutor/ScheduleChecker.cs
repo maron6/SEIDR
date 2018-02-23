@@ -26,12 +26,7 @@ namespace SEIDR.JobExecutor
             else if (DateTime.Now.Subtract(lastCheck).TotalSeconds > nextCheck)
                 workLoad = 1;    
         }
-
-        protected override string HandleAbort()
-        {
-            return null;
-        }
-
+        
         protected override void Work()
         {           
             workLoad = 0;

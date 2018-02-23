@@ -11,6 +11,7 @@ namespace SEIDR.FileSystem
     {
 		public string ApplyDateMask(string SourceFile, DateTime originalDate)
         {
+            //Ex: <-1D><YYYY><MM><DD>_test.txt for processing date 2/23/2018 -> 20180222_test.txt
             if (string.IsNullOrEmpty(SourceFile))
                 return null;
             //DateTime d = originalDate;

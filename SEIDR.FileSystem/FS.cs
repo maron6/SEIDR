@@ -13,19 +13,9 @@ using SEIDR.JobBase;
 
 namespace SEIDR.FileSystem
 {
-    /*
-    [   ExportMetadata("Operation", "FileSystem"),
-        ExportMetadata("Description", "Operation for moving files to a destination"),
-        ExportMetadata("Version", 1),
-        ExportMetadata("ParameterSelect", "usp_SEIDR_FS_Parameter_SL")]*/
-    public partial class FS //: iOperation
+    
+    public partial class FS 
     {
-        //IOperatorManager mgr;
-        /*
-        public IOperatorManager Manager
-        {
-            set { mgr = value; }
-        }*/
 
         internal FileOperation Operation { get; set; }
         public string Source { get; set; }

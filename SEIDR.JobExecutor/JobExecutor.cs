@@ -135,7 +135,7 @@ namespace SEIDR.JobExecutor
                     if (currentJobMetaData.RerunThreadCheck || !currentExecution.ThreadChecked)
                     {
                         if (!job.CheckThread(currentExecution, ThreadID, out newThread)
-                            && newThread % CallerService.ExecutorCount != ThreadID)
+                            && (newThread % CallerService.ExecutorCount) + 1 != ThreadID)
                         {
                             //if new thread goes over ExecutorCount, it's okay in this thread. if newThread % ExecutorCount is this ID
                             currentExecution.RequiredThreadID = newThread;
@@ -165,29 +165,39 @@ namespace SEIDR.JobExecutor
                         Queue(currentExecution);
                         return;
                     }
-                    if (string.IsNullOrWhiteSpace(status.NameSpace))
+                    if(status == null)
+                    {
+                        if (success)
+                            status = new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.STEP_COMPLETE };
+                        else
+                            status = new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.FAILURE };
+
+                    }
+                    else if (string.IsNullOrWhiteSpace(status.NameSpace))
                         status.NameSpace = currentJobMetaData.NameSpace;
 
                     CheckStatus(status);
 
                     SetExecutionStatus(success, false, status.ExecutionStatusCode, status.NameSpace);
                     SendNotifications(currentExecution, success);
+                    /*  Probably not needed because SET_STATUS does the same thing basically.
                     if(!success && currentExecution.CanRetry)
                     {
                         currentExecution.DelayStart = DateTime.Now.AddMinutes(currentExecution.RetryDelay);
                         Queue(currentExecution);
-                    }
+                    }*/
                 }
             }
             catch (Exception ex)
             {
                 SetExecutionStatus(false, false);
                 LogError("JobExecutor.Work()", ex);
+                /* Shouldn't be needed because SET_STATUS does the same thing basically
                 if (currentExecution.CanRetry)
                 {
                     currentExecution.DelayStart = DateTime.Now.AddMinutes(currentExecution.RetryDelay);
                     Queue(currentExecution);
-                }
+                }*/
             }
             finally
             {
@@ -445,7 +455,7 @@ namespace SEIDR.JobExecutor
         {
             if (check.RequiredThreadID == null)
                 return check.CanStart;
-            if (check.RequiredThreadID % JobExecutorCount != ThreadID)
+            if (1 + (check.RequiredThreadID % JobExecutorCount) != ThreadID) //Modulo is 0 based, ThreadID is 1 based
                 return false;
             return check.CanStart;
         }

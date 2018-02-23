@@ -17,14 +17,10 @@ namespace SEIDR.JobExecutor
         }
         IEnumerable<JobExecutor> list;
         public override int Workload => list.Count();
-
-        protected override string HandleAbort()
-        {
-            return null;
-        }
+        
         protected override void CheckWorkLoad()
         {
-            return; //Work is keeping an eye on other threads. Pretty much Constant.
+            return; //Work is keeping an eye on other threads. Constant.
         }
 
         protected override void Work()

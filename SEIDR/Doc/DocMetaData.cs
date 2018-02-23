@@ -10,7 +10,20 @@ namespace SEIDR.Doc
    
     public class DocMetaData
     {
-        public static bool TESTMODE = false;
+        static bool _TestMode = false;
+        public static bool TESTMODE
+        {
+            get { return _TestMode; }
+            set
+            {
+#if DEBUG
+                _TestMode = value;
+                return;
+#endif
+                throw new InvalidOperationException("Test Mode can only be set when compiled in Debug mode.");
+            }
+
+        }
         /// <summary>
         /// If true, Columns are fixed width and will use lengths. <para>Otherwise, will use the delimiter.</para>
         /// </summary>

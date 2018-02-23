@@ -100,7 +100,7 @@ namespace SEIDR.DataBase
             RT work = new RT();
             if (row.Table.Columns.Count == 0)
                 return work;                        
-            Type tInfo = work.GetType();
+            Type tInfo = typeof(RT);
             Dictionary<string, PropertyInfo> md;
             lock (((ICollection)mapCache).SyncRoot)
             {

@@ -25,17 +25,13 @@ namespace SEIDR.JobExecutor
             using (var h = _Manager.GetBasicHelper(true))
             {
                 h.QualifiedProcedure = "[SEIDR].[usp_JobExecutionDetail_RePrioritize]";
+                h["BatchSize"] = CallerService.BatchSize;
                 h.BeginTran();
                 workList = _Manager.SelectList<JobExecutionDetail>(h);
                 h.CommitTran();
             }
         }
-
-        protected override string HandleAbort()
-        {
-            return null;
-        }
-
+        
         protected override void Work()
         {
             while(workList.HasMinimumCount(1))

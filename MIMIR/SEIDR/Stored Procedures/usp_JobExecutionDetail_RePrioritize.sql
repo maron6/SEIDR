@@ -1,10 +1,11 @@
 ﻿CREATE PROCEDURE [SEIDR].[usp_JobExecutionDetail_RePrioritize]	
+	@BatchSize int = 5
 AS
 BEGIN
 	
 	CREATE TABLE #ExecutionIDList(JobExecutionID bigint primary key)
 
-	UPDATE TOP (5) je
+	UPDATE TOP (@BatchSize) je
 	SET PrioritizeNow = 0,
 		JobPriority = np.PriorityCode
 	OUTPUT INSERTED.JobExecutionID INTO #ExecutionIDList(JobExecutionID)
@@ -20,7 +21,7 @@ BEGIN
 
 	SELECT * 
 	FROM SEIDR.vw_JobExecution
-	WHERE JobExecutionID IN (SELECT JobExecutionID FROM #ExecutionIDList) --Remove any DelayStart, increased workPriority
+	WHERE JobExecutionID IN (SELECT JobExecutionID FROM #ExecutionIDList) --Remove any DelayStart, increase workPriority
 
 	RETURN 0
 END
