@@ -65,7 +65,13 @@ namespace SEIDR.Dynamics.Configurations.UserConfiguration
                 default:
                     return false;
             }
-        }           
+        }
+
+        public override BasicUser Clone()
+        {
+            return this.XClone();
+        }
+
         [XmlIgnore]
         public static WindowUser SingleUserMode { get; private set; }
         [XmlIgnore]

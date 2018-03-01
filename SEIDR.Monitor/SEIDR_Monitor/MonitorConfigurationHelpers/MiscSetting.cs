@@ -75,6 +75,15 @@ namespace SEIDR.WindowMonitor
                 ConfigFolder.GetSafePath(APP_NAME, 
                     SETTING_SUBFOLDER, 
                     FileName));
+            if (m == null)
+            {
+                m = new MiscSetting
+                { 
+                    DefaultQueryTimeout = 160,
+                    FileRefresh = 10
+                };
+                m.Save();
+            }
             Models.ContextActionQueue.QueueLimit = m.QueueLimit;
             Models.ContextActionQueue.BatchSize = m.QueueBatchSize;
             return m;

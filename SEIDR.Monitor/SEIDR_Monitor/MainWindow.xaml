@@ -6,15 +6,16 @@
         xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
         Title="SEIDR - Window" Background="LightSteelBlue" Icon="seidr_G9S_icon.ico"
         MinWidth="880" MinHeight="420" Height="700" Width="880" SizeChanged="Window_SizeChanged"
-        ResizeMode="CanResizeWithGrip" Activated="MainWindow_Activated" Deactivated="Window_Deactivated">
+        ResizeMode="CanResizeWithGrip" >
     <Window.Resources>
         <ImageBrush x:Key="QueueStop" ImageSource="Icons\StopQueue.png"></ImageBrush>
         <ImageBrush x:Key="QueueStart" ImageSource="Icons\StartQueue.png"></ImageBrush>
     </Window.Resources>
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top" Name="AllMenu">
-            <Menu Name="QueryMenu" VerticalAlignment="Center"
-                      ItemsSource="{Binding QueryModels}">
+            <Menu Name="QueryMenu" VerticalAlignment="Center">
+                <!--
+            ItemsSource="{Binding QueryModels}">
                 <Menu.ItemTemplate>
                     <HierarchicalDataTemplate DataType="{x:Type model:QueryMenuViewModel}">
                         <MenuItem Header="{Binding Path=Header}" Tag="{Binding Path=.}">
@@ -24,29 +25,13 @@
                         </MenuItem>
                     </HierarchicalDataTemplate>
                 </Menu.ItemTemplate>
-                <!--
-                <MenuItem.Icon>
-                    <Image Source="Icons\Query.png" Width="20" Height="20" Visibility="{Binding Path=IconVis}"></Image>
-                </MenuItem.Icon>-->                
-            </Menu>
-            <Menu Name="SettingEditor" VerticalAlignment="Center"
-                      ItemsSource="{Binding EditorModel}">
-                <Menu.ItemTemplate>
-                    <HierarchicalDataTemplate DataType="{x:Type model:EditorMenuViewModel}">
-                        <MenuItem Header="{Binding Path=Header}" Tag="{Binding Path=.}">
-                            <MenuItem.Icon>
-                                <Image Source="Icons\Query.png" Width="20" Height="20" Visibility="{Binding Path=IconVis}"></Image>
-                            </MenuItem.Icon>
-                        </MenuItem>
-                    </HierarchicalDataTemplate>
-                </Menu.ItemTemplate>
-                <!--
+                
                 <MenuItem.Icon>
                     <Image Source="Icons\Query.png" Width="20" Height="20" Visibility="{Binding Path=IconVis}"></Image>
                 </MenuItem.Icon>-->
-            </Menu>
-<!--
-            <MenuItem Name="SettingsMain" Header="_Settings" VerticalAlignment="Center">
+        </Menu>
+
+        <MenuItem Name="SettingsMain" Header="_Settings" VerticalAlignment="Center">
                 <MenuItem.Icon>
                     <Image Source="Icons\Edit.png" Width="20" Height="20"></Image>
                 </MenuItem.Icon>
@@ -113,7 +98,7 @@
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
-            -->
+            
             <MenuItem Name="PluginMain" Header="_PlugIns" >
                 <MenuItem.Icon>
                     <Image Source="Icons\PlugInMenu.png" Width="20" Height="20"/>
@@ -151,14 +136,7 @@
             <Label Name="MyID">SWID:</Label>
             <Line Width="10"></Line>
             <Label Name="RefreshTime" Width="150">Last Refresh:</Label>
-            <Controls:MetroProgressBar Width="150" Name="multiSelectProgress" 
-                    Margin="10,0,11,0" Height="18" Background="Black" Foreground="Green"
-                         ValueChanged="multiSelectProgress_ValueChanged"
-                         BorderBrush="Snow" BorderThickness="2,3" ></Controls:MetroProgressBar>
-            <Button Width="25" Name="Queue_Stop" Click="Queue_Control_Click" Background="{StaticResource QueueStop}">
-            </Button>
-            <Button Width="25" Name="Queue_Start" Click="Queue_Control_Click" Background="{StaticResource QueueStart}" Visibility="Collapsed"></Button>
-            <Line Width="50" Name="DividerMiddleLine"></Line>
+            <Line Width="400" Name="DividerMiddleLine"></Line>
             <Label Name="PageNumber" Visibility="{Binding ElementName=MonitorData, Path=Visibility}">Page Number:</Label>
             <Controls:NumericUpDown Name="PagePicker" HasDecimals="False" Minimum="1" 
                                     Margin="20,0,15,0" Visibility="Hidden"

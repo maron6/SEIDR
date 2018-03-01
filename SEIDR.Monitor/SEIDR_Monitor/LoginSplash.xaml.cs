@@ -127,7 +127,7 @@ namespace SEIDR.WindowMonitor
             if (library.BrokerCount > 0)
                 LoginMenu.Visibility = Visibility.Visible;
             // If BrokerCount == 1, will use that meta data. otherwise, start with the default
-            UpdateForBroker(library.DefaultBrokerMetaData);           
+            UpdateForBroker(library.DefaultBrokerMetaData, library.BrokerCount == 0);           
             
             //myApp.Activated += MyApp_Activated;
             //myApp.Deactivated += MyApp_Deactivated;
@@ -179,25 +179,20 @@ namespace SEIDR.WindowMonitor
             get { return BasicSessionWindow.SessionManager as UserSessionManager; }
             set { BasicSessionWindow.SessionManager = value; }
         }
-        MiscSetting localSettings { get; set; } = MiscSetting.LoadFromFile() 
-            ?? new MiscSetting
-        {
-            DefaultQueryTimeout = 160,
-            FileRefresh = 10
-        };
-        public void UpdateForBroker(ConfigurationListBrokerMetaData info)
+        MiscSetting localSettings { get; set; } = MiscSetting.LoadFromFile();
+        public void UpdateForBroker(ConfigurationListBrokerMetaData info, bool skipLoginButton = false)
         {
             Broker = library.GetBroker(info);
             login.UserName = Environment.UserDomainName + "\\" + Environment.UserName;
             pwBox.Clear();
             Warning.Visibility = Visibility.Hidden;
-            bool ForcedDefault = false;
+            bool ForcedDefault = false;            
             if (Broker != null)            
                 BrokerMetaData = info;                            
             else
             {                
                 Broker = new DefaultBroker();
-                BrokerMetaData = DefaultBroker.DefaultMetadata;
+                BrokerMetaData = DefaultBroker.DefaultMetadata;                
                 if (info != null)
                     ForcedDefault = true;                    
             }            
@@ -207,7 +202,8 @@ namespace SEIDR.WindowMonitor
                 new Dynamics.ExceptionManager(MiscSetting.APP_NAME,
                                                 localSettings.ErrorLog,
                                                 localSettings.MyExceptionAlertLevel)
-                                            );            
+                                            );
+            Broker.LoadConfigurations(true, BrokerMetaData.SingleUserMode);
             if(ForcedDefault)
                 Broker
                     .MyExceptionManager
@@ -215,19 +211,22 @@ namespace SEIDR.WindowMonitor
 
             //Meta data changes.
             pwBox.IsEnabled = BrokerMetaData.RequireLogin;
+            //pwBox.Visibility = BrokerMetaData.RequireLogin ? Visibility.Visible : Visibility.Hidden;
             loginNameTB.IsEnabled = BrokerMetaData.RequireLogin;
             if (!BrokerMetaData.RequireLogin)
             {
                 Login.Content = "Ready";
-                Login.Focus();
                 CAPSLOCK_WARNING.Visibility = Visibility.Collapsed;
                 login.CanTryLogin = true;
+                Login.Focus();
             }
             else
             {
                 Login.Content = "Log In";
                 pwBox.Focus();
             }
+            if (skipLoginButton)
+                OpenMain();
         }
         private void SessionTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
@@ -280,7 +279,7 @@ namespace SEIDR.WindowMonitor
                     Domain = self.Domain,
                     UserName = self.UserName
                 };
-                Broker.SetUser(self);
+                //Broker.SetUser(self);
             }
             else
             {
@@ -305,7 +304,8 @@ namespace SEIDR.WindowMonitor
                     SetUserWaiting(false);
                     return;
                 }
-            }
+            }            
+            Broker.SetUser(self, BrokerMetaData.SingleUserMode);
             Broker.PostLoginSetup();
             Visibility = Visibility.Collapsed;
             if (session == null 
@@ -323,6 +323,7 @@ namespace SEIDR.WindowMonitor
                     );                         
                 session.ActiveUserEvent += Session_ActiveUserEvent;
                 session.InactiveUserEvent += Session_InactiveUserEvent;
+                session.Setup(Broker, BrokerMetaData);
                 BasicSessionWindow.SessionManager = session;
                 
                 //SettingManager.Setup(session);                
@@ -436,7 +437,7 @@ namespace SEIDR.WindowMonitor
             else
             {
                 //sExceptionManager.Handle("No configurations found! Using Default.", Dynamics.ExceptionLevel.UI_Basic);                
-                UpdateForBroker(null);
+                UpdateForBroker(null, true);
                 Broker.MyExceptionManager.Handle("No Configurations found! Using Default.", Dynamics.ExceptionLevel.Background);
                 ResetBroker.IsEnabled = false;
                 Configuration.Visibility = Visibility.Hidden;

@@ -137,9 +137,11 @@ namespace SEIDR.Dynamics.Configurations
         /// </summary>
         /// <typeparam name="RT"></typeparam>
         /// <param name="FilePath"></param>
-        /// <returns></returns>
+        /// <returns>Default of type RT if path does not exist. Else a new copy of RT from deserializing.</returns>
         public static RT DeSerializeFile<RT>(string FilePath) //where RT:new()
         {
+            if (!File.Exists(FilePath))
+                return default(RT);
             XmlSerializer xsr = new XmlSerializer(typeof(RT));
             RT x;
             using(StreamReader sr = new StreamReader(FilePath))
@@ -153,12 +155,14 @@ namespace SEIDR.Dynamics.Configurations
         /// </summary>
         /// <param name="toString"></param>
         /// <returns></returns>
-        public static string SerializeToXML<RT>(this RT toString) //(this object toString)
+        public static string SerializeToXML<RT>(this RT toString)  //(this object toString)
         {
+            if (toString == null)
+                return null;
             XmlSerializer xsr = new XmlSerializer(typeof(RT));
             using (StringWriter sw = new StringWriter())
             {
-                xsr.Serialize(sw, toString);
+                xsr.Serialize(sw, (RT)toString);
                 return sw.ToString();
             }
         }

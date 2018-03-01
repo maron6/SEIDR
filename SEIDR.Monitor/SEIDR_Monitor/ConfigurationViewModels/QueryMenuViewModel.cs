@@ -116,7 +116,7 @@ namespace SEIDR.WindowMonitor.ConfigurationViewModels
         //ToDo: Use command for click... Not completely sure how well it would work, given the other stuff I want the menu to be able to do..
         ICommand _Command;
 
-        public ObservableCollection<QueryMenuViewModel> SubMenus { get; set; } = null;
+        public ObservableCollection<QueryMenuViewModel> SubMenus { get; set; } = new ObservableCollection<QueryMenuViewModel>();
         public event PropertyChangedEventHandler PropertyChanged;
         private void Invoke([System.Runtime.CompilerServices.CallerMemberName] string name = null)
         {

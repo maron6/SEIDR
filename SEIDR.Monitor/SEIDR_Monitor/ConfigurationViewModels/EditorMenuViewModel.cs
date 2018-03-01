@@ -18,6 +18,7 @@ using static SEIDR.WindowMonitor.MonitorConfigurationHelpers.LibraryManagement;
 
 namespace SEIDR.WindowMonitor.ConfigurationViewModels
 {
+    //ToDo:
     public class EditorMenuViewModel: INotifyPropertyChanged
     {
         public event EventHandler Reconfigured;
@@ -35,11 +36,11 @@ namespace SEIDR.WindowMonitor.ConfigurationViewModels
         {
             ReConfigure(configured);
         }
-        private void invoke(string prop) { PropertyChanged.Invoke(this, new PropertyChangedEventArgs(prop)); }
+        private void invoke(string prop) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop)); }
 
         public event PropertyChangedEventHandler PropertyChanged;
         //ToDo: Need a root Model, with collection under root? Maybe?
-        public ObservableCollection<ConfigurationEditMenuModel> MenuInfo { get; set; }
+        public ObservableCollection<ConfigurationEditMenuModel> MenuInfo { get; set; } = new ObservableCollection<ConfigurationEditMenuModel>();
 
         public void ReConfigure(WindowUser newUser)
         {
@@ -169,7 +170,7 @@ namespace SEIDR.WindowMonitor.ConfigurationViewModels
             MyScope = scope;
             TeamSetting = ForTeam;
         }
-        private void invoke(string prop) { PropertyChanged.Invoke(this, new PropertyChangedEventArgs(prop)); }
+        private void invoke(string prop) { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop)); }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

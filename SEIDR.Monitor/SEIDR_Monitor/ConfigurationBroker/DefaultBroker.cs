@@ -13,7 +13,7 @@ namespace SEIDR.WindowMonitor.ConfigurationBroker
     /// To be used when no Brokers are found by the broker library
     /// </summary>
     internal class DefaultBroker : ConfigurationListBroker
-    {        
+    {         
         public override WindowUser Impersonate(LoginInfo user, LoginInfo toImpersonate)
         {
             throw new NotImplementedException();
@@ -51,7 +51,7 @@ namespace SEIDR.WindowMonitor.ConfigurationBroker
         {
             get
             {
-                return 60;
+                return -1;
             }
         }
 
@@ -75,7 +75,7 @@ namespace SEIDR.WindowMonitor.ConfigurationBroker
         {
             get
             {
-                return false;
+                return true;
             }
         }
 

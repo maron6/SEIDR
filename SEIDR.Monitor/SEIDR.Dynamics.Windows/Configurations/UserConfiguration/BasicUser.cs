@@ -22,7 +22,7 @@ namespace SEIDR.Dynamics.Configurations.UserConfiguration
         /// </summary>
         public abstract string UserName { get; }
 
-        public short? AdminLevel { get; protected set; }
+        public short? AdminLevel { get;  set; }
         public BasicUserPermissions MyPermissions { get; set; }
         public const BasicUserPermissions BasicPermissionSet
             = BasicUserPermissions.QueryEditor
@@ -168,10 +168,10 @@ namespace SEIDR.Dynamics.Configurations.UserConfiguration
         /// Clone user so that addons cannot edit the stored settings. Default is XML Serialization
         /// </summary>
         /// <returns></returns>
-        public virtual BasicUser Clone()
-        {
-            return this.XClone();
-        }
+        public abstract BasicUser Clone();
+        //{
+        //    return (this as BasicUser).XClone();
+        //}
     }
 
     [System.Flags]

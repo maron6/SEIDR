@@ -29,7 +29,8 @@ namespace SEIDR.WindowMonitor
         {
             get { return MySession.MySettings; }
             set { MySession.MySettings = value; }
-        }
+        } 
+
         #region Broker properties
         public ConfigurationListBroker MyBroker { get { return MySession.Broker; } }       
         public QueryList myQueries { get { return MyBroker.Queries; } } 

@@ -41,12 +41,14 @@ BEGIN
 							WHEN 'qq' then DATEDIFF(quarter, @FromDate, @DateToCheck)
 							WHEN 'q' then DATEDIFF(quarter, @FromDate, @DateToCheck)
 							WHEN 'mm' then DATEDIFF(month, @FromDate, @DateToCheck)
-							WHEN 'm' then DATEDIFF(month, @FromDate, @DateTOCheck)
+							WHEN 'm' then DATEDIFF(month, @FromDate, @DateTOCheck)/* 
+							--If job should poll multiple times per day, should have the job ReQueue instead of completing. 
+							--Higher steps should be started by creating registration files with step number specified
 							WHEN 'hh' then DATEDIFF(hour, @FromDate, @DateToCheck)
 							WHEN 'hour' then DATEDIFF(hour, @FromDate, @DateToCheck)
 							WHEN 'min' then DATEDIFF(minute, @FromDate, @DateToCheck)
 							WHEN 'mi' then DATEDIFF(minute, @FromDate, @DateToCheck)
-							WHEN 'n' then DATEDIFF(minute, @FromDate, @DateToCheck)
+							WHEN 'n' then DATEDIFF(minute, @FromDate, @DateToCheck)*/
 						end 
 						--% IntervalValue
 						)

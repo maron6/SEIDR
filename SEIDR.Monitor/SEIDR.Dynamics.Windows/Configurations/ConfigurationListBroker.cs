@@ -57,19 +57,19 @@ namespace SEIDR.Dynamics.Configurations
         /// </summary>
         public ConfigurationListBroker() { MaxAdminLevel = 7; }
         /// <summary>
-        /// Basic set up... Call the
+        /// Basic set up... Call 
         /// </summary>
         /// <param name="basePath"></param>
-        /// <param name="networkPath"></param>
+        /// <param name="networkPath">Sets Network Path. If null, uses BasePath.</param>
         /// <param name="exmanager"></param>
         public void Setup(string basePath, string networkPath, ExceptionManager exmanager)
         {
             BasePath = basePath;
-            NetworkPath = networkPath;
+            NetworkPath = networkPath ?? basePath;
             SetExceptionManager(exmanager);         
         }
         /// <summary>
-        /// Sets the exception manager. Can be called from application if 
+        /// Sets the exception manager. Can be called from application if needed
         /// </summary>
         /// <param name="exManager"></param>
         public virtual void SetExceptionManager(ExceptionManager exManager)
@@ -301,12 +301,19 @@ namespace SEIDR.Dynamics.Configurations
                     return Path.Combine(NetworkPath, "TEAM_" + ConfiguredUser.TeamID);
             }
         }
+        public WindowConfigurationLoadModel GetBasicTeamModel(int? TeamID)
+        {
+            return new WindowConfigurationLoadModel
+            {                
+                TeamID = TeamID,                
+                UserSpecific = false
+            };
+        }
 
         /// <summary>
         /// Populate the Queries configuration
         /// </summary>
-        /// <param name="TeamID"></param>
-        /// <param name="UserSpecific"></param>
+        /// <param name="m">Load settings/instructions.</param>
         public virtual QueryList LoadQuery(ref WindowConfigurationLoadModel m)
         {
             string path;
@@ -625,6 +632,8 @@ namespace SEIDR.Dynamics.Configurations
         /// <returns></returns>
         public virtual void LogIn(LoginInfo info)
         {
+            if (info == null)
+                return;
             ConfiguredUser = null;
             var u = Users[info.ToString()];
             if (u == null)
@@ -656,10 +665,10 @@ namespace SEIDR.Dynamics.Configurations
         /// Resets <see cref="ConfiguredUser"/> and calls <see cref="LoadConfigurations"/></para>               
         /// </summary>
         /// <param name="original"></param>
-        public void SetUser(WindowUser original)
-        {
+        public void SetUser(WindowUser original, bool singleUserMode = false)
+        {            
             ConfiguredUser = original;            
-            LoadConfigurations(false, false); //Impersonation cannot be done from single user mode..
+            LoadConfigurations(false, singleUserMode); //Impersonation cannot be done from single user mode..
             AdminLevels = AdminLevel.GetLevels(ConfiguredUser, MaxAdminLevel);
         }      
         /// <summary>

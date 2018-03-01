@@ -133,7 +133,7 @@ namespace SEIDR.Dynamics
             bool start = true, Exception LastException  = null)
         {
             if (ex == null)
-                return "[START " + handlingLevel.ToString().ToUpper() + " " + (ExceptionMessages? ex.GetType().Name.ToUpper() : "MESSAGE") + $" LIST] - {{{System.DateTime.Now.ToString("MMM dd, yyyy hh:mm:ss")}}}" + Environment.NewLine + Environment.NewLine;
+                return "[START " + handlingLevel.ToString().ToUpper() + $" MESSAGE LIST] - {{{System.DateTime.Now.ToString("MMM dd, yyyy hh:mm:ss")}}}" + Environment.NewLine + Environment.NewLine;
             if (LastException != null && ex.Message == LastException.Message)
             {
                 return FormatException(ex.InnerException, ExceptionMessages, handlingLevel, false, ex);

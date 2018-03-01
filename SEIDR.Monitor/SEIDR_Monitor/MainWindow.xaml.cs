@@ -25,6 +25,7 @@ using SEIDR.Dynamics.Configurations.QueryConfiguration;
 using SEIDR.Dynamics.Configurations.DatabaseConfiguration;
 using SEIDR.Dynamics.Configurations.ContextMenuConfiguration;
 using SEIDR.Dynamics.Configurations.AddonConfiguration;
+using SEIDR.WindowMonitor.Models;
 
 namespace SEIDR.WindowMonitor
 {
@@ -680,8 +681,10 @@ namespace SEIDR.WindowMonitor
             ReadSettings();            
             SetupQueryMenu();
 
-            //These view models sh ould replace the CheckVisibility
-            EditorModel = new ConfigurationViewModels.EditorMenuViewModel(MyCurrentUser);            
+            ContextActionQueue.QueueLimit = MySession.MySettings?.MultiSelectContextSprocLimit;
+
+           //These view models sh ould replace the CheckVisibility
+           EditorModel = new ConfigurationViewModels.EditorMenuViewModel(MyCurrentUser);            
             EditorModel.Reconfigured += ConfigurationMenuModel_Reconfigured;
             QueryModelRoot = ConfigurationViewModels.QueryMenuViewModel.CreateRoot(myQueries, MySession); //Use for command binding
             QueryModelRoot.PropertyChanged += QueryModelRoot_PropertyChanged;
@@ -752,9 +755,7 @@ namespace SEIDR.WindowMonitor
             //_SettingRefresh = new System.Timers.Timer(30 * 1000);
             //_SettingRefresh.Elapsed += _SettingRefresh_Tick;
             //_SettingRefresh.Enabled = true;
-            _ContextQueueProcess = new System.Timers.Timer(15 * 1000);
-            _ContextQueueProcess.Elapsed += _ContextQueue_Tick;
-            _ContextQueueProcess.Enabled = true;
+            
         }
 
         private void QueryModelRoot_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -811,7 +812,7 @@ namespace SEIDR.WindowMonitor
         const string REFRESH_LABEL_CACHE_KEY = "_LastRefreshLabel";
         
         //System.Timers.Timer _SettingRefresh = null;
-        System.Timers.Timer _ContextQueueProcess = null;
+        
         DispatcherTimer _SettingRefresh = null; //affect UI, dispatch timer
         //DispatcherTimer _ContextQueueProcess = null; //Chagne to queue timer to run in background...
         DateTime? nextFileRefresh
@@ -821,9 +822,7 @@ namespace SEIDR.WindowMonitor
         }
         #region Permissions for user, attempt for refreshing data from network.
         void _SettingRefresh_Tick(object sender, EventArgs e)
-        {
-            multiSelectProgress.Value = Models.ContextActionQueue.QueueAllotmentFilled;
-            multiSelectProgress.ToolTip = Models.ContextActionQueue.Status;
+        {            
             if (!IsActive)
                 return;
             DateTime check = DateTime.Now.AddMinutes(myMiscSettings.FileRefresh);
@@ -1231,8 +1230,8 @@ namespace SEIDR.WindowMonitor
             }
             
         }
-        
-#region main Setting Management
+
+        #region main Setting Management
         /*
         private void SettingQuery_Click(object sender, RoutedEventArgs e)
         {
@@ -1268,10 +1267,11 @@ namespace SEIDR.WindowMonitor
             }
             e.Handled = true; //Prevent bubbling and running extra times
         }*/
-#endregion
-        
+        #endregion
 
-#region data export
+            
+
+        #region data export
         private void Export_pipe_Click(object sender, RoutedEventArgs e)
         {
             string f = FileSaveHelper.GetSaveFile("All (*.*)|*.*|DAT File (*.dat)|*.dat|Text File (*.txt)|*.txt|CSV File (*.csv)|*.csv", ".dat");
@@ -1342,7 +1342,7 @@ namespace SEIDR.WindowMonitor
         {
             EditorModel.ReConfigure(MyCurrentUser);
             QueryModelRoot.Reconfigure(myQueries);
-            _QueueEnabled = _QueueEnabled;// Checks user permission in case of change
+            
             //AdminModel.ReConfigure(MyCurrentUser);
         }
         private void SettingMisc_Click(object sender, RoutedEventArgs e)
@@ -1552,11 +1552,15 @@ namespace SEIDR.WindowMonitor
 #endregion
         
 #region Merge menus
-            /*
+            
         private void DefaultMerge_Connection_Click(object sender, RoutedEventArgs e)
-        {            
-            var ce = new SettingWindows.DefaultConfig_Edit(myConnections, iConfigListType.DatabaseConnection, false, null);
-            if (!ce.OkContinue)
+        {
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);
+            var teamConnections = MyBroker.LoadConnections(ref tm);
+            ce.Configure<DatabaseList, Database>(myConnections, teamConnections);
+            //var ce = new SettingWindows.DefaultConfig_Edit(myConnections, iConfigListType.DatabaseConnection, false, null);
+            if (!ce.CanShowWindow)
                 return;
             ce.ShowDialog();
             e.Handled = true;
@@ -1565,8 +1569,11 @@ namespace SEIDR.WindowMonitor
         private void DefaultMerge_Team_Click(object sender, RoutedEventArgs e)
         {
             string Team = MyCurrentUser.Team;
-            var ce = new SettingWindows.DefaultConfig_Edit(myConnections, iConfigListType.DatabaseConnection, false, Team);
-            if (!ce.OkContinue)
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);            
+            var team = MyBroker.LoadConnections(ref tm);
+            ce.Configure<DatabaseList, Database>(myConnections, team);            
+            if (!ce.CanShowWindow)
                 return;
             ce.ShowDialog();
             e.Handled = true;
@@ -1574,12 +1581,14 @@ namespace SEIDR.WindowMonitor
 
         private void DefaultMerge_Query_Click(object sender, RoutedEventArgs e)
         {
-            var ce = new SettingWindows.DefaultConfig_Edit(myQueries, iConfigListType.Query, false, null);
-            if (!ce.OkContinue)
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);
+            var team = MyBroker.LoadQuery(ref tm);
+            ce.Configure<QueryList, Query>(myQueries, team);           
+            if (!ce.CanShowWindow)
                 return;
-            var r = ce.ShowDialog();
-            if (r.HasValue && r.Value)
-            {
+            if(ce.ShowDialog())
+            { 
                 SetupQueryMenu();
             }
             e.Handled = true;
@@ -1587,12 +1596,13 @@ namespace SEIDR.WindowMonitor
 
         private void TeamMerge_Query_Click(object sender, RoutedEventArgs e)
         {
-            string Team = MyCurrentUser.MyTeam;
-            var ce = new SettingWindows.DefaultConfig_Edit(myQueries, iConfigListType.Query, false, Team);
-            if (!ce.OkContinue)
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);
+            var team = MyBroker.LoadQuery(ref tm);
+            ce.Configure<QueryList, Query>(myQueries, team);
+            if (!ce.CanShowWindow)
                 return;
-            var r = ce.ShowDialog();
-            if (r.HasValue && r.Value)
+            if (ce.ShowDialog())
             {
                 SetupQueryMenu();
             }
@@ -1601,11 +1611,13 @@ namespace SEIDR.WindowMonitor
 
         private void DefaultMerge_Context_Click(object sender, RoutedEventArgs e)
         {
-            var ce = new SettingWindows.DefaultConfig_Edit(myContextMenus, iConfigListType.ContextMenu, false, null);
-            if (!ce.OkContinue)
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);
+            var team = MyBroker.LoadContextMenus(ref tm);
+            ce.Configure<ContextMenuList, ContextMenuConfiguration>(myContextMenus, team);
+            if (!ce.CanShowWindow)
                 return;
-            var r = ce.ShowDialog();
-            if (r.HasValue && r.Value)
+            if (ce.ShowDialog())            
             {
                 //SetupContextMenus();
                 var q = _currentQuery;
@@ -1618,11 +1630,16 @@ namespace SEIDR.WindowMonitor
         }
         private void DefaultMerge_Plugin_Click(object sender, RoutedEventArgs e)
         {
-            var ce = new SettingWindows.DefaultConfig_Edit(myAddons, iConfigListType.SEIDR_MenuAddOn, false);
-            if (!ce.OkContinue)
+            //    var ce = new SettingWindows.DefaultConfig_Edit(myAddons, iConfigListType.SEIDR_MenuAddOn, false);
+            //    if (!ce.OkContinue)
+            //        return;
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);
+            var team = MyBroker.LoadWindowAddons(ref tm);
+            ce.Configure<WindowAddonList, WindowAddonConfiguration>(myWindowAddons, team);
+            if (!ce.CanShowWindow)
                 return;
-            var r = ce.ShowDialog();
-            if (r.HasValue && r.Value)
+            if(ce.ShowDialog())            
             {
                 SetupAddonMenu();
             }
@@ -1631,12 +1648,13 @@ namespace SEIDR.WindowMonitor
 
         private void TeamMerge_Plugin_Click(object sender, RoutedEventArgs e)
         {
-            string Team = MyCurrentUser.MyTeam;
-            var ce = new SettingWindows.DefaultConfig_Edit(myAddons, iConfigListType.SEIDR_MenuAddOn, false, Team);
-            if (!ce.OkContinue)
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);
+            var team = MyBroker.LoadWindowAddons(ref tm);
+            ce.Configure<WindowAddonList, WindowAddonConfiguration>(myWindowAddons, team);
+            if (!ce.CanShowWindow)
                 return;
-            var r = ce.ShowDialog();
-            if (r.HasValue && r.Value)
+            if (ce.ShowDialog())
             {
                 SetupAddonMenu();
             }
@@ -1645,12 +1663,19 @@ namespace SEIDR.WindowMonitor
 
         private void TeamMerge_Context_Click(object sender, RoutedEventArgs e)
         {
-            string Team = MyCurrentUser.MyTeam;
-            var ce = new SettingWindows.DefaultConfig_Edit(myContextMenus, iConfigListType.ContextMenu, false, Team);
-            if (!ce.OkContinue)
+            //string Team = MyCurrentUser.Team;
+            //var ce = new SettingWindows.DefaultConfig_Edit(myContextMenus, iConfigListType.ContextMenu, false, Team);
+            //if (!ce.OkContinue)
+            //    return;
+            //var r = ce.ShowDialog();
+
+            var ce = new ConfigurationWindows.ConfigurationListMergeWindow();
+            var tm = MyBroker.GetBasicTeamModel(MyCurrentUser.TeamID);
+            var team = MyBroker.LoadContextMenus(ref tm);
+            ce.Configure<ContextMenuList, ContextMenuConfiguration>(myContextMenus, team);
+            if (!ce.CanShowWindow)
                 return;
-            var r = ce.ShowDialog();
-            if (r.HasValue && r.Value)
+            if(ce.ShowDialog())            
             {
                 //SetupContextMenus();
                 var q = _currentQuery;
@@ -1661,7 +1686,7 @@ namespace SEIDR.WindowMonitor
             }
             e.Handled = true;
         }
-        */
+        
 #endregion
 #region Addon Libraries, implement plugin updates to the MainWindow
         private void AddonRefresh_Click(object sender, RoutedEventArgs e)
@@ -2081,50 +2106,8 @@ namespace SEIDR.WindowMonitor
                 pb.Foreground = Brushes.Green;
         }
 
-        private void Queue_Control_Click(object sender, RoutedEventArgs e)
-        {
-            Button b = sender as Button;
-            if (b == null)
-                return;
-            b.Visibility = Visibility.Collapsed;
-            if (b == Queue_Start)
-            {
-                Queue_Stop.Visibility = Visibility.Visible;                
-                _QueueEnabled = true;
-            }
-            else
-            {
-                Queue_Start.Visibility = Visibility.Visible;
-                _QueueEnabled = false;
-            }
-        }
-        bool _QueueEnabled
-        {
-            get
-            {                
-                bool? o = MySession["_CONTEXTQUEUE_ENABLED"] as bool?;
-                return o ?? MyCurrentUser.CheckPermission(BasicUserPermissions.ContextQueue); //Default to true.                
-            }
-            set
-            {
-                if (MyCurrentUser.CheckPermission(BasicUserPermissions.ContextQueue))
-                {
-                    MySession["_CONTEXTQUEUE_ENABLED"] = value;
-                    //_ContextQueueProcess.IsEnabled = value; //For dispatch timer
-                    _ContextQueueProcess.Enabled = value;
-                }
-                else
-                    _ContextQueueProcess.Enabled = false;
-            }
-        }
-        void _ContextQueue_Tick(object sender, EventArgs e)
-        {
-            _ContextQueueProcess.Stop(); 
-            Models.ContextActionQueue.ProcessQueueBatch();
-            multiSelectProgress.Value =  Models.ContextActionQueue.QueueAllotmentFilled;  
-            if (_QueueEnabled)//Shouldn't be called while disabled actually...
-                _ContextQueueProcess.Start();
-        }
+       
+        
         #endregion
     }
 }

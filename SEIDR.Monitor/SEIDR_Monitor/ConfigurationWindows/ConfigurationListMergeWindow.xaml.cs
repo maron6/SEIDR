@@ -50,8 +50,8 @@ namespace SEIDR.WindowMonitor.ConfigurationWindows
         /// <summary>
         /// Check if the user has permission for Team Editing and open a picker to choose the team if so.
         /// </summary>
-        /// <typeparam name="E"></typeparam>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="E">List of T</typeparam>
+        /// <typeparam name="T">Type of Window Configuration</typeparam>
         /// <param name="localConfiguration"></param>
         /// <param name="teamConfiguration"></param>
         public void Configure<E, T>(E localConfiguration, E teamConfiguration) 

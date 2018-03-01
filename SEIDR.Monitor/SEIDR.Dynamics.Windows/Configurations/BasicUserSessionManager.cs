@@ -60,7 +60,7 @@ namespace SEIDR.Dynamics.Configurations
                                                         //should not have to worry about exception from calling this
                                                         //w.Close();
                     if(w.Registered)
-                        UnregisterWindow(w); //Don't register a window that's already unregisterd... although it really shouldn't be in the active list...
+                        UnregisterWindow(w); //Don't unregister a window that isn't registerd... although it really shouldn't be in the active list...
                 }
             }
         }
@@ -79,6 +79,11 @@ namespace SEIDR.Dynamics.Configurations
         {
             if (LoggedIn)
             {
+                if(minutes < 0)
+                {
+                    LogOutTime = DateTime.MaxValue;
+                    return;
+                }
                 if (SetTotalMinutes)
                     LogOutTime = LoginTime.Value.AddMinutes(minutes);
                 else

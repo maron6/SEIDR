@@ -73,7 +73,8 @@ namespace SEIDR.WindowMonitor.ConfigurationBroker
         {
             if (_container != null)
             {
-                _container.ReleaseExports(maps);
+                if(maps != null)
+                    _container.ReleaseExports(maps);
                 _container.Dispose();
             }
         }

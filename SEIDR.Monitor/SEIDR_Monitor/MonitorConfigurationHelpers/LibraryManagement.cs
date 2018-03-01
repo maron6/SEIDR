@@ -91,35 +91,53 @@ namespace SEIDR.WindowMonitor.MonitorConfigurationHelpers
             => Handle(ex, null, handling);
         public static List<string> GetWindowAddonNames()
         {
+
+            if (myMenuLibrary == null)
+                return new List<string>();
             BasicUser b = __SESSION__.CurrentUser.Clone();
-            return myMenuLibrary.GetAddonNames(b).ToList();
+            return myMenuLibrary.GetAddonNames(b)?.ToList()?? new List<string>();
         }
         
         public static SEIDR_WindowMenuAddOn GetWindowAddon(string AddonName)
         {
+
+            if (myMenuLibrary == null)
+                return null;
             BasicUser b = __SESSION__.CurrentUser;
             return myMenuLibrary.GetAddOn(b.Clone(), AddonName);
         }
         public static SEIDR_WindowMenuAddOn GetWindowAddon(string AddonName, out SEIDR_WindowMenuAddOn_MetaData metaData)
         {
+            metaData = null;
+            if (myMenuLibrary == null)
+                return null;
             BasicUser b = __SESSION__.CurrentUser.Clone();
             metaData = myMenuLibrary.GetMetaData(b, AddonName);
             return myMenuLibrary.GetAddOn(b, AddonName);
         }
         public static List<string> GetContextAddonNames()
-        {            
+        {
+            if (myMenuLibrary == null)
+                return null;
             return new List<string>(myLibrary.GetAddonList( __SESSION__.CurrentBasicUser.Clone()));
         }
         public static SEIDR_WindowAddOn GetContextAddon(string AddonName, string id)
-        {            
+        {
+            if (myMenuLibrary == null)
+                return null;
             return myLibrary.GetApp(AddonName, id, __SESSION__.CurrentBasicUser.Clone());
         }
         public static SEIDR_WindowAddOn GetContextAddon(ContextAddonConfiguration cm)
         {
+            if (myMenuLibrary == null)
+                return null;
             return myLibrary.GetApp(cm.AppName, cm.Guid, __SESSION__.CurrentBasicUser.Clone());
         }
         public static SEIDR_WindowAddOn GetContextAddon(ContextAddonConfiguration cm, out SEIDR_WindowAddon_MetaData metaData)
         {
+            metaData = null;
+            if (myMenuLibrary == null)
+                return null;
             BasicUser b = __SESSION__.CurrentBasicUser.Clone();
             metaData = myLibrary.GetAppInfo(cm.AppName, cm.Guid, b);
             return myLibrary.GetApp(cm.AppName, cm.Guid, b);

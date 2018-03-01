@@ -19,7 +19,7 @@ namespace SEIDR.WindowMonitor.Models
              
              */        
         static object qlock = new object();
-        static List<ActionQueueItem> queue;
+        static List<ActionQueueItem> queue = new List<ActionQueueItem>();
         static int _BatchSize = 5;
         public const int MaxQueueSize = 60;
         public static double QueueAllotmentFilled
@@ -36,7 +36,7 @@ namespace SEIDR.WindowMonitor.Models
                 return $"Queue Allotment: {queue.Count} ({MaxQueueSize})";
             }
         }
-        static int _QueueSize = __SESSION__.MySettings?.MultiSelectContextSprocLimit ?? MaxQueueSize;
+        static int _QueueSize = MaxQueueSize;
         public static int BatchSize
         {
             get
@@ -67,11 +67,7 @@ namespace SEIDR.WindowMonitor.Models
                 }
                 _QueueSize = value ?? MaxQueueSize;
             }
-        }
-        static ContextActionQueue()
-        {
-            queue = new List<ActionQueueItem>();
-        }        
+        }  
         /// <summary>
         /// Queues the action to be performed by a background process calling <see cref="ProcessQueueBatch"/>
         /// </summary>
