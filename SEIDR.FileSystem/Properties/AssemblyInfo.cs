@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("SEIDR.FileSystem")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Toshiba")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("SEIDR.FileSystem")]
-[assembly: AssemblyCopyright("Copyright © Toshiba 2017")]
+[assembly: AssemblyCopyright("Copyright ©  2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
