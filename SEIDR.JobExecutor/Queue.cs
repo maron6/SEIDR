@@ -15,7 +15,7 @@ namespace SEIDR.JobExecutor
         const string GRAB_WORK = "SEIDR.usp_JobProfile_sl_FileWatch";
         const string INVALID = "SEIDR.usp_JobProfile_u_InvalidPath";
         object map;        
-        List<JobProfile> work;
+        List<JobProfile> work = new List<JobProfile>();
         public Queue( JobExecutorService caller, DatabaseManager db)
             : base(db, caller, ExecutorType.Maintenance)
         {
@@ -105,6 +105,8 @@ namespace SEIDR.JobExecutor
                 return; //Profile didn't exist or marked as invalid. No work, move on.
             }
             string Registered = Path.Combine(profile.RegistrationFolder, "_Registered"); //successful registrartion
+            if (!string.IsNullOrWhiteSpace(profile.RegistrationDestinationFolder))
+                Registered = profile.RegistrationDestinationFolder;
             string Rejected = Path.Combine(profile.RegistrationFolder, "_Rejected"); //Hash in use for profile or something maybe?
             string Duplicate = Path.Combine(profile.RegistrationFolder, "_Duplicate"); //Name match
             CheckFolders(Registered, Rejected, Duplicate);
@@ -112,7 +114,9 @@ namespace SEIDR.JobExecutor
             var fileList = di.GetFiles(profile.FileFilter);
             List<RegistrationFile> regList = new List<RegistrationFile>();            
             fileList.ForEach(fi => regList.Add(new RegistrationFile(profile, fi)));            
-            regList.OrderBy(reg=> reg.FileDate).ForEach((reg) =>
+            regList.OrderBy(reg => reg.FileDate).ForEach((reg) => ProcessRegistrationFile(reg, Registered, Duplicate, Rejected, profile));
+        }
+        private void ProcessRegistrationFile(RegistrationFile reg, string Registered, string Duplicate, string Rejected, JobProfile profile)
             {
                 string success = Path.Combine(Registered, reg.FileName);
                 if (File.Exists(success))
@@ -130,8 +134,6 @@ namespace SEIDR.JobExecutor
                     CallerService.QueueExecution(j);
                     LogInfo($"Job Profile {profile.JobProfileID}, '{reg.FileName}' - Queued for execution. JobExecutionID: {j.JobExecutionID}.", true);
                 }
-            });
-
         }
     }
 }

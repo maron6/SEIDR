@@ -109,7 +109,9 @@ namespace SEIDR.JobExecutor
                 throw;
             }
 
-            System.Net.Mail.MailAddress sender = new System.Net.Mail.MailAddress(appSettings["MailSender"], appSettings["SenderDisplayName"]);
+            System.Net.Mail.MailAddress sender = null;
+            if(!string.IsNullOrWhiteSpace(appSettings["MailSender"]))
+                sender = new System.Net.Mail.MailAddress(appSettings["MailSender"], appSettings["SenderDisplayName"]);
             _Mailer = new Mailer(sender, SendTo: appSettings["StatusMailTo"]);            
             _Mailer.SMTPServer = appSettings["SmtpServer"];
             Mailer.Domain = appSettings["MailDomain"];
@@ -152,7 +154,7 @@ namespace SEIDR.JobExecutor
                 om.Run();
                 while (om.ServiceAlive)
                 {
-
+                    Thread.Sleep(1000);
                 }
             }
             else
@@ -359,7 +361,7 @@ namespace SEIDR.JobExecutor
         }        
         public bool LogExecutionError(Executor caller, JobExecution errBatch, string Message, int? ExtraID)
         {
-            caller.SetStatus(Message, ThreadStatus.StatusType.Error);
+            caller.SetStatus(Message, StatusType.Error);
             bool a = LogExecutionError(errBatch, Message, ExtraID, caller.ThreadID);
             bool b = LogToFile(caller, errBatch, (ExtraID.HasValue? ExtraID.Value + "::":"") + Message + Environment.NewLine);
             return a && b;
@@ -369,15 +371,17 @@ namespace SEIDR.JobExecutor
             string tempMessage = CurrentTimeMessage;
             if (b != null)
                 tempMessage += $"JobProfile {b.JobProfileID}, JobExecutionID: [{b.JobExecutionID}], Step: {b.StepNumber}, BatchDate: [{b.ProcessingDate.ToString("MM dd yyyy")}] ";
-            tempMessage += Message;
+            tempMessage += Message + Environment.NewLine + Environment.NewLine;
             string File = Path.Combine(DailyLogDirectory, string.Format(LOG_FILE_FORMAT, callingOperator.LogName));
             try
             {
+                if (!Directory.Exists(DailyLogDirectory))
+                    Directory.CreateDirectory(DailyLogDirectory);
                 System.IO.File.AppendAllText(File, tempMessage);
             }
             catch
             {                
-                callingOperator.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);                
+                callingOperator.SetStatus("Could not log to File!", StatusType.Error);                
                 return false;
             }
             if (shared)
@@ -389,7 +393,7 @@ namespace SEIDR.JobExecutor
                 }
                 catch
                 {
-                    callingOperator.SetStatus("Could not log to File!", ThreadStatus.StatusType.Error);
+                    callingOperator.SetStatus("Could not log to File!", StatusType.Error);
                     return false;
                 }
             }

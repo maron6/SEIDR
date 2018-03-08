@@ -49,7 +49,7 @@ namespace SEIDR.JobExecutor
             _Manager = manager.Clone(true, logName);
 
             Info = new ThreadInfo(logName, type.ToString(), id);
-            Status = new ThreadStatus(Info) { MyStatus = ThreadStatus.StatusType.Unknown };
+            Status = new ThreadStatus(Info) { MyStatus = StatusType.Unknown };
             caller.MyStatus.Add(Status);            
         }
         public void SetThreadName(string newName)
@@ -67,7 +67,7 @@ namespace SEIDR.JobExecutor
         protected abstract void Work();
         [Obsolete("Should not be aborting the thread.", true)]
         protected virtual string HandleAbort() { return null;}
-        public void SetStatus(string message, ThreadStatus.StatusType status = ThreadStatus.StatusType.General)
+        public void SetStatus(string message, StatusType status = StatusType.General)
         {
             lock (Status) //Not best practice, but it is a status for 'this'
             {
@@ -99,7 +99,7 @@ namespace SEIDR.JobExecutor
                     ThreadState.AbortRequested, ThreadState.SuspendRequested, ThreadState.Background))
                 {
                     SetStatus("Executor.Call() - Thread Status is still: " + worker.ThreadState + " after waiting. Return.", 
-                        ThreadStatus.StatusType.Unknown);
+                        StatusType.Unknown);
                     return;
                 }
                 IsWorking = false;
@@ -117,11 +117,11 @@ namespace SEIDR.JobExecutor
                 try
                 {
                     CallerService.PauseEvent.WaitOne();
-                    SetStatus("Check Workload", ThreadStatus.StatusType.Start);
+                    SetStatus("Check Workload", StatusType.Start);
                     CheckWorkLoad();
                     if(Workload == 0)
                     {
-                        SetStatus("No Work - sleep", ThreadStatus.StatusType.Sleep);
+                        SetStatus("No Work - sleep", StatusType.Sleep);
                         if (!Thread.Yield())
                             Thread.Sleep(FAILURE_SLEEPTIME * 1000);
                         //No Work, see if yielding will let another thread start some work in the meantime.                         
@@ -132,7 +132,7 @@ namespace SEIDR.JobExecutor
                         IsWorking = true;
                     }
                     Work();
-                    SetStatus("Finish Work", ThreadStatus.StatusType.Finish);
+                    SetStatus("Finish Work", StatusType.Finish);
                 }/*
                 catch(ThreadAbortException)//shouldn't happen anymore.
                 {                                        
@@ -142,8 +142,8 @@ namespace SEIDR.JobExecutor
                 }*/
                 catch(Exception ex)
                 {
-                    CallerService.LogToFile(null, ex.Message, false);
-                    SetStatus("Error:" + ex.Message, ThreadStatus.StatusType.Error);                    
+                    CallerService.LogToFile(this, ex.Message, false);
+                    SetStatus("Error:" + ex.Message, StatusType.Error);                    
                 }
                 finally
                 {
@@ -160,7 +160,7 @@ namespace SEIDR.JobExecutor
             if (string.IsNullOrWhiteSpace(logReason))
                 logReason = "(UNSPECIFIED)";
             CallerService.LogToFile(this, "Sleep Requested: " + logReason, false);
-            SetStatus("Sleep requested:" + logReason, ThreadStatus.StatusType.Sleep_JobRequest);
+            SetStatus("Sleep requested:" + logReason, StatusType.Sleep_JobRequest);
             Thread.Sleep(sleepSeconds * 1000);
             SetStatus("Wake from Job Sleep Request");
         }

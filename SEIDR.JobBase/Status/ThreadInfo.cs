@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace SEIDR.JobBase.Status
 {
-    public struct ThreadInfo
+    public class ThreadInfo
     {
-        public string Type { get; private set; }
-        public string Name { get; private set; }
-        public int ID { get; private set; }
+        public string Type { get;  set; }
+        public string Name { get;  set; }
+        public int ID { get;  set; }
         public ThreadInfo(string Name, string Type, int ID)
         {
             this.Name = Name;

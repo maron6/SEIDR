@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.ComponentModel.Composition;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace SEIDR.JobBase
 {
+    [InheritedExport]
     public interface IJobMetaData
     {
         string JobName { get; }
@@ -41,6 +43,7 @@ namespace SEIDR.JobBase
         [DefaultValue(false)]
         bool RerunThreadCheck { get; }
     }
+    [InheritedExport]
     public interface IJob
     {
         /// <summary>

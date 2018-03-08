@@ -4,21 +4,22 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 
 namespace SEIDR.JobBase.Status
 {
-    public class ThreadStatus
+    public enum StatusType
     {
-        public enum StatusType
-        {
-            Error,
-            Start,
-            Finish,
-            Sleep,
-            Sleep_JobRequest,
-            General,
-            Unknown
-        }
+        Error,
+        Start,
+        Finish,
+        Sleep,
+        Sleep_JobRequest,
+        General,
+        Unknown
+    }
+    public class ThreadStatus
+    { 
         public StatusType MyStatus { get; set; } = StatusType.Unknown;
         public DateTime startTime { get; set; } = DateTime.Now;
         public ThreadInfo ID { get; set; }

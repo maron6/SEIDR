@@ -10,6 +10,7 @@ using System.ComponentModel.Composition;
 using SEIDR.DataBase;
 using System.IO;
 using SEIDR.JobBase;
+using SEIDR.Doc;
 
 namespace SEIDR.FileSystem
 {
@@ -17,11 +18,12 @@ namespace SEIDR.FileSystem
     public partial class FS 
     {
 
-        internal FileOperation Operation { get; set; }
+        public FileOperation Operation { get; set; }
         public string Source { get; set; }
         public string Filter { get; set; }
         public string Destination { get; set; }   
         public bool IgnoreFileDate { get; set; }
+        public bool RegisterNewFile { get; set; }
         string ReplaceStar(string fullPath, string sourceFileName)
         {
             if (fullPath.EndsWith(@"\"))
@@ -55,6 +57,10 @@ namespace SEIDR.FileSystem
             if (string.IsNullOrWhiteSpace(Filter))
                 Filter = "*.*";
             DateTime processingDate = jobExecution.ProcessingDate;            
+
+            if (string.IsNullOrWhiteSpace(Source))
+                Source = jobExecution.FilePath;
+            else
             Source = ApplyDateMask(Source, processingDate);
             Destination = ApplyDateMask(Destination, processingDate);
             switch (Operation)
@@ -70,6 +76,22 @@ namespace SEIDR.FileSystem
                         }
                         break;
                     }
+                case FileOperation.CREATE_DUMMY:
+                    {
+                        FileInfo fi = new FileInfo(Source);
+                        if(fi.Exists)
+                        {
+                            StatusCode = "AE";
+                            return true;                 
+                        }
+                        File.WriteAllText(Source, Path.GetFileName(Source));
+                        if(RegisterNewFile)
+                        {
+                            RegistrationFile r = new RegistrationFile(profile, new FileInfo(Source));
+                            r.Register(manager, Source, Source);
+                        }
+                        break;
+                    }
                 case FileOperation.GRAB:
                 case FileOperation.MOVE:
                 case FileOperation.COPY:
@@ -80,19 +102,44 @@ namespace SEIDR.FileSystem
                         {
                             RegistrationFile r = new RegistrationFile(profile, fi)
                             {
-                                StepNumber = jobExecution.StepNumber
+                                StepNumber = jobExecution.StepNumber + 1
                             };
                             string dest = Source;
-                            if(Destination != null)
+                            if (Destination != null)
+                            {
                                 dest = ReplaceStar(Destination, fi.Name);
+                                Directory.CreateDirectory(Destination);
+                            }
 
                             if (Operation.In(FileOperation.GRAB, FileOperation.MOVE))
+                            {
+                                if (RegisterNewFile)
                                 r.Register(manager, dest, Source);
                             else
                             {
+                                    jobExecution.FilePath = dest;
+                                    File.Move(Source, dest);
+                                }
+                            }
+                            else
+                            {
+                                if (RegisterNewFile)
                                 r.CopyRegister(manager, dest, Source);
+                                else
+                                {
+                                    jobExecution.FilePath = dest;
+                                    File.Copy(Source, dest);
+                                }
                                 if (Operation == FileOperation.TAG)
+                                {
                                     File.AppendAllText(dest, Environment.NewLine + fi.Name);
+                                    if (!RegisterNewFile)
+                                    {
+                                        FileInfo f = new FileInfo(dest);
+                                        jobExecution.FileSize = f.Length;
+                                        jobExecution.FileHash = f.GetFileHash();
+                                    }
+                                }
                             }
 
                             break;
@@ -111,11 +158,17 @@ namespace SEIDR.FileSystem
                         foreach(var file in files)
                         {
                             string dest = Path.Combine(Destination, file.Name);
+                            Directory.CreateDirectory(Destination);
+                            if (RegisterNewFile)
+                            {
                             RegistrationFile r = new RegistrationFile(profile, file)
                             {
                                 StepNumber = jobExecution.StepNumber
                             };
                             r.Register(manager, dest, file.FullName);
+                        }
+                            else
+                                File.Move(file.FullName, dest);
                         }
                         break;
                     }
@@ -126,7 +179,15 @@ namespace SEIDR.FileSystem
                         if (!File.Exists(Source))
                             return false;
                         if (Operation == FileOperation.DELETE)
+                        {
                             File.Delete(Source);
+                            if (!RegisterNewFile)
+                            {
+                                jobExecution.FilePath = null;
+                                jobExecution.FileSize = 0;
+                                jobExecution.FileHash = null;
+                            }
+                        }
                         break;
                     }
                 case FileOperation.MOVEDIR:

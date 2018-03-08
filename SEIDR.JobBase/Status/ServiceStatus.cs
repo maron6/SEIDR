@@ -103,7 +103,7 @@ namespace SEIDR.JobBase.Status
                 string color = null;
                 switch (st.MyStatus)
                 {
-                    case ThreadStatus.StatusType.Error:
+                    case StatusType.Error:
                         {
                             if (oldStatus)
                                 color = ErrorLate;
@@ -111,7 +111,7 @@ namespace SEIDR.JobBase.Status
                                 color = Error;
                             break;
                         }
-                    case ThreadStatus.StatusType.Finish:
+                    case StatusType.Finish:
                         {
                             if (oldStatus)
                                 color = FinishLate;
@@ -119,7 +119,7 @@ namespace SEIDR.JobBase.Status
                                 color = Finish;
                             break;
                         }
-                    case ThreadStatus.StatusType.Start:
+                    case StatusType.Start:
                         {
                             if (oldStatus)
                                 color = StartLate;
@@ -127,8 +127,8 @@ namespace SEIDR.JobBase.Status
                                 color = Start;
                             break;
                         }
-                    case ThreadStatus.StatusType.Sleep_JobRequest:
-                    case ThreadStatus.StatusType.Sleep:
+                    case StatusType.Sleep_JobRequest:
+                    case StatusType.Sleep:
                         {
                             if (oldStatus)
                                 color = SleepLate;
@@ -137,7 +137,7 @@ namespace SEIDR.JobBase.Status
                             break;
                         }                        
                 }
-                if (st.MyStatus == ThreadStatus.StatusType.Unknown && DateTime.Now.AddMinutes(-10) >= st.LastStatus)
+                if (st.MyStatus == StatusType.Unknown && DateTime.Now.AddMinutes(-10) >= st.LastStatus)
                     color = "LightGrey";
                 r["Color"] = color;
                 r["LastError"] = st.LastErrorMessage;

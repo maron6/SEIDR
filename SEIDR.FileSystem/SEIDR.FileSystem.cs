@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 
 namespace SEIDR.FileSystem
 {
+    [Export(typeof(IJob))]
     [ExportMetadata(nameof(IJobMetaData.JobName), nameof(FileSystemJob)),
         ExportMetadata(nameof(IJobMetaData.NameSpace), FS_NAMESPACE),
         ExportMetadata(nameof(IJobMetaData.Description), "File and directory management"),
@@ -32,6 +33,7 @@ namespace SEIDR.FileSystem
             using(var h = Manager.GetBasicHelper())
             {
                 h.QualifiedProcedure = GET_EXECUTION_INFO;
+                h["JobProfile_JobID"] = execution.JobProfile_JobID;
 
                 var fs = Manager.Execute(h).GetFirstRowOrNull().ToContentRecord<FS>();
                 if (fs == null)
@@ -62,6 +64,23 @@ namespace SEIDR.FileSystem
                                 break;
                         }
                         jobExecutor.LogInfo($"File Processing failure: StatusCode '{statCode}'");
+                    }
+                    else if (statCode != null)
+                    {
+                        status = new ExecutionStatus
+                        {
+                            NameSpace = FS_NAMESPACE,
+                            IsError = false,
+                            ExecutionStatusCode = statCode
+                        };
+                        switch (statCode)
+                        {
+                            case "AE":
+                                status.Description = "Target File Already Exists.";
+                                break;
+                        }
+                        if(status.Description != null)
+                            jobExecutor.LogInfo("File Processing default success - " + status.Description);
                     }
                     return success;
                 }

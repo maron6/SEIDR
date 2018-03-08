@@ -328,8 +328,7 @@ namespace SEIDR.DataBase
                     cmd.CommandTimeout = _conn.CommandTimeout;
                     if (i.Transaction != null)
                         cmd.Transaction = i.Transaction;
-                    if (i.ParameterMap != null || i.Parameters != null)
-                        FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
+                    FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
                     try
                     {
                         SqlDataAdapter sda = new SqlDataAdapter(cmd);
@@ -338,8 +337,11 @@ namespace SEIDR.DataBase
                         i.ReturnValue = rv;
                         if (!i.ExpectedReturnValue.HasValue || i.ExpectedReturnValue.Value == rv)
                         {
-                            CheckOutputParameters(cmd, i.ParameterMap);
-                            CheckOutputParameters(cmd, i.Parameters);
+                            if (i.DoMapUpdate)
+                            {
+	                            CheckOutputParameters(cmd, i.ParameterMap);
+	                            CheckOutputParameters(cmd, i.Parameters);
+	                        }
                         }
                         else if (i.Transaction != null)
                         {
@@ -390,8 +392,7 @@ namespace SEIDR.DataBase
                         c.Open();
                         cmd.Connection = c;
                         cmd.CommandTimeout = _conn.CommandTimeout;
-                        if (i.ParameterMap != null)
-                            FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
+                        FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
                         SqlDataAdapter sda = new SqlDataAdapter(cmd);
                    
                         sda.Fill(ds);
@@ -399,8 +400,11 @@ namespace SEIDR.DataBase
                         i.ReturnValue = rv;
                         if (!i.ExpectedReturnValue.HasValue || i.ExpectedReturnValue.Value == rv)
                         {
-                            CheckOutputParameters(cmd, i.ParameterMap);
-                            CheckOutputParameters(cmd, i.Parameters);
+                            if (i.DoMapUpdate)
+                            {
+	                            CheckOutputParameters(cmd, i.ParameterMap);
+	                            CheckOutputParameters(cmd, i.Parameters);
+	                        }
                         }
                         i.ResetDeadlockLimit();
                     }
@@ -439,7 +443,7 @@ namespace SEIDR.DataBase
         /// <param name="QualifiedProcedureName"></param>
         /// <param name="mapObj">Object to use for populating parameters from properties</param>
         /// <returns></returns>
-        public DataSet Execute (string QualifiedProcedureName, object mapObj = null)
+        public DataSet Execute (string QualifiedProcedureName, object mapObj = null, bool updateMap = true)
         {
             CheckQualified( ref QualifiedProcedureName);
             DataSet ds = new DataSet();
@@ -457,7 +461,8 @@ namespace SEIDR.DataBase
                 
                     sda.Fill(ds);
                     int rv = cmd.GetReturnValue();
-                    CheckOutputParameters(cmd, mapObj);
+                    if(updateMap)
+	                    CheckOutputParameters(cmd, mapObj);
                 }
                 catch (SqlException ex)
                 {
@@ -500,8 +505,7 @@ namespace SEIDR.DataBase
                     cmd.CommandTimeout = _conn.CommandTimeout;
                     if (i.Transaction != null)
                         cmd.Transaction = i.Transaction;
-                    if (i.ParameterMap != null || i.Parameters != null)
-                        FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
+                    FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
                     try
                     {
                         rc = cmd.ExecuteNonQuery();
@@ -509,8 +513,11 @@ namespace SEIDR.DataBase
                         i.ReturnValue = rv;
                         if (!i.ExpectedReturnValue.HasValue || i.ExpectedReturnValue.Value == rv)
                         {
-                            CheckOutputParameters(cmd, i.ParameterMap);
-                            CheckOutputParameters(cmd, i.Parameters);
+                            if (i.DoMapUpdate)
+                            {
+	                            CheckOutputParameters(cmd, i.ParameterMap);
+	                            CheckOutputParameters(cmd, i.Parameters);
+	                        }
                         }
                         else if (i.Transaction != null)
                         {
@@ -560,16 +567,18 @@ namespace SEIDR.DataBase
                     c.Open();
                     cmd.Connection = c;
                     cmd.CommandTimeout = _conn.CommandTimeout;
-                    if (i.ParameterMap != null || i.Parameters != null)
-                        FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
+                    FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
                 
                     rc = cmd.ExecuteNonQuery();
                     int rv = cmd.GetReturnValue();
                     i.ReturnValue = rv;
                     if (!i.ExpectedReturnValue.HasValue || i.ExpectedReturnValue.Value == rv)
                     {
-                        CheckOutputParameters(cmd, i.ParameterMap);
-                        CheckOutputParameters(cmd, i.Parameters);
+                        if (i.DoMapUpdate)
+                        {
+	                        CheckOutputParameters(cmd, i.ParameterMap);
+	                        CheckOutputParameters(cmd, i.Parameters);
+	                    }
                     }
                     i.ResetDeadlockLimit();
                 }
@@ -621,7 +630,7 @@ namespace SEIDR.DataBase
         /// <param name="mapObj"></param>
         /// <param name="RetryDeadlock">Priority for determining whether to retry on deadlock</param>
         /// <returns>RowCount from ExecuteNonQuery</returns>
-        public int ExecuteNonQuery(string QualifiedProcedureName, out int ReturnCode, object mapObj = null, bool? RetryDeadlock = null)
+        public int ExecuteNonQuery(string QualifiedProcedureName, out int ReturnCode, object mapObj = null, bool? RetryDeadlock = null, bool updateMap = true)
         {
             CheckQualified(ref QualifiedProcedureName);
             int rv = 0;
@@ -652,7 +661,8 @@ namespace SEIDR.DataBase
                     if ( RethrowException)
                         throw;
                 }
-                CheckOutputParameters(cmd, mapObj);
+                if(updateMap)
+	                CheckOutputParameters(cmd, mapObj);
 
             }
             return rv;
@@ -848,22 +858,15 @@ namespace SEIDR.DataBase
         {
             RT ex = new RT();
             Type t = ex.GetType();
-            string proc = (Schema ?? _Schema) + "." + CheckSuffix( string.Format(SelectRowFormat, t.Name), suffix);
-            SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure };
-            if (paramObj != null)
-                FillCommandParameters(cmd, paramObj, null, ignore);
-            DataSet ds = _conn.RunCommand(cmd, true);
-            CheckOutputParameters(cmd, paramObj);
-            if (ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
-                return null;
-            if (RequireSingle && ds.Tables[0].Rows.Count > 1)
-                return null;
-            ex = ds.Tables[0].Rows[0].ToContentRecord<RT>();
-            if (t.IsSubclassOf(typeof(DatabaseObject)))
+            string proc = (Schema ?? _Schema) + "." + CheckSuffix(string.Format(SelectRowFormat, t.Name), suffix);
+            using (var h = GetBasicHelper())
             {
-                DatabaseObjectManagerInfo.SetValue(ex, this); // _conn);
+                h.QualifiedProcedure = proc;
+                h.ParameterMap = paramObj;
+                if(ignore != null)
+                    h.SetPropertyIgnore(ignore);
+                return SelectSingle<RT>(h, RequireSingle, true);
             }
-            return ex;
         }
         public List<RT> SelectList<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null) where RT : class, new()
         {
@@ -1042,7 +1045,7 @@ namespace SEIDR.DataBase
         }
 
         ParamStore _Parameters;
-        Dictionary<string, Action<SqlParameterCollection, object, Dictionary<string, object>, string[]>> _PopulateParameter = null;
+        Dictionary<string, Action<SqlParameterCollection, object, Dictionary<string, object>, string[]>> _PopulateParameter = new Dictionary<string, Action<SqlParameterCollection, object, Dictionary<string, object>, string[]>>();
         private static void FillCommandParameters(SqlCommand cmd, object paramObj, Dictionary<string, object> extraKeys, string[] ignore, ParamStore ParameterStore, ref Dictionary<string, Action<SqlParameterCollection, object, Dictionary<string, object>, string[]>> Methods)
         {
             
@@ -1062,10 +1065,6 @@ namespace SEIDR.DataBase
                 ignore = new string[0];
             Type paramObjType = paramObj.GetType();
             Action<SqlParameterCollection, object, Dictionary<string, object>, string[]> m;
-            if (Methods == null)
-            {
-                Methods = new Dictionary<string, Action<SqlParameterCollection, object, Dictionary<string, object>, string[]>>();                
-            }
             string MKey = cmd.CommandText + "_" + paramObjType.FullName;
             if (!Methods.TryGetValue(MKey, out m))
             {
@@ -1074,7 +1073,7 @@ namespace SEIDR.DataBase
                 m = ((SqlParameterCollection col, object o, Dictionary<string, object> e, string[] i) =>
                 {
                     var lambda2 = propDictLambda
-                        .Where(l => !i.Contains(l.Key.Substring(1))); //remove cases where it's in the ignore list
+                        .Where(l => !i.Contains(l.Key)); //remove cases where it's in the ignore list
                     lambda2.ForEach(l =>
                     {
                         if (o == null)

@@ -74,6 +74,18 @@ namespace SEIDR.DataBase
                 }                            
             }
             SqlCommandBuilder.DeriveParameters(cmd);
+            foreach(SqlParameter parm in cmd.Parameters)
+            {
+                if(parm.SqlDbType == System.Data.SqlDbType.Structured)
+                {
+                    string typeName = parm.TypeName;
+                    if (typeName.Split('.').HasMinimumCount(2))
+                    {
+                        typeName = typeName.Substring(typeName.IndexOf('.') + 1); //Remove DBName
+                    }
+                    parm.TypeName = typeName;
+                }
+            }
             spc = new SqlParameter[cmd.Parameters.Count];
             cmd.Parameters.CopyTo(spc, 0);
             lock (((System.Collections.ICollection)cmdParams).SyncRoot)

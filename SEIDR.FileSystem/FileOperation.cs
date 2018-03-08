@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace SEIDR.FileSystem
 {
     //ToDo: Add Compress, decompress
-    enum FileOperation
+    public enum FileOperation
     {
         TAG = 1,
         CHECK = 2,
@@ -19,6 +19,7 @@ namespace SEIDR.FileSystem
         GRAB = 8,
         GRAB_ALL = 9,
         CREATEDIR = 10,
-        DELETE = 11
+        DELETE = 11,
+        CREATE_DUMMY = 12
     }
 }

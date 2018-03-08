@@ -138,6 +138,12 @@ namespace SEIDR.JobExecutor
                             && (newThread % CallerService.ExecutorCount) + 1 != ThreadID)
                         {
                             //if new thread goes over ExecutorCount, it's okay in this thread. if newThread % ExecutorCount is this ID
+                            using (var h = _Manager.GetBasicHelper())
+                            {
+                                h.QualifiedProcedure = "[SEIDR].[usp_JobExecution_UnWork]"; //Mark as not working.
+                                h[nameof(currentExecution.JobExecutionID)] = currentExecution.JobExecutionID;
+                                _Manager.ExecuteNonQuery(h);
+                            }
                             currentExecution.RequiredThreadID = newThread;
                             Queue(currentExecution); //put it back into the queue. after being removed
                             currentExecution.ThreadChecked = true;
@@ -168,9 +174,9 @@ namespace SEIDR.JobExecutor
                     if(status == null)
                     {
                         if (success)
-                            status = new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.STEP_COMPLETE };
+                            status = new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.STEP_COMPLETE, NameSpace = nameof(SEIDR) };
                         else
-                            status = new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.FAILURE };
+                            status = new ExecutionStatus { ExecutionStatusCode = ExecutionStatus.FAILURE, NameSpace = nameof(SEIDR) };
 
                     }
                     else if (string.IsNullOrWhiteSpace(status.NameSpace))
@@ -238,8 +244,8 @@ namespace SEIDR.JobExecutor
             using (var i = _Manager.GetBasicHelper(currentExecution, true))
             {
                 i.QualifiedProcedure = SET_STATUS;
-                i[nameof(working)] = working;
-                i[nameof(success)] = success;
+                i["Working"] = working;
+                i["Success"] = success;
                 i["ExecutionStatusCode"] = statusCode;
                 i["ExecutionStatusNameSpace"] = StatusNameSpace;
 
@@ -439,6 +445,7 @@ namespace SEIDR.JobExecutor
                 h.AddKey(nameof(ThreadID), ThreadID);
                 h.AddKey("ThreadCount", JobExecutorCount);
                 h.AddKey(nameof(BatchSize), BatchSize);
+                LogInfo("Work_SL. ThreadID: " + h[nameof(ThreadID)]?.ToString() ?? "(NULL)" );
                 
                 //lock (workLockObj)
                 using(var lh = new LockHelper(Lock.Exclusive, WORK_LOCK_TARGET))
@@ -472,7 +479,7 @@ namespace SEIDR.JobExecutor
         public override void Wait(int sleepSeconds, string logReason)
         {
             CallerService.LogToFile(this, currentExecution, "Sleep Requested: " + logReason);
-            SetStatus("Sleep requested:" + logReason, JobBase.Status.ThreadStatus.StatusType.Sleep_JobRequest);
+            SetStatus("Sleep requested:" + logReason, JobBase.Status.StatusType.Sleep_JobRequest);
             Thread.Sleep(sleepSeconds * 1000);
             SetStatus("Wake from Job Sleep Request");
         }

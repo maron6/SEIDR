@@ -63,6 +63,7 @@ namespace SEIDR.JobExecutor
         {
             if (_container != null)
             {
+                if(maps != null)
                 _container.ReleaseExports(maps);
                 _container.Dispose();
             }
@@ -79,7 +80,7 @@ namespace SEIDR.JobExecutor
                 RetryOnDeadlock = true,                
                 Schema = "SEIDR"
             };            
-            DataTable dt = new DataTable("SEIDR.udt_JobMetaData");
+            DataTable dt = new DataTable("udt_JobMetaData");
             dt.AddColumns<IJobMetaData>(
                 nameof(IJobMetaData.SafeCancel), 
                 nameof(IJobMetaData.RerunThreadCheck)); //Fields we don't need in the database.            

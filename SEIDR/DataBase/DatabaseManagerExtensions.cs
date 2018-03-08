@@ -13,7 +13,7 @@ namespace SEIDR.DataBase
         /// <summary>
         /// Flag Parameter direction to determine if the value needs to be checked after execution
         /// </summary>
-        public const ParameterDirection CheckOutput = ParameterDirection.InputOutput | ParameterDirection.Output | ParameterDirection.ReturnValue;
+        public const ParameterDirection CheckOutput = ParameterDirection.Output | ParameterDirection.ReturnValue;
         /// <summary>
         /// Returns the mapped name (by FieldMapping attribute), or the property's actual name if there is no populated mapping.
         /// </summary>

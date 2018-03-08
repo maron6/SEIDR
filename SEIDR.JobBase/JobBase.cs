@@ -18,6 +18,7 @@ namespace SEIDR.JobBase
         /// Specifies the folder location to search for files to create JobExecutions under this JobProfileID
         /// </summary>
         public string RegistrationFolder { get; set; }
+        public string RegistrationDestinationFolder { get; set; }
         /// <summary>
         /// Used for parsing a File ProcessingDate based on the fileName.
         /// </summary>
@@ -43,27 +44,35 @@ namespace SEIDR.JobBase
     public class JobExecution //: DatabaseObject<JobExecution>
     {
         public JobExecution() { }        
-        public long? JobExecutionID { get; private set; }
+        public long? JobExecutionID { get; protected set; }
         
-        public int JobProfileID { get; private set; }
+        public int JobProfileID { get; protected set; }
         /// <summary>
         /// Bridge JobProfile to an IJob, based on StepNumber and status (If specific status handling is specified)
         /// </summary>
-        public int JobProfile_JobID { get; private set; }
-        public int StepNumber { get; private set; }
+        public int JobProfile_JobID { get; protected set; }
+        public int StepNumber { get; protected set; }
         /// <summary>
         /// Identifies the IJob to use based on what's in the Database
         /// </summary>
-        public int JobID { get; private set; }
+        public int JobID { get; protected set; }
 
 
-        public int UserKey { get; private set; }
-        public string UserKey1 { get; private set; }
+        public int UserKey { get; protected set; }
+        public string UserKey1 { get; protected set; }
         public string UserKey2 { get; set; }
 
-        public DateTime ProcessingDate { get; private set; }
-        public string ExecutionStatusCode { get; private set; }
-        public string ExecutionStatusNameSpace { get; private set; }
+        public DateTime ProcessingDateTime { get; protected set; }
+        /// <summary>
+        /// ProcessingDateTime without time component.
+        /// </summary>
+        public DateTime ProcessingDate => ProcessingDateTime.Date;
+        /// <summary>
+        /// ProcessingDateTime, time portion.
+        /// </summary>
+        public TimeSpan ProcessingTime => ProcessingDateTime.TimeOfDay;
+        public string ExecutionStatusCode { get; protected set; }
+        public string ExecutionStatusNameSpace { get; protected set; }
 
 
         public string FilePath { get; set; }

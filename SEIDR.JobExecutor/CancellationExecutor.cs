@@ -8,7 +8,7 @@ namespace SEIDR.JobExecutor
 {
     public class CancellationExecutor: Executor
     {
-        public const string GET_CANCEL_REQUEST = "usp_JobExecution_ss_Cancel";
+        public const string GET_CANCEL_REQUEST = "SEIDR.usp_JobExecution_ss_Cancel";
         DatabaseManagerHelperModel model;
         IEnumerable<JobExecutor> execList;
         public CancellationExecutor(JobExecutorService caller, DatabaseManager database, IEnumerable<JobExecutor> executors)

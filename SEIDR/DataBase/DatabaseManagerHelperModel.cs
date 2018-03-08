@@ -27,6 +27,10 @@ namespace SEIDR.DataBase
         /// </summary>
         public int DeadlockRetryLimit { get; set; } = DEFAULT_DEADLOCK_RETRY_LIMIT;
         /// <summary>
+        /// Update the map object after execution.
+        /// </summary>
+        public bool DoMapUpdate { get; set; } = true;
+        /// <summary>
         /// Checks whether or not there's a limit to the number of times the helper can retry after deadlock
         /// </summary>
         public bool HasDeadlockLimit
@@ -149,7 +153,8 @@ namespace SEIDR.DataBase
         /// <param name="PropertyList"></param>
         public void SetPropertyIgnore(params string[] PropertyList)
         {
-            _PropertyIgnore = new List<string>(PropertyList);
+            if(PropertyList != null)
+            	_PropertyIgnore = new List<string>(PropertyList);
         }
         /// <summary>
         /// Removes existing parameter key/value pairs and sets it the provided Dictionary
@@ -311,7 +316,7 @@ namespace SEIDR.DataBase
             {
                 if (key[0] == '@')
                     key = key.Substring(1);
-                if (ParameterMap != null && !Parameters.ContainsKey(key))
+                if (ParameterMap != null)
                 {
                     _PropertyIgnore.Add(key);
                     _PropertyIgnore = _PropertyIgnore.Distinct().ToList();

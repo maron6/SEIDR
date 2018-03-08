@@ -65,13 +65,13 @@ namespace SEIDR.JobBase
             using (var help = manager.GetBasicHelper(this, includeConnection: true))
             {
                 help.QualifiedProcedure = REGISTER_SPROC;
+                help.DoMapUpdate = false;
                 if (!string.IsNullOrWhiteSpace(SuccessFilePath))
                     help[nameof(FilePath)] = SuccessFilePath;
                 help.RetryOnDeadlock = true;
 
                 help.BeginTran();
-                var ds = manager.Execute(REGISTER_SPROC, this);
-                var job = ds.GetFirstRowOrNull();
+                var job = manager.Execute(help).GetFirstRowOrNull();                
                 bool Success = job == null ? help.ReturnValue == 0 : true;
                 try
                 {

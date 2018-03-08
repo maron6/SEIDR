@@ -532,6 +532,7 @@
                 lock(target)
                 {
                     _ShareCount[_myTarget]--; //Can't call release, because _MyLock is exclusive Intent at this point.                    
+                    Monitor.PulseAll(target);              
                 }
             }
             if (!GetExclusiveIntent(level, target, intentTarget, MONITOR_WAIT_TIMEOUT, timeoutSafe))
