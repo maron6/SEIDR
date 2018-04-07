@@ -61,6 +61,9 @@ namespace SEIDR.Doc
             OwnerAlias = Alias;
             Position = position;
         }
+        /// <summary>
+        /// Intended Position of the column in the raw file.
+        /// </summary>
         public int Position { get; internal set; }
         /// <summary>
         /// Used when writing with <see cref="DocWriter"/>. Ignored in Fixed width mode.
@@ -80,7 +83,7 @@ namespace SEIDR.Doc
             var other = obj as DocRecordColumnInfo;
             if (other == null)
                 return false;
-            if (other.ColumnName == ColumnName && other.OwnerAlias == OwnerAlias)
+            if (other.ColumnName == ColumnName && other.OwnerAlias == OwnerAlias && other.Position == Position)
                 return true;
             return false;            
         }
@@ -92,7 +95,7 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public static bool operator ==(DocRecordColumnInfo a, DocRecordColumnInfo b)
         {
-            return a?.ColumnName == b?.ColumnName && a?.OwnerAlias == b?.OwnerAlias;
+            return a?.ColumnName == b?.ColumnName && a?.OwnerAlias == b?.OwnerAlias && a?.Position == b?.Position;
         }
         /// <summary>
         /// Check that the alias or column name do not match

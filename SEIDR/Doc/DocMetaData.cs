@@ -157,6 +157,10 @@ namespace SEIDR.Doc
             HasHeader = headerIncluded;
             return this;
         }
+        public string GetHeader()
+        {
+            return string.Format(Columns.format, Columns.Columns.Select(c => c.ColumnName).ToArray());
+        }
         /// <summary>
         /// Number of lines to skip at the start of the file when reading. Does not include the header's line
         /// </summary>

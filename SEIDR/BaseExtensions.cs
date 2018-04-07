@@ -230,7 +230,7 @@
         /// <returns></returns>
         public static bool IsSubset<T>(this IEnumerable<T> subList, IEnumerable<T> list)
             => list.IsSuperSet(subList);
-        public static IList<string> SplitOnString(this string check, int SplitLength)
+        public static List<string> SplitOnString(this string check, int SplitLength)
         {
             List<string> ret = new List<string>();
             if (string.IsNullOrEmpty(check))
@@ -247,14 +247,14 @@
             return ret;
         }
         /// <summary>
-        /// Unions the enumerables and returns an IList
+        /// Unions the enumerables and returns a List
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="left"></param>
         /// <param name="right"></param>
         /// <param name="distinct">If true, will only add items from right to left if they are not already contained in left</param>
         /// <returns></returns>
-        public static IList<T> Union<T>(this IEnumerable<T> left, IEnumerable<T> right, bool distinct)
+        public static List<T> Union<T>(this IEnumerable<T> left, IEnumerable<T> right, bool distinct)
         {
             List<T> rl = new List<T>(left);
             if(!distinct)
@@ -268,6 +268,38 @@
                     rl.Add(r);
             }
             return rl;
+        }
+        /// <summary>
+        /// Inserts a value at the specified index by calling <see cref="List{T}.Insert(int, T)"/>. If the list does not have enough records, it will have the missing indexes filled by <paramref name="filler"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="toFill"></param>
+        /// <param name="index"></param>
+        /// <param name="value"></param>
+        /// <param name="filler"></param>
+        public static void InsertWithExpansion<T>(this List<T> toFill, int index, T value, T filler = default(T))
+        {
+            while(index > toFill.Count)
+            {
+                toFill.Add(filler);
+            }
+            toFill.Insert(index, value);
+        }
+        /// <summary>
+        /// Sets the value at the specified index by calling the indexer. If the list does not have enough records, it will have the missing indexes filled by <paramref name="filler"/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="toFill"></param>
+        /// <param name="index"></param>
+        /// <param name="value"></param>
+        /// <param name="filler"></param>
+        public static void SetWithExpansion<T>(this List<T> toFill, int index, T value, T filler = default(T))
+        {
+            while (index >= toFill.Count)
+            {
+                toFill.Add(filler);
+            }
+            toFill[index] = value;
         }
         /// <summary>
         /// Returns the length of the trimmed string, or -1 if null

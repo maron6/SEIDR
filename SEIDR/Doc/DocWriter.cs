@@ -144,6 +144,40 @@ namespace SEIDR.Doc
             sw.Write(sb);            
         }
         /// <summary>
+        /// Writes the records out using ToString without validating that they match the column meta data of the writer.
+        /// <para>NOTE: THIS IGNORES METADATA.</para>
+        /// </summary>
+        /// <param name="toWrite"></param>
+        public void BulkWrite(IEnumerable<DocRecord> toWrite)
+        {
+            foreach (var rec in toWrite)
+                sw.Write(rec.ToString());
+        }
+        /// <summary>
+        /// Writes the records out using ToString without validating that they match the column meta data of the writer.
+        /// <para>NOTE: THIS IGNORES METADATA.</para>
+        /// </summary>
+        /// <param name="toWrite"></param>
+        public void BulkWrite(params DocRecord[] toWrite) => BulkWrite(toWrite);
+
+        /// <summary>
+        /// Writes the strings out without validating that they match the column meta data of the writer. Will add the LineEndDelimiter of this metaData if specified, though.
+        /// <para>NOTE: THIS IGNORES METADATA.</para>
+        /// </summary>
+        /// <param name="Lines"></param>
+        public void BulkWrite(IEnumerable<string> Lines)
+        {
+            foreach (var line in Lines)
+                sw.Write(line + Columns.LineEndDelimiter ?? string.Empty);
+        }
+
+        /// <summary>
+        /// Writes the strings out without validating that they match the column meta data of the writer. Will add the LineEndDelimiter of this metaData if specified, though.
+        /// <para>NOTE: THIS IGNORES METADATA.</para>
+        /// </summary>
+        /// <param name="Lines"></param>
+        public void BulkWrite(params string[] Lines) => BulkWrite(Lines);
+        /// <summary>
         /// Adds record to the file via underlying streamWriter
         /// </summary>
         /// <param name="record"></param>
@@ -151,6 +185,21 @@ namespace SEIDR.Doc
         {
             AddRecord(Columns.ParseRecord(false, record));
         }
+        /// <summary>
+        /// Parses the strings and maps them using this collection's MetaData. Will add the LineEndDelimiter of this metaData if specified, though.
+        /// </summary>
+        /// <param name="Lines"></param>
+        public void BulkAdd(IEnumerable<string> Lines)
+        {
+            foreach (var line in Lines)
+                sw.Write(Columns.ParseRecord(false, line));
+        }
+
+        /// <summary>
+        /// Parses the strings and maps them using this collection's MetaData. Will add the LineEndDelimiter of this metaData if specified, though.
+        /// </summary>
+        /// <param name="Lines"></param>
+        public void BulkAdd(params string[] Lines) => BulkAdd(Lines);
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 

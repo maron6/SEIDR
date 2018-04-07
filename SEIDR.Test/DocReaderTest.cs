@@ -10,6 +10,16 @@ namespace SEIDR.Test
     public class DocReaderTest
     {
         [TestMethod]
+        public void ListInsertTest()
+        {
+            List<string> l = new List<string>();
+            l.InsertWithExpansion(5, "Heya", "FILLER");
+            l.SetWithExpansion(7, "Test", "SECOND FILLER");
+            Assert.AreEqual(l[6], "SECOND FILLER");
+            l.InsertWithExpansion(3, "Third");
+            Assert.AreEqual("Heya", l[6]);
+        }
+        [TestMethod]
         public void TestRead()
         {
             DocMetaData.TESTMODE = true; //Allow page size below minimum for test purposes
@@ -101,8 +111,20 @@ LineNumber|Description
                 w.AddRecord(record, map);
             }
             w.Dispose();
+            md = new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.csv", "C").AddDelimitedColumns("Description", "LineNumber").SetDelimiter(',').SetHasHeader(true);
+            w = new DocWriter(md);
+            for(int p = 0; p < r.PageCount; p++)
+            {
+                w.BulkWrite(r[p]); //ignores meta data...! Assumes matching meta data or already formatted.
+            }
+            w.Dispose();
             r.Dispose();
-
+            System.Diagnostics.Debug.WriteLine(md.GetHeader());
+            System.Diagnostics.Debug.WriteLine(md2.GetHeader());
+            string s = File.ReadAllText(md.FilePath).Substring(md.GetHeader().Length);
+            string s2 = File.ReadAllText(md2.FilePath).Substring(md2.GetHeader().Length);
+            Assert.AreNotEqual(File.ReadAllText(md.FilePath), File.ReadAllText(md2.FilePath)); //Meta data was ignored, so even though the md has a different header, the content is the same.
+            Assert.AreEqual(s, s2);
         }
     }
 }

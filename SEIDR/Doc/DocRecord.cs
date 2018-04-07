@@ -132,7 +132,7 @@ namespace SEIDR.Doc
             {
                 newContent.Add(right[col]);
             }
-            return new DocRecord(columns, left.CanWrite, newContent);
+            return new DocRecord(columns, left.CanWrite || right.CanWrite, newContent);
         }
         public DocRecord Merge(DocRecord toMerge)
         {
@@ -146,7 +146,7 @@ namespace SEIDR.Doc
             {
                 newContent.Add(toMerge[col]);
             }
-            return new DocRecord(cols, CanWrite, newContent);
+            return new DocRecord(cols, CanWrite || toMerge.CanWrite, newContent);
         }
         public DocRecord Merge(DocRecordColumnCollection collection, DocRecord left, DocRecord right)
         {            
@@ -177,15 +177,20 @@ namespace SEIDR.Doc
         /// Used for determining records...
         /// </summary>
         DocRecordColumnCollection Columns;
-        Dictionary<DocRecordColumnInfo, string> Content;
+        List<string> Content;
+        //Dictionary<DocRecordColumnInfo, string> Content;
+
         /// <summary>
-        /// Overrides to string, combining the columns depending on the set up of the Column Collection it was created with
+        /// Overrides to string, combining the columns depending on the set up of the Column Collection it was created with. Includes the NewLine delimiter from the Column collection
         /// </summary>
         /// <returns></returns>
         public override string ToString()
         {
             if (!Columns.Valid)
                 throw new InvalidOperationException("Column state is not valid.");
+
+            return string.Format(Columns.format, Content.ToArray());
+            /*
             StringBuilder output = new StringBuilder();
             Columns.ForEachIndex((col, idx) =>             
             {
@@ -202,6 +207,44 @@ namespace SEIDR.Doc
                     output.Append(Columns.Delimiter);
             }, 1, 1);
             return output.ToString();
+            */
+        }
+        /// <summary>
+        /// To string with option to include the end line delimiter or not.
+        /// </summary>
+        /// <param name="includeLineEndDelimiter"></param>
+        /// <returns></returns>
+        public string ToString(bool includeLineEndDelimiter)
+        {
+            if (includeLineEndDelimiter)
+                return ToString();
+            if (!Columns.Valid)
+                throw new InvalidOperationException("Column state is not valid.");
+                            
+            
+            StringBuilder output = new StringBuilder();
+            int idx = 0;
+            foreach(var col in Columns)
+            {                
+                for(; idx < col.Position; idx++)
+                {
+                    if (!Columns.FixedWidthMode)
+                        output.Append(Columns.Delimiter);
+                }
+                string colContent = Content[col.Position]; //Note: null/empty equivalent for purposes here.
+                
+                if (col.MaxLength != null)
+                    output.Append(colContent.Substring(0, col.MaxLength.Value).PadRight(col.MaxLength.Value));
+                else
+                {
+                    output.Append(colContent);
+                }
+                if (!Columns.FixedWidthMode && col.Position == Columns.Count -1)
+                    output.Append(Columns.Delimiter);
+                idx++;
+            }
+            return output.ToString();
+            
         }
         /// <summary>
         /// Adds the record and the LineDelimiter to the stringbuilder
@@ -212,11 +255,13 @@ namespace SEIDR.Doc
         {
             if (sb == null)
                 throw new ArgumentNullException(nameof(sb));
+            sb.AppendFormat(Columns.format, Content);/*
             Columns.ForEachIndex((col, idx) =>
             {
                 string colContent;
-                if (!Content.TryGetValue(col, out colContent))
-                    colContent = string.Empty;
+                colContent = Content[col.Position] ?? string.Empty;
+                //if (!Content.TryGetValue(col, out colContent))
+                //    colContent = string.Empty;
                 if (col.MaxLength != null)
                     sb.Append(colContent.Substring(0, col.MaxLength.Value).PadRight(col.MaxLength.Value));
                 else
@@ -231,7 +276,7 @@ namespace SEIDR.Doc
                 else if (!Columns.FixedWidthMode)
                     sb.Append(Columns.Delimiter);
                 
-            });
+            });*/
             return sb;
         }
 
@@ -253,7 +298,7 @@ namespace SEIDR.Doc
         {
             Columns = owner;
             CanWrite = canWrite;
-            Content = new Dictionary<DocRecordColumnInfo, string>();
+            Content = new List<string>();// new Dictionary<DocRecordColumnInfo, string>();
         }        
         /// <summary>
         /// Sets up the DocRecord with an owner, CanWrite, and initial content
@@ -266,7 +311,7 @@ namespace SEIDR.Doc
         {
             for(int i = 0; i < Columns.Count; i++)
             {
-                Content[owner[i]] = ParsedContent[i];
+                Content.SetWithExpansion(owner[i].Position, ParsedContent[i]);                
             }
         }
         #endregion
@@ -284,18 +329,24 @@ namespace SEIDR.Doc
         public string this[string ColumnName]
         {
             get
-            {
+            {                
                 string x;
-                var col = Columns[ColumnName];
-                if (!Content.TryGetValue(col, out x))
-                    x = null;
+                var col = Columns.GetBestMatch(ColumnName);
+                if (col == null)
+                    throw new ArgumentException("Column not found");
+                x = Content[col.Position];
+                if (Columns.NullIfEmpty && x == string.Empty)
+                    return null;
                 return x;
             }
             set
             {
                 if (CanWrite)
                 {
-                    Content[Columns[ColumnName]] = value;
+                    var col = Columns.GetBestMatch(ColumnName);
+                    if (col == null)
+                        throw new ArgumentException("Column not found");
+                    Content.SetWithExpansion(col.Position, value);
                 }
                 else
                     throw new InvalidOperationException("Record does not allow writing/updating.");
@@ -314,16 +365,21 @@ namespace SEIDR.Doc
             {
                 string x;
                 var col = Columns[alias, ColumnName];
-                if (!Content.TryGetValue(col, out x) 
-                    || col.NullIfEmpty.And(x==string.Empty) )
-                    x = null;
+                if (col == null)
+                    throw new ArgumentException("Column not found");
+                x = Content[col.Position];
+                if (col.NullIfEmpty && x == string.Empty)
+                    return null;
                 return x;
             }
             set
             {
                 if (CanWrite)
                 {
-                    Content[Columns[alias, ColumnName]] = value;
+                    var col = Columns.GetBestMatch(ColumnName, alias);
+                    if (col == null)
+                        throw new ArgumentException("Column not found");
+                    Content.SetWithExpansion(col.Position, value);
                 }
                 else
                     throw new InvalidOperationException("Record does not allow writing/updating.");
@@ -340,8 +396,8 @@ namespace SEIDR.Doc
             var col = Columns.GetBestMatch(ColumnName, alias);
             if (col == null)
                 return null;
-            string x;
-            if (!Content.TryGetValue(col, out x) || col.NullIfEmpty.And(x == string.Empty))
+            string x = Content[col.Position];            
+            if (col.NullIfEmpty.And(x == string.Empty))
                 x = null;
             return x;
         }
@@ -354,21 +410,27 @@ namespace SEIDR.Doc
         {
             get
             {
-                string x;
-                if (!Content.TryGetValue(column, out x) || column.NullIfEmpty.And(x == string.Empty))
-                    x = null;
+                if (!Columns.HasColumn(column))
+                    throw new ArgumentException("Column is not a member of the ColumnCollection associated with this record.");
+                string x = Content[column.Position];
+                if (column.NullIfEmpty && x == string.Empty)
+                    return null;                
                 return x;
             }
             set
             {
                 if (CanWrite)
-                    Content[column] = value;
+                {
+                    if(!Columns.HasColumn(column))
+                        throw new ArgumentException("Column is not a member of the ColumnCollection associated with this record.");
+                    Content.SetWithExpansion(column.Position, value);
+                }
                 else
                     throw new InvalidOperationException("Record is not allowed to write.");
             }
         }
         /// <summary>
-        /// Getter/setter using index of the columns
+        /// Getter/setter using position of the columns
         /// </summary>
         /// <param name="columnIndex"></param>
         /// <returns></returns>
@@ -376,11 +438,19 @@ namespace SEIDR.Doc
         {
             get
             {
-                return this[Columns[columnIndex]];
+                var col = Columns[columnIndex];
+                if (col == null)
+                    throw new ArgumentException("No Column specified for position " + columnIndex);
+                return Content[columnIndex];                
             }
             set
             {
-                this[Columns[columnIndex]] = value;
+                if(!CanWrite)
+                    throw new InvalidOperationException("Record is not allowed to write.");
+                var col = Columns[columnIndex];
+                if (col == null)
+                    throw new ArgumentException("No Column specified for position " + columnIndex);
+                Content.SetWithExpansion(columnIndex, value);
             }
         }
     }
