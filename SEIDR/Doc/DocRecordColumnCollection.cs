@@ -83,10 +83,11 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public DocRecord ParseRecord(bool writeMode, string record)
         {
+            if (string.IsNullOrEmpty(record))
+                return null;
             if (!Valid)
                 throw new InvalidOperationException("Collection state is not valid.");
-            string[] split = new string[Columns.Count];
-            record = record ?? string.Empty;
+            string[] split = new string[Columns.Count];            
             int position = 0;            
             for(int i= 0; i < Columns.Count; i++)
             {
@@ -175,11 +176,12 @@ namespace SEIDR.Doc
         /// <summary>
         /// Creates a basic set up
         /// </summary>
-        public DocRecordColumnCollection()
+        public DocRecordColumnCollection(string Alias)
         {
             Columns = new List<DocRecordColumnInfo>();
             //_Delimiter = '|';
             fixedWidthMode = false;
+            this.Alias = Alias;
         }
         /// <summary>
         /// Checks for the index of the column
@@ -303,13 +305,24 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="SpecificAlias"></param>
         /// <param name="ColumnName"></param>
+        /// <param name="Position">Physical position</param>
         /// <returns></returns>
-        public DocRecordColumnInfo this[string SpecificAlias, string ColumnName]
+        public DocRecordColumnInfo this[string SpecificAlias, string ColumnName, int Position = -1]
         {
             get
             {
-                return Columns.First(c => c.OwnerAlias == SpecificAlias && c.ColumnName == ColumnName);
+                return Columns.First(c => c.OwnerAlias == SpecificAlias && c.ColumnName == ColumnName && (Position < 0 || c.Position == Position) );
             }            
+        }
+        /// <summary>
+        /// Attempt to get the best match for the column.
+        /// </summary>
+        /// <param name="Column"></param>
+        /// <param name="alias"></param>
+        /// <returns></returns>
+        public DocRecordColumnInfo GetBestMatch(string Column, string alias = null)
+        {
+            return Columns.FirstOrDefault(c => (c.OwnerAlias == alias || alias == null) && c.ColumnName == Column) ?? Columns.FirstOrDefault(c => c.ColumnName == Column);
         }
         /// <summary>
         /// Access columns by index. Also the indexer that allows updating columns.
@@ -336,9 +349,12 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public int AddColumn(string ColumnName, int? MaxSize = null, string EarlyTerminator = null)
         {            
-            Columns.Add(new DocRecordColumnInfo(ColumnName, Alias)
-                { MaxLength = MaxSize, EarlyTerminator = EarlyTerminator,
-                    NullIfEmpty = NullIfEmpty});
+            Columns.Add(new DocRecordColumnInfo(ColumnName, Alias, Columns.Count)
+            {
+                MaxLength = MaxSize,
+                EarlyTerminator = EarlyTerminator,
+                NullIfEmpty = NullIfEmpty
+            });
 
             if (MaxSize == null)
                 canFixedWidth = false;
@@ -402,8 +418,7 @@ namespace SEIDR.Doc
                 }
             }
             canFixedWidth = true;
-        }
-
+        }        
         public IEnumerator<DocRecordColumnInfo> GetEnumerator()
         {
             return Columns.GetEnumerator();

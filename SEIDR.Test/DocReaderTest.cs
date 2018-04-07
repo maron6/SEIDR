@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using SEIDR.Doc;
+using System.Collections.Generic;
 
 namespace SEIDR.Test
 {
@@ -12,8 +13,8 @@ namespace SEIDR.Test
         public void TestRead()
         {
             DocMetaData.TESTMODE = true; //Allow page size below minimum for test purposes
-            string FilePath = @"C:\Users\Owner\Documents\DocReader\Reader.txt";
-            string CommaFile = @"C:\Users\Owner\Documents\DocReader\Reader.csv";
+            string FilePath =  @"C:\DocReaderTest\Reader.txt";
+            string CommaFile = @"C:\DocReaderTest\Reader.csv";
             string[] Lines = new[]
             {
                 "LineNumber|Description",
@@ -42,6 +43,10 @@ namespace SEIDR.Test
                 "9,Ninth",
                 "10,Tenth"
             };
+            if (File.Exists(FilePath))
+                File.Delete(FilePath);
+            if (File.Exists(CommaFile))
+                File.Delete(CommaFile);
             File.WriteAllLines(FilePath, Lines);
             File.WriteAllLines(CommaFile, CommaLines);
             DocReader r = new DocReader("F", FilePath);
@@ -81,11 +86,23 @@ LineNumber|Description
             Assert.AreEqual(3, l.Count);
             Assert.AreEqual("3", l[0]["LineNumber"]);
             r.Dispose();
-            md = new DocMetaData(CommaFile, "C");
-            md.SetHasHeader(true);
-            r = new DocReader(md);
-            Assert.AreEqual(',', r.Columns.Delimiter);            
+            var md2 = new DocMetaData(CommaFile, "C");
+            md2.SetHasHeader(true);
+            r = new DocReader(md2);
+            Assert.AreEqual(',', r.Columns.Delimiter);
+
+            md= new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.txt", "F").AddDelimitedColumns("LineNumber", "Empty", "Description", "Empty", "Test").SetDelimiter('\t').SetHasHeader(true);
+            var w = new DocWriter(md);
+            w.SetTextQualify(true, "Description", "Test");
+            List<DocRecordColumnInfo> map = new List<DocRecordColumnInfo>();
+            map.AddRange(null, null, null, null, md2.Columns["LineNumber"]);
+            foreach(var record in r)
+            {                
+                w.AddRecord(record, map);
+            }
+            w.Dispose();
             r.Dispose();
+
         }
     }
 }

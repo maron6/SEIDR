@@ -150,7 +150,7 @@ namespace SEIDR.Doc
         }
         public DocRecord Merge(DocRecordColumnCollection collection, DocRecord left, DocRecord right)
         {            
-            DocRecord l = new DocRecord(collection, left.CanWrite);
+            DocRecord l = new DocRecord(collection, true);
             foreach(var col in left.Columns)
             {
                 l[col] = left[col];
@@ -187,7 +187,7 @@ namespace SEIDR.Doc
             if (!Columns.Valid)
                 throw new InvalidOperationException("Column state is not valid.");
             StringBuilder output = new StringBuilder();
-            foreach(var col in Columns)
+            Columns.ForEachIndex((col, idx) =>             
             {
                 string colContent;
                 if (!Content.TryGetValue(col, out colContent))
@@ -196,12 +196,43 @@ namespace SEIDR.Doc
                     output.Append(colContent.Substring(0, col.MaxLength.Value).PadRight(col.MaxLength.Value));
                 else
                 {
-                    output.Append(colContent);                    
+                    output.Append(colContent);
                 }
-                if (!Columns.FixedWidthMode)
+                if (!Columns.FixedWidthMode && idx != Columns.Count)
                     output.Append(Columns.Delimiter);
-            }
+            }, 1, 1);
             return output.ToString();
+        }
+        /// <summary>
+        /// Adds the record and the LineDelimiter to the stringbuilder
+        /// </summary>
+        /// <param name="sb"></param>
+        /// <returns></returns>
+        public StringBuilder AddToStringBuilder(StringBuilder sb)
+        {
+            if (sb == null)
+                throw new ArgumentNullException(nameof(sb));
+            Columns.ForEachIndex((col, idx) =>
+            {
+                string colContent;
+                if (!Content.TryGetValue(col, out colContent))
+                    colContent = string.Empty;
+                if (col.MaxLength != null)
+                    sb.Append(colContent.Substring(0, col.MaxLength.Value).PadRight(col.MaxLength.Value));
+                else
+                {
+                    sb.Append(colContent);
+                }
+                if(idx == Columns.Count)
+                {
+                    if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))                        
+                        sb.Append(Columns.LineEndDelimiter);
+                }
+                else if (!Columns.FixedWidthMode)
+                    sb.Append(Columns.Delimiter);
+                
+            });
+            return sb;
         }
 
         #region constructors
@@ -297,6 +328,22 @@ namespace SEIDR.Doc
                 else
                     throw new InvalidOperationException("Record does not allow writing/updating.");
             }
+        }
+        /// <summary>
+        /// Tries to get the best matching column
+        /// </summary>
+        /// <param name="ColumnName"></param>
+        /// <param name="alias"></param>
+        /// <returns></returns>
+        public string GetBestMatch(string ColumnName, string alias = null)
+        {
+            var col = Columns.GetBestMatch(ColumnName, alias);
+            if (col == null)
+                return null;
+            string x;
+            if (!Content.TryGetValue(col, out x) || col.NullIfEmpty.And(x == string.Empty))
+                x = null;
+            return x;
         }
         /// <summary>
         /// Gets/sets the value associated with the column

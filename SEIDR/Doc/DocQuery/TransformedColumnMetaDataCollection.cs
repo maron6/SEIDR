@@ -121,7 +121,7 @@ namespace SEIDR.Doc.DocQuery
         /// <param name="a"></param>
         public static implicit operator DocRecordColumnInfo(TransformedColumnMetaData a)
         {
-            return new DocRecordColumnInfo(a.ColumnName, a.OwnerAlias);
+            return new DocRecordColumnInfo(a.ColumnName, a.OwnerAlias, -1);
         }
         /// <summary>
         /// Used for type validation before performing any comparisons. 

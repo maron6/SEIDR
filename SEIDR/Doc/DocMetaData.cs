@@ -91,6 +91,10 @@ namespace SEIDR.Doc
         /// </summary>
         public FileAccess AccessMode { get; set; } = FileAccess.ReadWrite;
         /// <summary>
+        /// If true, allow writing.
+        /// </summary>
+        public bool CanWrite => FileAccess.Write == (AccessMode & FileAccess.Write);
+        /// <summary>
         /// Sets <see cref="AccessMode"/>
         /// </summary>
         /// <param name="myAccess">Should match the DocReader or DocWriter.</param>
@@ -138,10 +142,10 @@ namespace SEIDR.Doc
         {
             FilePath = file;
             if (string.IsNullOrWhiteSpace(alias))
-                Alias = System.IO.Path.GetFileNameWithoutExtension(file);
+                Alias = Path.GetFileNameWithoutExtension(file);
             else
                 Alias = alias;
-            Columns = new DocRecordColumnCollection();
+            Columns = new DocRecordColumnCollection(Alias);
         }
         /// <summary>
         /// Sets <see cref="HasHeader"/>

@@ -60,125 +60,164 @@ namespace SEIDR.Doc
         public void ReConfigure() => SetupStream();
         private void SetupStream()
         {
+            if (!md.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter))
+                throw new InvalidOperationException("Cannot Do Delimited document without a line End delimiter.");
+            if (md.FixedWidthMode && !md.HeaderConfigured)
+                throw new InvalidOperationException("Cannot do fixed width without header configured already.");
+            if(md.FixedWidthMode && md.PageSize < Columns.MaxLength)
+                throw new InvalidOperationException($"Page Size({md.PageSize}) is smaller than FixedWidth line Length ({Columns.MaxLength})");
+
             disposedValue = false;
             if (sr != null) { sr.Close(); sr = null; }
             if (fs != null) { fs.Close(); fs = null; }            
             fs = new FileStream(md.FilePath, FileMode.Open, md.AccessMode);
             sr = new StreamReader(fs, md.FileEncoding);
-            if (PagePositions != null) PagePositions.Clear();
-            else PagePositions = new List<long>();
+            if (Pages == null)
+                Pages = new List<PageHelper>();
+            else
+                Pages.Clear();
+
             buffer = new char[md.PageSize];                                    
             int pp = md.SkipLines;
             if (md.HasHeader && md.HeaderConfigured)
                 pp = md.SkipLines + 1;
             long position = 0;
-            Tuple<bool, long> pageResult;            
-            while((pageResult = ReadNextPage(ref pp, position)).Item1)
-            {
-                position = pageResult.Item2;
-                if (pp == 0)
-                    PagePositions.Add(position);
-            }
+            while(ReadNextPage(ref position, ref pp)) { }
             if (!md.Valid)
             {
                 Dispose(true);
                 throw new InvalidOperationException("Meta Data is not valid.");
             }
-        }        
-        List<long> PagePositions;
-        
-        Tuple<bool, long> ReadNextPage(ref int firstLine, long position)
+        }                
+        List<PageHelper> Pages;
+        public class PageHelper
         {
-            //Position was 24, seems to have read from 30 again...?
-            //fs.Position = position; //Move to specified position instead of storing strings. 
-            fs.Seek(position, SeekOrigin.Begin);
-            sr.DiscardBufferedData();    
-            int x = sr.ReadBlock(buffer, 0, md.PageSize);            
-            string content = /*working.ToString() +*/ new string(buffer, 0, x);
-            IList<string> lines;
-            if (md.Columns.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter))
-                lines = content.SplitOnString(md.Columns.MaxLength);
-            else if (string.IsNullOrEmpty(md.LineEndDelimiter))
-                throw new ArgumentException(nameof(md.LineEndDelimiter), "Line End delimiter is empty or null for a delimited document.");
-            else
-                lines = content.SplitOnString(md.LineEndDelimiter);
-
-            bool end = x < md.PageSize;
-            if (!end && content.IndexOf(md.LineEndDelimiter) < 0)
-                throw new ArgumentException(nameof(md.PageSize), "Page Size is too small. Row starting at position " + position + " would not have a full row.");
-
-            int endLine = end ? lines.Count : lines.Count - 1; 
-            //for (int i = firstLine; i < endLine; i++){}
-            if(firstLine == 0)
+            /// <summary>
+            /// Start character position of this page.
+            /// </summary>
+            public readonly long StartPosition;
+            /// <summary>
+            ///  End character position in the file of this page
+            /// </summary>
+            public readonly long EndPosition;
+            ///<summary>Percentage filled of page size used</summary>
+            public readonly decimal Fullness;
+            /// <summary>
+            /// Size of the page.
+            /// </summary>
+            public readonly int Length;
+            public PageHelper(long position, long endPosition, int pageSize)
             {
-                int i = 0;
-                if (!md.HeaderConfigured)
-                {
-                    if (md.Columns.FixedWidthMode)
-                        throw new ArgumentException(nameof(md.FixedWidthMode), "Columns are not set, but trying to use fixed width mode.");
-                    if(!md.Delimiter.HasValue)
-                        md.SetDelimiter(lines[0].GuessDelimiter());      
-                    if(firstLineHeader)
-                        md.AddDelimitedColumns(lines[0].Split(md.Delimiter.Value));
-                    else
-                    {
-                        int hl = lines[0].Split(md.Delimiter.Value).Length;
-                        for(int ti = 1; ti <= hl; ti++)
-                        {
-                            md.AddColumn("Column # " + ti);
-                        }/*
-                        string[] tempHeader = new string[lines[0].Split(md.Delimiter.Value).Length];
-                        for(int ti= 1; ti <= tempHeader.Length; ti++)
-                        {
-                            tempHeader[ti - 1] = "Column # " + ti;
-                        }
-                        md.AddDelimitedColumns(tempHeader);
-                        */
-                    }
-                    position = lines[0].Length + md.LineEndDelimiter.Length;
-                    i++;
-                    if (PagePositions.Count == 0)
-                        PagePositions.Add(position);
-                    else
-                        PagePositions[0] = position; //Replace position 0.                    
+                StartPosition = position;
+                EndPosition = endPosition;                
+                Fullness = ((decimal)(endPosition - position)) / pageSize;
+                Length = (int)(endPosition - position);
+            }
+
+        }
+        bool ReadNextPage(ref long startPosition, ref int skipLine)
+        {
+            fs.Seek(startPosition, SeekOrigin.Begin);
+            sr.DiscardBufferedData();
+            int x = sr.ReadBlock(buffer, 0, md.PageSize);
+            if (x == 0)
+                return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
+            bool end = x < md.PageSize;
+            
+            string content = /*working.ToString() +*/ new string(buffer, 0, x);
+            IList<string> lines = null;
+
+            bool fwnl = md.Columns.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter);            
+            int endLine;
+            int removed = 0;
+            long endPosition;
+            if (!fwnl)
+            {
+                lines = content.SplitOnString(md.LineEndDelimiter);
+                if (end)
+                {                    
+                    endPosition = startPosition + x;
                 }
-                //Move to next page.
-                for(; i < endLine; i++)
-                {
-                    position += lines[i].Length + md.LineEndDelimiter.Length;
-                    if (end && i == endLine - 1)
-                        position -= md.LineEndDelimiter.Length;
-                }
+                else
+                {                    
+                    int temp = lines.Count - 1;
+                    if (temp == 0)
+                        throw new Exception("BufferSize too small");
+                    removed = lines[temp].Length;
+                    lines.RemoveAt(temp);
+                    endPosition = startPosition + x - removed;
+                }                
+                endLine = lines.Count;
             }
             else
             {
-                //This is slightly off... Maybe need to add 1?
-                //Move position forward - get the very first line...
-                for (int i = 0; i < firstLine && i < endLine; i++)
+                //No newLine, just dividing by positions....
+                if (end)
                 {
-                    position += lines[i].Length + md.LineEndDelimiter.Length;
-                    if (end && i == endLine - 1)
-                        position -= md.LineEndDelimiter.Length; //Need to do something with pages small pages
-                }                
-                if (firstLine > endLine)
-                    firstLine -= endLine;
-                else
-                    firstLine = 0;                
-                if(end)
-                {
-                    if (PagePositions.Count == 0)
-                        PagePositions.Add(position);
-                    else
-                        PagePositions[0] = position;
+                    endPosition = startPosition + x;
+                    endLine = x / md.Columns.MaxLength;
                 }
-            }            
-            if (end)
+                else
+                {
+                    removed = md.Columns.MaxLength % md.PageSize;
+                    content = new string(buffer, 0, x - removed);
+                    endPosition = startPosition + x - removed;
+                    endLine = content.Length / md.Columns.MaxLength;
+                }                
+            }
+            if(skipLine > 0)
             {
-                //done. Don't need to add more pages.
-                return new Tuple<bool, long>(false, position);
-            }            
-            return new Tuple<bool, long>(true, position);
+                if(skipLine >= endLine)
+                {
+                    startPosition = endPosition;
+                    skipLine -= endLine;
+                    return !end;
+                }
+                //endLine > skipLine, remove skipLine # records, then continue to next section...
+                if (fwnl)
+                {
+                    startPosition += skipLine * md.Columns.MaxLength; //Move forward by skipLine lines
+                }
+                else
+                {
+                    for(int i = 0; i < skipLine; i ++)
+                    {
+                        startPosition = startPosition + lines[i].Length + md.LineEndDelimiter.Length;
+                    }
+                    skipLine = 0;
+                    return true; //re-read from the correct starting position instead of trying to mess with the list.
+                }
+                
+            }
+            if (!md.HeaderConfigured)
+            {
+                string firstLine = lines[0];
+                //must be delimited in this section...                
+                if (!md.Delimiter.HasValue)
+                    md.SetDelimiter(firstLine.GuessDelimiter());
+                string[] firstLineS = firstLine.Split(md.Delimiter.Value);
+                if (md.HasHeader)
+                {
+                    md.AddDelimitedColumns(firstLineS);
+                    startPosition += firstLine.Length + md.LineEndDelimiter.Length; //move forward by a line...
+                    //lines.RemoveAt(0); // ... Probably don't really care about this at this point actually.
+                }
+                else
+                {
+                    int hl = firstLineS.Length;
+                    for (int ti = 1; ti <= hl; ti++)
+                    {
+                        md.AddColumn("Column # " + ti);
+                    }
+                }
+            }
+            
+            Pages.Add(new PageHelper(startPosition, endPosition, md.PageSize));
+            startPosition = endPosition;
+            return !end;
         }
+        
+        
         /// <summary>
         /// Sets up a basic delimited reader, assuming the file has headers starting on the first line.
         /// </summary>
@@ -204,9 +243,9 @@ namespace SEIDR.Doc
             SetupStream();
         }
         char[] buffer;
-        public int PageCount => PagePositions.Count;
+        public int PageCount => Pages.Count;
 
-        public int LastPage => PagePositions.Count - 1;
+        public int LastPage => Pages.Count - 1;
         
         public IEnumerable<DocRecord> this[int pageNumber]
         {
@@ -229,9 +268,11 @@ namespace SEIDR.Doc
                 return GetPage(pageNumber)[pageLineNumber];
             }
         }
+
+        int lastPage = -2;
         
         /// <summary>
-        /// 0 based page get
+        /// Gets the content of the specified 'page'
         /// </summary>
         /// <param name="pageNumber"></param>
         /// <returns></returns>
@@ -239,35 +280,49 @@ namespace SEIDR.Doc
         {
             if (sr == null)
                 throw new InvalidOperationException("Not in a configured state. May have been disposed already");
-            if (pageNumber < 0 || pageNumber >= PageCount)
+            if (pageNumber < 0 || pageNumber > LastPage)
                 throw new ArgumentOutOfRangeException(nameof(pageNumber));
             string content;
-            if (pageNumber == LastPage)
+            int x;
+            PageHelper p = Pages[pageNumber];
+            if(pageNumber == lastPage + 1)
             {
-                //fs.Position = PagePositions[pageNumber];
-                fs.Seek(PagePositions[pageNumber], SeekOrigin.Begin);
-                sr.DiscardBufferedData();
-                int x = sr.ReadBlock(buffer, 0, md.PageSize);
-                content = new string(buffer, 0, x);
+                x = sr.ReadBlock(buffer, 0, p.Length); //Need discard? Shouldn't, since not seeking
             }
             else
             {
-                long start = PagePositions[pageNumber];
-                long end = PagePositions[pageNumber + 1];
-                //fs.Position = start;
-                fs.Seek(start, SeekOrigin.Begin);
+                fs.Seek(p.StartPosition, SeekOrigin.Begin);
                 sr.DiscardBufferedData();
-                int x = sr.ReadBlock(buffer, 0, (int)(end - start));
-                content = new string(buffer, 0, x);
+                x = sr.ReadBlock(buffer, 0, p.Length);                
             }
-            var lines = content.SplitOnString(md.LineEndDelimiter);
-            List<DocRecord> LineRecords = new List<DocRecord>();
-            foreach(var line in lines)
+            content = new string(buffer, 0, x);
+            lastPage = pageNumber;
+            IList<string> lines;
+            if (string.IsNullOrEmpty(md.LineEndDelimiter))
             {
-                LineRecords.Add(Columns.ParseRecord(false, line));
+                lines = content.SplitOnString(md.Columns.MaxLength);
             }
+            else
+            {
+                lines = content.SplitOnString(md.LineEndDelimiter);
+            }
+            List<DocRecord> LineRecords = new List<DocRecord>();
+            lines.ForEachIndex((line, idx) =>
+            {
+                var rec = Columns.ParseRecord(md.CanWrite, line);
+                if (rec == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Empty Record found! Page: " + pageNumber + ", LineNumber: " + idx);
+                    if (idx == lines.Count)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Last Line of page - Skipping empty record.");
+                        return;
+                    }
+                }
+                LineRecords.Add(rec);
+            }, 1, 1);
             return LineRecords;
-        }
+        }        
         public IEnumerator<DocRecord> GetEnumerator()
         {
             for(int pn = 0; pn < PageCount; pn ++)
@@ -292,8 +347,11 @@ namespace SEIDR.Doc
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects).
-                    PagePositions.Clear();
-                    PagePositions = null;
+                    if (Pages != null)
+                    {
+                        Pages.Clear();
+                        Pages = null;
+                    }                   
                 }
                 if (sr != null)
                 {

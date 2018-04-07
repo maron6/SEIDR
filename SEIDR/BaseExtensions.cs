@@ -180,24 +180,12 @@
         /// <param name="check"></param>
         /// <param name="split"></param>
         /// <returns></returns>
-        public static IList<string> SplitOnString(this string check, string split)
+        public static List<string> SplitOnString(this string check, string split)
         {
             List<string> ret = new List<string>();
             if (string.IsNullOrEmpty(check))
-                return ret;            
-            while (check.Length > 0)
-            {                
-                int x = check.IndexOf(split);
-                bool end = x < 0;
-                if (end)
-                    x = check.Length;
-                ret.Add( check.Substring(0, x));
-                if (end)
-                    check = string.Empty;
-                else
-                    check = check.Substring(x + split.Length);
-            }
-            return ret;
+                return ret;
+            return check.Split(new[] { split }, StringSplitOptions.None).ToList();
         }
         /// <summary>
         /// Compares each sequence of list left with the corresponding entry in right using <see cref="object.Equals(object)"/>
@@ -462,6 +450,16 @@
                 if (aList.Count >= limit)
                     return;
             }
+        }
+        /// <summary>
+        /// Add list of T objects to the end of List
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="toAdd"></param>
+        public static void AddRange<T>(this List<T> list, params T[] toAdd)
+        {            
+            list.AddRange(collection: toAdd);
         }
 
         public static bool In<T>(this T obj, IEnumerable<T> list) => list.Contains(obj);
@@ -960,7 +958,7 @@
                 yield return func(ti);
             }
         }
-        public static void ForEachIndex<T>(this IEnumerable<T> list, Action<T, int> Update, int limit)
+        public static void ForEachIndexLimited<T>(this IEnumerable<T> list, Action<T, int> Update, int limit)
         {
             if (limit < 1)
                 return;

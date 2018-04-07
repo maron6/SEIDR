@@ -309,35 +309,50 @@ namespace SEIDR.Doc
         /// <param name="ColumnName"></param>
         /// <returns></returns>
         public string this[string Alias, string ColumnName]
-            => this[new DocRecordColumnInfo(ColumnName, Alias)];
+            => this[new DocRecordColumnInfo(ColumnName, Alias, -1)];
         public string this[DocRecordColumnInfo Column]
         {
             get
             {
                 if (_header == null)
                     throw new InvalidOperationException("Instance is not set up for accessing data by column name");
-                if(Column.OwnerAlias == null)
-                {
-                    var col = _header.FirstOrDefault(h => h.ColumnName == Column.ColumnName);
-                    if (col != null)
-                        return _Content[col];
-                    return null;
-                }
-
-                string content;
-                if (!_Content.TryGetValue(Column, out content))
-                    content = null;
-                return content;
+                
+                var col = _header.FirstOrDefault(h => 
+                    h.ColumnName == Column.ColumnName 
+                    && (Column.Position < 0 || Column.Position == h.Position) 
+                    && (Column.OwnerAlias == null || Column.OwnerAlias == h.OwnerAlias)
+                    );
+                if (col != null)
+                    return _Content[col];
+                return null;
+                
             }
         }
+        /// <summary>
+        /// Adds the column to the meta data collection. If a position is specified, will insert at that position and move the position of any later columns forward
+        /// </summary>
+        /// <param name="Column"></param>
+        /// <param name="Value"></param>
         public void AddColumn(DocRecordColumnInfo Column, string Value = null)
         {
-            _header.Add(Column);//controls content order
+            if (Column.Position >= 0)
+            {
+                _header.Insert(Column.Position, Column);
+                for (int i = Column.Position; i < _Header.Count; i++)
+                {
+                    _header[i].Position = i;
+                }
+            }
+            else
+            {
+                Column.Position = _header.Count;
+                _header.Add(Column);//controls content order
+            }
             _Content.Add(Column, Value);
         }
         public void AddColumn(string ColumnName, string Value = null)
         {
-            AddColumn(new DocRecordColumnInfo(ColumnName, null), Value);
+            AddColumn(new DocRecordColumnInfo(ColumnName, null, _header.Count), Value);
         }
 
         /// <summary>
@@ -504,7 +519,7 @@ namespace SEIDR.Doc
             for(int i=  0; i < Header.Length; i++)
             {
                 string header = Header[i];
-                var col = new DocRecordColumnInfo(header, OwnerAlias);
+                var col = new DocRecordColumnInfo(header, OwnerAlias, i);
                 string newContent = null;
                 if (i < content.Length)
                     newContent = content[i];
@@ -529,7 +544,7 @@ namespace SEIDR.Doc
             for (int i = 0; i < Header.Length; i++)
             {
                 string header = Header[i];
-                var col = new DocRecordColumnInfo(header, Alias);
+                var col = new DocRecordColumnInfo(header, Alias, i);
                 string newContent = null;
                 if (i < content.Length)
                     newContent = content[i];

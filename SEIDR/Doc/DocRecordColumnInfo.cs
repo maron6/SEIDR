@@ -54,11 +54,22 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="Column"></param>
         /// <param name="Alias"></param>
-        public DocRecordColumnInfo(string Column, string Alias)
+        /// <param name="position">Column position</param>
+        public DocRecordColumnInfo(string Column, string Alias, int position)
         {
             ColumnName = Column;
             OwnerAlias = Alias;
+            Position = position;
         }
+        public int Position { get; internal set; }
+        /// <summary>
+        /// Used when writing with <see cref="DocWriter"/>. Ignored in Fixed width mode.
+        /// </summary>
+        public bool TextQualify { get; set; } = false;
+        /// <summary>
+        /// Used when writing with <see cref="DocWriter"/>. Ignored in delimited mode
+        /// </summary>
+        public bool LeftJustify { get; set; } = true;
         /// <summary>
         /// Check that the columns are referencing the same data
         /// </summary>
@@ -135,7 +146,7 @@ namespace SEIDR.Doc
             var cols = new DocRecordColumnInfo[ColumnList.Length];
             for(int i = 0; i < ColumnList.Length; i++)
             {
-                cols[i] = new DocRecordColumnInfo(ColumnList[i], Alias);
+                cols[i] = new DocRecordColumnInfo(ColumnList[i], Alias, i);
             }
             return cols;
         }
