@@ -133,7 +133,7 @@ namespace SEIDR.Doc
                 newContent.Add(right[col]);
             }
             return new DocRecord(columns, left.CanWrite || right.CanWrite, newContent);
-        }
+        }/*
         public DocRecord Merge(DocRecord toMerge)
         {
             DocRecordColumnCollection cols = DocRecordColumnCollection.Merge(null, Columns, toMerge.Columns);
@@ -147,7 +147,7 @@ namespace SEIDR.Doc
                 newContent.Add(toMerge[col]);
             }
             return new DocRecord(cols, CanWrite || toMerge.CanWrite, newContent);
-        }
+        }*/
         public DocRecord Merge(DocRecordColumnCollection collection, DocRecord left, DocRecord right)
         {            
             DocRecord l = new DocRecord(collection, true);
@@ -161,7 +161,23 @@ namespace SEIDR.Doc
             }
             return l;
         }
-
+        /// <summary>
+        /// If a record was missing columns because of an extra newline incorrectly included in the content...Merges the last column of this record with the first record of <paramref name="b"/>, and then adds the rest to the end of content.
+        /// </summary>
+        /// <param name="b"></param>
+        public void AddMissingContent(DocRecord b, string connection = default(string))
+        {            
+            if(b.Content.Count -1 + Content.Count <= Columns.Count)
+            {
+                Content[Content.Count - 1] += (connection?? "") + b.Content[0];
+                for(int i = 1; i < b.Content.Count; i++)
+                {
+                    Content.Add(b.Content[i]);
+                }
+                return;
+            }
+            throw new InvalidOperationException("Attempted to merge records, but this would cause the Record to contain too many columns");
+        }
         /// <summary>
         /// Checks if the record's column information contains the information being requested
         /// </summary>
@@ -172,6 +188,11 @@ namespace SEIDR.Doc
         {
             return Columns.Exists(c => (Alias == null || c.OwnerAlias == Alias) && c.ColumnName == ColumnName);
         }
+        /// <summary>
+        /// Check if there's any column that matches when an alias is unspecified
+        /// </summary>
+        /// <param name="ColumnName"></param>
+        /// <returns></returns>
         public bool HasColumn(string ColumnName) => HasColumn(null, ColumnName);
         /// <summary>
         /// Used for determining records...

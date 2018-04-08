@@ -44,8 +44,11 @@ namespace SEIDR.Doc
         public static DocRecordColumnCollection Merge(DocRecordColumnCollection left, DocRecordColumnCollection right)
         {
             var ret = new DocRecordColumnCollection(left.Columns);
-            foreach (var col in right)
+            var rCols = (from col in right.Columns
+                         select col).OrderBy(c => c.Position);                        
+            foreach (var col in rCols)
             {
+                col.Position = -1; //Position is being moved to the end, not taking over a position from left
                 ret.AddColumn(col);
             }
             ret._Delimiter = left._Delimiter;
@@ -74,7 +77,7 @@ namespace SEIDR.Doc
                 }
                 return x;
             }
-        }
+        }        
         /// <summary>
         /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
         /// </summary>
@@ -229,8 +232,9 @@ namespace SEIDR.Doc
         internal List<DocRecordColumnInfo> Columns { get; private set; }
         char? _Delimiter = null;
         /// <summary>
-        /// Use in delimited mode. If not set, uses Environment.NewLine. 
+        /// Always used in delimited mode. If not set, uses Environment.NewLine. 
         /// <para>Last column in fixed width will not end early on reaching the value.</para>
+        /// <para>Note: Ignored if MultiLineEndDelimiter is set, when reading.</para>
         /// </summary>
         public string LineEndDelimiter { get; set; } = Environment.NewLine;
         bool fixedWidthMode = false;

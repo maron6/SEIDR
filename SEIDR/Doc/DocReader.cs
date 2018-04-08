@@ -34,32 +34,35 @@ namespace SEIDR.Doc
         /// File alias, from meta data
         /// </summary>
         public string Alias => md.Alias;
-        bool firstLineHeader = true;
+        
         /// <summary>
         /// Sets up a doc reader for DocRecord enumeration.
         /// </summary>
         /// <param name="info"></param>
-        /// <param name="firstLineIsHeader">When the columns are unknown, determines column names based on the first line. <para>
-        /// If false, the first line will be used for the number of columns.</para> 
-        /// If true, will also set the names of columns
-        /// </param>
-        public DocReader(DocMetaData info, bool firstLineIsHeader = true)
+        public DocReader(DocMetaData info)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             if (!info.AccessMode.HasFlag(FileAccess.Read))
                 throw new ArgumentException(nameof(info), "Not Configured for read mode");            
-            md = info;
-            firstLineHeader = firstLineIsHeader;
+            md = info;            
             SetupStream();
             
         }
+        
         /// <summary>
         /// Reconfigures the Reader settings/paging information, using any changes to the DocMetaData that was provided
         /// </summary>
         public void ReConfigure() => SetupStream();
         private void SetupStream()
         {
+            if (md.ReadWithMultiLineEndDelimiter)
+            {
+                if (md.LineEndDelimiter == null)
+                    md.Columns.LineEndDelimiter = md.MultiLineEndDelimiter[0];
+                else if(!md.MultiLineEndDelimiter.Contains(md.LineEndDelimiter))
+                    md.AddMultiLineEndDelimiter(md.LineEndDelimiter);
+            }            
             if (!md.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter))
                 throw new InvalidOperationException("Cannot Do Delimited document without a line End delimiter.");
             if (md.FixedWidthMode && !md.HeaderConfigured)
@@ -122,21 +125,41 @@ namespace SEIDR.Doc
             int x = sr.ReadBlock(buffer, 0, md.PageSize);
             if (x == 0)
                 return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
-            bool end = x < md.PageSize;
+            bool end = x < md.PageSize; 
             
             string content = /*working.ToString() +*/ new string(buffer, 0, x);
             IList<string> lines = null;
 
-            bool fwnl = md.Columns.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter);            
+            bool fwnl = md.Columns.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter) && !md.ReadWithMultiLineEndDelimiter;            
             int endLine;
             int removed = 0;
+            int lastNLSize = 0;
             long endPosition;
             if (!fwnl)
             {
-                lines = content.SplitOnString(md.LineEndDelimiter);
+                if (md.ReadWithMultiLineEndDelimiter)
+                    lines = content.Split(md.MultiLineEndDelimiter, StringSplitOptions.None);
+                else
+                    lines = content.SplitOnString(md.LineEndDelimiter);
                 if (end)
                 {                    
                     endPosition = startPosition + x;
+                    if (md.ReadWithMultiLineEndDelimiter)
+                    {
+                        foreach(string delim in md.MultiLineEndDelimiter)
+                        {
+                            if (content.EndsWith(delim))
+                            {
+                                lastNLSize = delim.Length;
+                                break;
+                            }
+                        }
+                    }
+                    else if (content.EndsWith(md.LineEndDelimiter))
+                        lastNLSize = md.LineEndDelimiter.Length;
+
+
+                    endLine = lines.Count;
                 }
                 else
                 {                    
@@ -144,10 +167,25 @@ namespace SEIDR.Doc
                     if (temp == 0)
                         throw new Exception("BufferSize too small");
                     removed = lines[temp].Length;
-                    lines.RemoveAt(temp);
-                    endPosition = startPosition + x - removed;
+                    //lines.RemoveAt(temp);
+                    endPosition = startPosition + x - removed; //doesn't include the newline...whatever it may have been.
+                    if (md.ReadWithMultiLineEndDelimiter)
+                    {
+                        int s = x - removed;
+                        foreach(string delim in md.MultiLineEndDelimiter) //first multi line delimiter that would match and cause a split - take its length.
+                        {
+                            if(content.Substring(s - delim.Length, delim.Length) == delim)
+                            {
+                                lastNLSize = delim.Length;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                        lastNLSize = md.LineEndDelimiter.Length;
+
+                    endLine = lines.Count - 1;
                 }                
-                endLine = lines.Count;
             }
             else
             {
@@ -180,9 +218,27 @@ namespace SEIDR.Doc
                 }
                 else
                 {
+                    int posHelper = 0; //offset from content[0]
                     for(int i = 0; i < skipLine; i ++)
                     {
-                        startPosition = startPosition + lines[i].Length + md.LineEndDelimiter.Length;
+                        if (md.ReadWithMultiLineEndDelimiter)
+                        {
+                            int temp = lines[i].Length;
+                            foreach(string delim in md.MultiLineEndDelimiter)
+                            {
+                                if(content.Substring(posHelper + temp, delim.Length) == delim)
+                                {
+                                    temp += delim.Length;
+                                    break;
+                                }
+                            }
+                            posHelper += temp;
+                            startPosition += temp;
+                        }
+                        else
+                        {
+                            startPosition = startPosition + lines[i].Length + md.LineEndDelimiter.Length;
+                        }
                     }
                     skipLine = 0;
                     return true; //re-read from the correct starting position instead of trying to mess with the list.
@@ -199,7 +255,21 @@ namespace SEIDR.Doc
                 if (md.HasHeader)
                 {
                     md.AddDelimitedColumns(firstLineS);
-                    startPosition += firstLine.Length + md.LineEndDelimiter.Length; //move forward by a line...
+                    if (md.ReadWithMultiLineEndDelimiter)
+                    {
+                        int temp = firstLine.Length;
+                        foreach (string delim in md.MultiLineEndDelimiter)
+                        {
+                            if(content.Substring(temp, delim.Length) == delim)
+                            {
+                                temp += delim.Length;
+                                break;
+                            }
+                        }
+                        startPosition += temp;
+                    }
+                    else
+                        startPosition += firstLine.Length + md.LineEndDelimiter.Length; //move forward by a line...
                     //lines.RemoveAt(0); // ... Probably don't really care about this at this point actually.
                 }
                 else
@@ -211,8 +281,8 @@ namespace SEIDR.Doc
                     }
                 }
             }
-            
-            Pages.Add(new PageHelper(startPosition, endPosition, md.PageSize));
+           
+            Pages.Add(new PageHelper(startPosition, endPosition - lastNLSize, md.PageSize));
             startPosition = endPosition;
             return !end;
         }
@@ -298,7 +368,11 @@ namespace SEIDR.Doc
             content = new string(buffer, 0, x);
             lastPage = pageNumber;
             IList<string> lines;
-            if (string.IsNullOrEmpty(md.LineEndDelimiter))
+            if (md.ReadWithMultiLineEndDelimiter)
+            {
+                lines = content.Split(md.MultiLineEndDelimiter, StringSplitOptions.None);
+            }
+            else if (string.IsNullOrEmpty(md.LineEndDelimiter))
             {
                 lines = content.SplitOnString(md.Columns.MaxLength);
             }
@@ -313,11 +387,12 @@ namespace SEIDR.Doc
                 if (rec == null)
                 {
                     System.Diagnostics.Debug.WriteLine("Empty Record found! Page: " + pageNumber + ", LineNumber: " + idx);
+                    /*
                     if (idx == lines.Count)
                     {
                         System.Diagnostics.Debug.WriteLine("Last Line of page - Skipping empty record.");
                         return;
-                    }
+                    }*/
                 }
                 LineRecords.Add(rec);
             }, 1, 1);

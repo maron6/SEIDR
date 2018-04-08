@@ -11,6 +11,9 @@ namespace SEIDR.Doc
     public class DocMetaData
     {
         static bool _TestMode = false;
+        /// <summary>
+        /// Removes minimum on PageSize. Setting pageSize below the min is silently ignored outside of TestMode
+        /// </summary>
         public static bool TESTMODE
         {
             get { return _TestMode; }
@@ -84,8 +87,69 @@ namespace SEIDR.Doc
         public DocRecordColumnCollection Columns { get; private set; }
         public readonly string FilePath;
         public readonly string Alias;
+        /// <summary>
+        /// Columns are in a valid state.
+        /// </summary>
         public bool HeaderConfigured => Columns.Valid;
         public string LineEndDelimiter => Columns.LineEndDelimiter;
+
+        /// <summary>
+        /// If there are multiple possible line endings when reading.
+        /// </summary>
+        public string[] MultiLineEndDelimiter { get; private set; } = new string[0];
+        /// <summary>
+        /// Clears the multli line end delimiter
+        /// </summary>
+        public void ClearMultiLineEndDelimiter() => MultiLineEndDelimiter = new string[0];
+        /// <summary>
+        /// Use if there may be a mixture of /r/n, /r, /n, etc   
+        /// </summary>
+        /// <param name="endings"></param>
+        public void SetMultiLineEndDelimiters(params string[] endings)
+        {
+            List<string> l;
+            if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
+                l = new List<string>(endings.Include(Columns.LineEndDelimiter));
+            else
+                l = new List<string>(endings);
+
+            l.Sort((a, b) =>
+            {
+                if (a.IsSuperSet(b)) //Earlier sort position
+                    return -1;
+                if (a.IsSubset(b))
+                    return 1;
+                return 0;
+            });
+            MultiLineEndDelimiter = l.Where(ln => !string.IsNullOrEmpty(ln)).ToArray();
+        }
+        /// <summary>
+        /// Indicates if the MutliLineEnd Delimiter information should be used by DocReader instances
+        /// </summary>
+        public bool ReadWithMultiLineEndDelimiter =>  MultiLineEndDelimiter.Length > 0;
+        public DocMetaData AddMultiLineEndDelimiter(params string[] endingToAdd)
+        {
+            List<string> l;
+            if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
+                l = new List<string>(endingToAdd.Include(Columns.LineEndDelimiter));
+            else
+                l = new List<string>(endingToAdd);
+
+            if(MultiLineEndDelimiter != null)
+                l.AddRange(MultiLineEndDelimiter);
+            l.Sort((a, b) =>
+            {
+                if (a == null || b == null)
+                    return 0;                
+                if (a.IsSuperSet(b)) //Earlier sort position
+                    return -1;
+                if (a.IsSubset(b))
+                    return 1;
+                return 0;
+            });
+            MultiLineEndDelimiter = l.Where(ln => !string.IsNullOrEmpty(ln)).Distinct().ToArray();
+            return this;
+        }
         /// <summary>
         /// Access mode for file opening. Indicates whether the DocMetaData will be used for Doc reading or doc writing
         /// </summary>
@@ -122,7 +186,7 @@ namespace SEIDR.Doc
             }
         }
         /// <summary>
-        /// If true, first line of the file after skip lines should be the header
+        /// If true, first line of the file after skip lines should be the header. If the header has been configured already, this also means that an additional line will be skipped so that we don't read the header as a normal line.
         /// </summary>
         public bool HasHeader { get; set; } = true;
         /// <summary>
@@ -246,5 +310,6 @@ namespace SEIDR.Doc
                 return _FileHash;
             }
         }
+
     }   
 }

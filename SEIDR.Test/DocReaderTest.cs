@@ -20,11 +20,45 @@ namespace SEIDR.Test
             Assert.AreEqual("Heya", l[6]);
         }
         [TestMethod]
-        public void TestRead()
+        public void LineEndingSortTest()
         {
-            DocMetaData.TESTMODE = true; //Allow page size below minimum for test purposes
-            string FilePath =  @"C:\DocReaderTest\Reader.txt";
-            string CommaFile = @"C:\DocReaderTest\Reader.csv";
+            var l = new List<string>(new[] { "\r", "\n", "\r\n", "\n\n" });
+            l.Sort((a, b) =>
+            {
+                if (a.IsSuperSet(b))
+                    return -1;
+                if (a.IsSubset(b))
+                    return 1;
+                return 0;
+            });
+            l.ForEach(a => System.Diagnostics.Debug.WriteLine(a));
+        }
+        [TestMethod]
+        public void TestReadMultiLineEndDelimiter()
+        {
+            DocMetaData.TESTMODE = true;
+            FilePrep();
+            DocReader r = new DocReader("lines", FilePath);
+            DocMetaData mixed = new DocMetaData(MultiLineEndFilePath, "Multi")
+                .SetHasHeader(true)
+                .AddMultiLineEndDelimiter("\r", "\n"); //The normal LineEnd Delimiter is also going to be included when actually reading.
+            DocReader m = new DocReader(mixed);
+            var normal = r.GetPage(0);
+            var mixPage = m.GetPage(0);
+            Assert.AreEqual(normal.Count, mixPage.Count);
+            Assert.AreEqual(normal[0][0], mixPage[0][0]);
+            Assert.AreEqual(normal[3]["Description"], mixPage[3]["Description"]);            
+            mixed
+                .SetSkipLines(2) //Skip two lines, so we'll get LineNumber = 3 (skip LineNumber = 1 and LineNumber = 2). Header is already configured, so that will be skipped as well, since meta data indicates file has a header.
+                .SetPageSize(130)
+                //.AddDelimitedColumns("LineNumber", "Garbage", "Description") //header was configured already.
+                ;
+            m.ReConfigure();
+            var record = m[0, 0];
+            Assert.AreEqual(normal[2][0], record[0]);    //2 - zero based indexes, this gives the third record in the normal file.        
+        }
+        void FilePrep()
+        {
             string[] Lines = new[]
             {
                 "LineNumber|Description",
@@ -53,12 +87,29 @@ namespace SEIDR.Test
                 "9,Ninth",
                 "10,Tenth"
             };
+            string multiEndcontent = "LineNumber|Garbage|Description\r1|alifmaif|First\r\n2|aliefnaognaognagfnbaovoaignaoehngvoah|Second\n3|lai fmaovfhahv aawoief jslafima|Third\r\n"
+                + "4|amfoeaijvnba[pbn [a a[va[n apv mfa,iutva;fja jan b[a [anmvfiesp|Fourth\r\n5|oaifjvnamv  anafjwno; nafsaj|Fifth\r\n"
+                + "6|al;vin ;ambivewauwfu sma[nbmaj[nb|Sixth\r7|a;vnslirj|Seventh\n8|Testjao;sv garbage|Eighth\r\n9||Ninth\r"
+                + "10|a;svna tbija nswowros snv|Tenth";
             if (File.Exists(FilePath))
                 File.Delete(FilePath);
             if (File.Exists(CommaFile))
                 File.Delete(CommaFile);
+            if (File.Exists(MultiLineEndFilePath))
+                File.Delete(MultiLineEndFilePath);
             File.WriteAllLines(FilePath, Lines);
             File.WriteAllLines(CommaFile, CommaLines);
+            File.WriteAllText(MultiLineEndFilePath, multiEndcontent);
+        }
+        string MultiLineEndFilePath = @"C:\DocReaderTest\MixedLineEnding.txt";
+        string FilePath = @"C:\DocReaderTest\Reader.txt";
+        string CommaFile = @"C:\DocReaderTest\Reader.csv";
+        [TestMethod]
+        public void TestRead()
+        {
+            DocMetaData.TESTMODE = true; //Allow page size below minimum for test purposes
+            FilePrep();
+
             DocReader r = new DocReader("F", FilePath);
             Assert.AreEqual(2, r.Columns.Count);
             Assert.AreEqual('|', r.Columns.Delimiter);
