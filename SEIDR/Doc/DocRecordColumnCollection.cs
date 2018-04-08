@@ -43,16 +43,25 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public static DocRecordColumnCollection Merge(DocRecordColumnCollection left, DocRecordColumnCollection right)
         {
-            var ret = new DocRecordColumnCollection(left.Columns);
-            var rCols = (from col in right.Columns
-                         select col).OrderBy(c => c.Position);                        
+            var ret = new DocRecordColumnCollection
+            {
+                fixedWidthMode = left.FixedWidthMode,
+                _Delimiter = left._Delimiter
+            };
+            var rCols = (from col in left.Columns
+                         select col
+                         ).OrderBy(c => c.Position);
             foreach (var col in rCols)
             {
-                col.Position = -1; //Position is being moved to the end, not taking over a position from left
-                ret.AddColumn(col);
+                ret.CopyColumnIntoCollection(col);                
             }
-            ret._Delimiter = left._Delimiter;
-            ret.fixedWidthMode = left.fixedWidthMode;
+            rCols = (from col in right.Columns
+                         select col
+                         ).OrderBy(c => c.Position);                        
+            foreach (var col in rCols)
+            {
+                ret.CopyColumnIntoCollection(col);
+            } 
             return ret;
         }
         /// <summary>
@@ -213,7 +222,7 @@ namespace SEIDR.Doc
         /// <param name="columns"></param>
         public DocRecordColumnCollection(List<DocRecordColumnInfo> columns)
         {
-            Columns = columns;
+            Columns = new List<DocRecordColumnInfo>(columns);
             CheckForFixedWidthValid();
             if (canFixedWidth)
                 fixedWidthMode = true;
@@ -378,7 +387,7 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public bool HasColumn(DocRecordColumnInfo columnInfo)
         {
-            return Columns.Exists(c => c.Position == columnInfo.Position && c.OwnerAlias == columnInfo.OwnerAlias && c.ColumnName == columnInfo.OwnerAlias);
+            return Columns.Exists(c => c.Position == columnInfo.Position && c.OwnerAlias == columnInfo.OwnerAlias && c.ColumnName == columnInfo.ColumnName);
         }
         /// <summary>
         /// Access columns by position. 
@@ -402,21 +411,43 @@ namespace SEIDR.Doc
         /// <param name="ColumnName"></param>
         /// <param name="MaxSize"></param>
         /// <param name="EarlyTerminator">For use with fixed width. Allows ending the column early. E.g. NewLine</param>
+        /// <param name="leftJustify">Indicates if column should be left justified in fix width mode</param>
+        /// <param name="textQualify">Indicates whether the column should be text qualified when writing.</param>
         /// <returns></returns>
-        public int AddColumn(string ColumnName, int? MaxSize = null, string EarlyTerminator = null)
-        {            
-            Columns.Add(new DocRecordColumnInfo(ColumnName, Alias, LastPosition + 1)
+        public DocRecordColumnInfo AddColumn(string ColumnName, int? MaxSize = null, string EarlyTerminator = null, bool leftJustify = true, bool textQualify = false)
+        {
+            var col = new DocRecordColumnInfo(ColumnName, Alias, LastPosition + 1)
             {
                 MaxLength = MaxSize,
                 EarlyTerminator = EarlyTerminator,
-                NullIfEmpty = NullIfEmpty
-            });
-
+                NullIfEmpty = NullIfEmpty,
+                LeftJustify = leftJustify,
+                TextQualify = textQualify
+            };
+            Columns.Add(col);
             if (MaxSize == null)            
                 canFixedWidth = false;                
             
             SetFormat();
-            return Columns.Count;
+            return col;
+        }
+        public DocRecordColumnInfo CopyColumnIntoCollection(DocRecordColumnInfo toCopy)
+        {
+            var col = new DocRecordColumnInfo(toCopy.ColumnName, toCopy.OwnerAlias, LastPosition + 1)
+            {
+                MaxLength = toCopy.MaxLength,
+                EarlyTerminator = toCopy.EarlyTerminator,
+                NullIfEmpty = toCopy.NullIfEmpty,
+                LeftJustify = toCopy.LeftJustify,
+                TextQualify = toCopy.TextQualify,                
+            };
+            Columns.Add(col);
+
+            if (toCopy.MaxLength == null)
+                canFixedWidth = false;
+
+            SetFormat();
+            return col;
         }
         /// <summary>
         /// Updates the column information specified by column name, under this collection's <see cref="Alias"/>

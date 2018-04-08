@@ -86,6 +86,9 @@ namespace SEIDR.Doc
         /// </summary>
         public DocRecordColumnCollection Columns { get; private set; }
         public readonly string FilePath;
+        /// <summary>
+        /// Used for associating column information to an originating file when merging column collections
+        /// </summary>
         public readonly string Alias;
         /// <summary>
         /// Columns are in a valid state.
@@ -124,9 +127,15 @@ namespace SEIDR.Doc
             MultiLineEndDelimiter = l.Where(ln => !string.IsNullOrEmpty(ln)).ToArray();
         }
         /// <summary>
-        /// Indicates if the MutliLineEnd Delimiter information should be used by DocReader instances
+        /// Indicates if the MutliLineEnd Delimiter information should be used by DocReader instances. True if there is more than one line ending in the <see cref="MultiLineEndDelimiter"/> array.
         /// </summary>
-        public bool ReadWithMultiLineEndDelimiter =>  MultiLineEndDelimiter.Length > 0;
+        public bool ReadWithMultiLineEndDelimiter =>  MultiLineEndDelimiter.Length > 1;
+        /// <summary>
+        /// Adds the strings to <see cref="MultiLineEndDelimiter"/>, and sorts it so that super sets are earlier. 
+        /// <para>E.g., ensures \r\n comes before \r or \n, while the order of \r and \n are arbitrary.</para>
+        /// </summary>
+        /// <param name="endingToAdd"></param>
+        /// <returns></returns>
         public DocMetaData AddMultiLineEndDelimiter(params string[] endingToAdd)
         {
             List<string> l;
@@ -254,7 +263,7 @@ namespace SEIDR.Doc
         {
             Columns.LineEndDelimiter = endLine;
             return this;
-        }
+        }    
         /// <summary>
         /// Adds basic columns to be delimited by <see cref="Delimiter"/>.
         /// </summary>
@@ -278,6 +287,33 @@ namespace SEIDR.Doc
             foreach(var col in column)
             {
                 Columns.AddColumn(col);
+            }
+            return this;
+        }
+        /// <summary>
+        /// Copies the columns from the collection to the end of this doc's column collection. 
+        /// <para>Note: Will replace the alias.</para>
+        /// </summary>
+        /// <param name="columnCollection"></param>
+        /// <returns></returns>
+        public DocMetaData AddDetailedColumnCollection(DocRecordColumnCollection columnCollection)
+        {
+            foreach (var col in columnCollection)
+            {
+                Columns.AddColumn(col.ColumnName, col.MaxLength, col.EarlyTerminator, col.LeftJustify, col.TextQualify);
+            }
+            return this;
+        }
+        /// <summary>
+        /// Copies the columns from the collection to the end of this doc's column collection. Maintains alias.
+        /// </summary>
+        /// <param name="columnCollection"></param>
+        /// <returns></returns>
+        public DocMetaData CopyDetailedColumnCollection(DocRecordColumnCollection columnCollection)
+        {
+            foreach (var col in columnCollection)
+            {
+                Columns.CopyColumnIntoCollection(col);
             }
             return this;
         }
@@ -310,6 +346,7 @@ namespace SEIDR.Doc
                 return _FileHash;
             }
         }
+
 
     }   
 }

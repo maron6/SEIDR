@@ -34,6 +34,39 @@ namespace SEIDR.Test
             l.ForEach(a => System.Diagnostics.Debug.WriteLine(a));
         }
         [TestMethod]
+        public void MultiReaderReadTest()
+        {            
+            FilePrep();
+            using (DocReader r1 = new DocReader("r1", FilePath))
+            using (DocReader r2 = new DocReader("r2", FilePath))
+            {
+                DocMetaData dm = new DocMetaData(TEST_FOLDER + "multiWrit.txt", "w").CopyDetailedColumnCollection(DocRecordColumnCollection.Merge("w", r1.Columns, r2.Columns)).SetDelimiter('|');
+                using (DocWriter dw = new DocWriter(dm))
+                {
+                    foreach(var r1r in r1)
+                    {
+                        foreach(var r2r in r2)
+                        {
+                            var dwr = DocRecord.Merge(dw.Columns, r1r, r2r);
+                            dwr["r1", "Description"] = "R1  - " + dwr["r1", "Description"];
+                            dwr["r2", "Description"] = "R2  - " + dwr["r2", "Description"];
+                            dw.AddRecord(dwr);
+                        }
+                    }
+                    foreach (var r2r in r2)                        
+                    {
+                        foreach (var r1r in r1)
+                        {
+                            var dwr = DocRecord.Merge(dw.Columns, r2r, r1r);
+                            dwr["r1", "Description"] = "R1  SECOND - " + dwr["r1", "Description"];
+                            dwr["r2", "Description"] = "R2  SECOND - " + dwr["r2", "Description"];
+                            dw.AddRecord(dwr);
+                        }
+                    }
+                }
+            }
+        }
+        [TestMethod]
         public void TestReadMultiLineEndDelimiter()
         {
             DocMetaData.TESTMODE = true;
@@ -55,7 +88,15 @@ namespace SEIDR.Test
                 ;
             m.ReConfigure();
             var record = m[0, 0];
-            Assert.AreEqual(normal[2][0], record[0]);    //2 - zero based indexes, this gives the third record in the normal file.        
+            Assert.AreEqual(normal[2][0], record[0]);    //2 - zero based indexes, this gives the third record in the normal file.       
+            DocMetaData doc = new DocMetaData(MultiLineEndWriteFilePath, "w").AddDetailedColumnCollection(mixed.Columns).SetHasHeader(true).SetDelimiter('\t');
+            using(DocWriter dw = new DocWriter(doc))
+            {
+                foreach (var rec in m)
+                    dw.AddRecord(rec);
+            }
+            m.Dispose();
+            r.Dispose();
         }
         void FilePrep()
         {
@@ -101,7 +142,9 @@ namespace SEIDR.Test
             File.WriteAllLines(CommaFile, CommaLines);
             File.WriteAllText(MultiLineEndFilePath, multiEndcontent);
         }
+        const string TEST_FOLDER = @"C:\DocReaderTest\";
         string MultiLineEndFilePath = @"C:\DocReaderTest\MixedLineEnding.txt";
+        string MultiLineEndWriteFilePath = @"C:\DocReaderTest\WRITE_MixedLineEnding.txt";
         string FilePath = @"C:\DocReaderTest\Reader.txt";
         string CommaFile = @"C:\DocReaderTest\Reader.csv";
         [TestMethod]

@@ -148,16 +148,16 @@ namespace SEIDR.Doc
             }
             return new DocRecord(cols, CanWrite || toMerge.CanWrite, newContent);
         }*/
-        public DocRecord Merge(DocRecordColumnCollection collection, DocRecord left, DocRecord right)
+        public static DocRecord Merge(DocRecordColumnCollection collection, DocRecord left, DocRecord right)
         {            
             DocRecord l = new DocRecord(collection, true);
             foreach(var col in left.Columns)
             {
-                l[col] = left[col];
+                l[col.OwnerAlias, col.ColumnName] = left[col];
             }
             foreach(var col in right.Columns)
             {
-                l[col] = right[col];
+                l[col.OwnerAlias, col.ColumnName] = right[col];
             }
             return l;
         }
@@ -165,6 +165,7 @@ namespace SEIDR.Doc
         /// If a record was missing columns because of an extra newline incorrectly included in the content...Merges the last column of this record with the first record of <paramref name="b"/>, and then adds the rest to the end of content.
         /// </summary>
         /// <param name="b"></param>
+        /// <param name="connection">Identifier to use when merging content from the first record of b into the last column of this Record</param>
         public void AddMissingContent(DocRecord b, string connection = default(string))
         {            
             if(b.Content.Count -1 + Content.Count <= Columns.Count)

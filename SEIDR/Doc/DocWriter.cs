@@ -19,6 +19,8 @@ namespace SEIDR.Doc
         {
             if (!metaData.Valid)
                 throw new InvalidOperationException("MetaData is not in a valid state");
+            if (!metaData.Columns.Valid)
+                throw new InvalidOperationException("Column state Invalid");
             md = metaData;
             bool AddHeader = md.HasHeader && (!File.Exists(metaData.FilePath) || !AppendIfExists);
             sw = new StreamWriter(metaData.FilePath, AppendIfExists, metaData.FileEncoding, bufferSize);
@@ -113,6 +115,8 @@ namespace SEIDR.Doc
         /// <param name="columnMapping">Optional mapping override. Positions can be set to null or ignored to use the default mapping</param>
         public void AddRecord(DocRecord record, IList<DocRecordColumnInfo> columnMapping = null)
         {
+            if (!Columns.Valid)
+                throw new InvalidOperationException("Column state Invalid");
             StringBuilder sb = new StringBuilder();
             Columns.ForEachIndex((col, idx) =>
             {

@@ -56,12 +56,11 @@ namespace SEIDR.Doc
         public void ReConfigure() => SetupStream();
         private void SetupStream()
         {
-            if (md.ReadWithMultiLineEndDelimiter)
-            {
-                if (md.LineEndDelimiter == null)
-                    md.Columns.LineEndDelimiter = md.MultiLineEndDelimiter[0];
-                else if(!md.MultiLineEndDelimiter.Contains(md.LineEndDelimiter))
+            if(md.LineEndDelimiter != null && !md.MultiLineEndDelimiter.Contains(md.LineEndDelimiter))
                     md.AddMultiLineEndDelimiter(md.LineEndDelimiter);
+            else if (md.ReadWithMultiLineEndDelimiter && md.LineEndDelimiter == null)
+            {                
+                md.Columns.LineEndDelimiter = md.MultiLineEndDelimiter[0];                
             }            
             if (!md.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter))
                 throw new InvalidOperationException("Cannot Do Delimited document without a line End delimiter.");
@@ -79,8 +78,14 @@ namespace SEIDR.Doc
                 Pages = new List<PageHelper>();
             else
                 Pages.Clear();
-
-            buffer = new char[md.PageSize];                                    
+            int extra = 0; //Add extra space for buffer so we don't have to discard buffer when going from one page to the next while avoiding including the ending newLine information (because we don't need it in the output)
+            if (md.ReadWithMultiLineEndDelimiter)
+            {
+                extra = md.MultiLineEndDelimiter.Max(ml => ml.Length);
+            }
+            else if (md.LineEndDelimiter != null)
+                extra = md.LineEndDelimiter.Length;
+            buffer = new char[md.PageSize + extra];                                    
             int pp = md.SkipLines;
             if (md.HasHeader && md.HeaderConfigured)
                 pp = md.SkipLines + 1;
@@ -338,15 +343,17 @@ namespace SEIDR.Doc
                 return GetPage(pageNumber)[pageLineNumber];
             }
         }
-
+        /// <summary>
+        /// Determine if need to 
+        /// </summary>
         int lastPage = -2;
         
         /// <summary>
-        /// Gets the content of the specified 'page'
+        /// Returns an IList of strings. May be either an <see cref="Array"/> of strings(MultiLineEnd Delimiter mode..) or a <see cref="List{string}"/>.
         /// </summary>
         /// <param name="pageNumber"></param>
         /// <returns></returns>
-        public IList<DocRecord> GetPage(int pageNumber)
+        public IList<string> GetPageLines(int pageNumber)
         {
             if (sr == null)
                 throw new InvalidOperationException("Not in a configured state. May have been disposed already");
@@ -354,18 +361,22 @@ namespace SEIDR.Doc
                 throw new ArgumentOutOfRangeException(nameof(pageNumber));
             string content;
             int x;
+            int drop = 0;
             PageHelper p = Pages[pageNumber];
-            if(pageNumber == lastPage + 1)
+            if (pageNumber == lastPage + 1)
             {
-                x = sr.ReadBlock(buffer, 0, p.Length); //Need discard? Shouldn't, since not seeking
+                drop = (int)(p.StartPosition - Pages[lastPage].EndPosition); //If ended on a newline which gets dropped.
+                x = sr.ReadBlock(buffer, 0, p.Length + drop); //Need discard? Shouldn't, since not seeking
             }
             else
             {
                 fs.Seek(p.StartPosition, SeekOrigin.Begin);
                 sr.DiscardBufferedData();
-                x = sr.ReadBlock(buffer, 0, p.Length);                
+                x = sr.ReadBlock(buffer, 0, p.Length);
             }
-            content = new string(buffer, 0, x);
+            if (x > p.Length)
+                x = p.Length; //throw away extra characters read because of dropping newlines when not adding a seek because we're going through pages sequentially.
+            content = new string(buffer, drop, x);
             lastPage = pageNumber;
             IList<string> lines;
             if (md.ReadWithMultiLineEndDelimiter)
@@ -380,6 +391,16 @@ namespace SEIDR.Doc
             {
                 lines = content.SplitOnString(md.LineEndDelimiter);
             }
+            return lines;
+        }
+        /// <summary>
+        /// Gets the content of the specified 'page'
+        /// </summary>
+        /// <param name="pageNumber"></param>
+        /// <returns></returns>
+        public List<DocRecord> GetPage(int pageNumber)
+        {
+            var lines = GetPageLines(pageNumber);
             List<DocRecord> LineRecords = new List<DocRecord>();
             lines.ForEachIndex((line, idx) =>
             {
