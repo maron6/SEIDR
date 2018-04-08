@@ -46,8 +46,7 @@ namespace SEIDR.Doc
             if (!info.AccessMode.HasFlag(FileAccess.Read))
                 throw new ArgumentException(nameof(info), "Not Configured for read mode");            
             md = info;            
-            SetupStream();
-            
+            SetupStream();            
         }
         
         /// <summary>
@@ -98,6 +97,9 @@ namespace SEIDR.Doc
             }
         }                
         List<PageHelper> Pages;
+        /// <summary>
+        /// Paging information for reading from the file.
+        /// </summary>
         public class PageHelper
         {
             /// <summary>
@@ -313,14 +315,40 @@ namespace SEIDR.Doc
 
             md
                 .SetLineEndDelimiter(LineEnd ?? Environment.NewLine)
-                .SetFileAccess(FileAccess.Read)
+                .SetFileAccess(FileAccess.Read) //allow multiple docReaders to access the same file.
                 .SetFileEncoding(Encoding.Default);                
             SetupStream();
         }
-        char[] buffer;
-        public int PageCount => Pages.Count;
+        /// <summary>
+        /// Basic constructor, no meta data configured yet.
+        /// </summary>
+        public DocReader()
+        {
+            sr = null;
+        }
+        /// <summary>
+        /// Configures the DocReader to use the passed meta data.
+        /// </summary>
+        /// <param name="metaData"></param>
+        public void Configure(DocMetaData metaData)
+        {
 
-        public int LastPage => Pages.Count - 1;
+            if (metaData == null)
+                throw new ArgumentNullException(nameof(metaData));
+            if (!metaData.AccessMode.HasFlag(FileAccess.Read))
+                throw new ArgumentException(nameof(metaData), "Not Configured for read mode");
+
+            Dispose();
+            md = metaData;
+            SetupStream();
+        }
+        char[] buffer;
+        /// <summary>
+        /// Count of pages based on configuration.
+        /// </summary>
+        public int PageCount => Pages?.Count ?? 0;
+
+        int LastPage => Pages.Count - 1;
         
         public IEnumerable<DocRecord> this[int pageNumber]
         {
