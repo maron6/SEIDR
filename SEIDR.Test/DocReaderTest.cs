@@ -100,6 +100,9 @@ namespace SEIDR.Test
         }
         void FilePrep()
         {
+            DirectoryInfo di = new DirectoryInfo(TEST_FOLDER);
+            if (!di.Exists)
+                di.Create();
             string[] Lines = new[]
             {
                 "LineNumber|Description",
