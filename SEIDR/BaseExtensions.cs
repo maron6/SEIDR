@@ -230,6 +230,19 @@
         /// <returns></returns>
         public static bool IsSubset<T>(this IEnumerable<T> subList, IEnumerable<T> list)
             => list.IsSuperSet(subList);
+        /// <summary>
+        /// Checks if every item in list is contained by list2 and if every item contained by list 2 is contained by list.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="list2"></param>
+        /// <returns></returns>
+        public static bool IsSetEquivalent<T>(this IEnumerable<T> list, IEnumerable<T> list2)
+        {
+            if (!list.IsSuperSet(list2))
+                return false;
+            return list2.IsSuperSet(list);
+        }
         public static List<string> SplitOnString(this string check, int SplitLength)
         {
             List<string> ret = new List<string>();

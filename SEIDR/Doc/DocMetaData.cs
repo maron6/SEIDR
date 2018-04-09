@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SEIDR.Doc
 {
-   
+
     public class DocMetaData
     {
         static bool _TestMode = false;
@@ -65,7 +65,7 @@ namespace SEIDR.Doc
         /// Max number of characters to have in a page when reading from a file
         /// <para>Will throw an exception if the page is too small to completely parse a line somewhere in the file</para>
         /// </summary>
-        public int PageSize { get; private set; } = 10000000; 
+        public int PageSize { get; private set; } = 10000000;
         /// <summary>
         /// Minimum page size (in characters)
         /// </summary>
@@ -129,7 +129,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// Indicates if the MutliLineEnd Delimiter information should be used by DocReader instances. True if there is more than one line ending in the <see cref="MultiLineEndDelimiter"/> array.
         /// </summary>
-        public bool ReadWithMultiLineEndDelimiter =>  MultiLineEndDelimiter.Length > 1;
+        public bool ReadWithMultiLineEndDelimiter => MultiLineEndDelimiter.Length > 1;
         /// <summary>
         /// Adds the strings to <see cref="MultiLineEndDelimiter"/>, and sorts it so that super sets are earlier. 
         /// <para>E.g., ensures \r\n comes before \r or \n, while the order of \r and \n are arbitrary.</para>
@@ -144,12 +144,12 @@ namespace SEIDR.Doc
             else
                 l = new List<string>(endingToAdd);
 
-            if(MultiLineEndDelimiter != null)
+            if (MultiLineEndDelimiter != null)
                 l.AddRange(MultiLineEndDelimiter);
             l.Sort((a, b) =>
             {
                 if (a == null || b == null)
-                    return 0;                
+                    return 0;
                 if (a.IsSuperSet(b)) //Earlier sort position
                     return -1;
                 if (a.IsSubset(b))
@@ -166,7 +166,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// If true, allow writing.
         /// </summary>
-        public bool CanWrite => FileAccess.Write == (AccessMode & FileAccess.Write);
+        public bool CanWrite { get; set; } = false;
         /// <summary>
         /// Sets <see cref="AccessMode"/>
         /// </summary>
@@ -177,6 +177,8 @@ namespace SEIDR.Doc
         {
             //AccessMode = writeMode ? FileAccess.Write : FileAccess.Read;
             AccessMode = myAccess;
+            if (FileAccess.Write == (AccessMode & FileAccess.Write))
+                CanWrite = true;
             return this;
         }
         /// <summary>
@@ -305,6 +307,31 @@ namespace SEIDR.Doc
             return this;
         }
         /// <summary>
+        /// Remove the columns from the column collection. Should be done *before* reading or writing - may lead to DocRecords being in an inconsistent state otherwise.
+        /// </summary>
+        /// <param name="toRemove"></param>
+        /// <returns></returns>
+        public DocMetaData RemoveColumn(params DocRecordColumnInfo[] toRemove)
+        {
+            foreach(var c in toRemove)
+            {
+                Columns.RemoveColumn(c);
+            }            
+            return this;
+        }
+        /// <summary>
+        /// Attempts to remove the specified column.
+        /// </summary>
+        /// <param name="ColumnName"></param>
+        /// <param name="alias"></param>
+        /// <param name="position"></param>
+        /// <returns></returns>
+        public DocMetaData RemoveColumn(string ColumnName, string alias = null, int position = -1)
+        {
+            Columns.RemoveColumn(alias, ColumnName, position);
+            return this;
+        }
+        /// <summary>
         /// Copies the columns from the collection to the end of this doc's column collection. Maintains alias.
         /// </summary>
         /// <param name="columnCollection"></param>
@@ -314,7 +341,7 @@ namespace SEIDR.Doc
             foreach (var col in columnCollection)
             {
                 Columns.CopyColumnIntoCollection(col);
-            }
+            }            
             return this;
         }
         /// <summary>

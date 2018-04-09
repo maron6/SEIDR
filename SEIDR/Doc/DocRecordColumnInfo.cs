@@ -35,6 +35,33 @@ namespace SEIDR.Doc
                     ml = -1;
             }
         }
+        #region setters
+        public DocRecordColumnInfo SetEarlyTerminator(string value)
+        {
+            EarlyTerminator = value;
+            return this;
+        }
+        public DocRecordColumnInfo SetNullIfEmpty(bool value)
+        {
+            NullIfEmpty = value;
+            return this;
+        }
+        public DocRecordColumnInfo SetMaxLength(int? value)
+        {
+            MaxLength = value;
+            return this;
+        }
+        public DocRecordColumnInfo SetTextQualify(bool value)
+        {
+            TextQualify = value;
+            return this;
+        }
+        public DocRecordColumnInfo SetLeftJustify(bool value)
+        {
+            LeftJustify = value;
+            return this;
+        }
+#endregion
         /// <summary>
         /// For use with fixed width, cause column to end early. 
         /// <para>E.g., final column ends as soon as it reaches a newline instead of after <see cref="MaxLength"/> characters</para>

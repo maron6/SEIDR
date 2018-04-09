@@ -44,7 +44,7 @@ namespace SEIDR.Doc
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             if (!info.AccessMode.HasFlag(FileAccess.Read))
-                throw new ArgumentException(nameof(info), "Not Configured for read mode");            
+                throw new ArgumentException(nameof(info), "Not Configured for read mode");                
             md = info;            
             SetupStream();            
         }
@@ -378,6 +378,7 @@ namespace SEIDR.Doc
         
         /// <summary>
         /// Returns an IList of strings. May be either an <see cref="Array"/> of strings(MultiLineEnd Delimiter mode..) or a <see cref="List{string}"/>.
+        /// <para>May be more useful when dealing with a class that inherits from <see cref="DocRecord"/></para>
         /// </summary>
         /// <param name="pageNumber"></param>
         /// <returns></returns>

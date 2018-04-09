@@ -39,7 +39,7 @@ namespace SEIDR.Doc
         /// Merges the two column collections
         /// </summary>
         /// <param name="left"></param>
-        /// <param name="right"></param>
+        /// <param name="right"></param>        
         /// <returns></returns>
         public static DocRecordColumnCollection Merge(DocRecordColumnCollection left, DocRecordColumnCollection right)
         {
@@ -88,6 +88,67 @@ namespace SEIDR.Doc
             }
         }        
         /// <summary>
+        /// Parses the record into a list of strings, for use with one of the DocRecord constructors (mainly, when using a class that inherits from DocRecord) 
+        /// </summary>
+        /// <param name="record"></param>
+        /// <returns>IList of strings separated by delimiter. Or based on column sizes in fixed width mode.</returns>
+        public IList<string> ParseRecord(string record)
+        {
+            if (string.IsNullOrEmpty(record))
+                return null;
+            if (!Valid)
+                throw new InvalidOperationException("Collection state is not valid.");
+            string[] split = new string[LastPosition];
+            int position = 0;
+            for (int i = 0; i < Columns.Count; i++)
+            {
+                if (position >= record.Length)
+                {
+                    //have gone beyond length of record
+                    if (ThrowExceptionColumnCountMismatch)
+                        throw new MissingColumnException(i, Columns.Count - 1);
+                    break;
+                }
+                if (fixedWidthMode)
+                {
+                    int x = Columns[i].MaxLength.Value;
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read
+                    int nextPosition = record.IndexOf(Columns[i].EarlyTerminator);
+                    if (nextPosition < 0)
+                    {
+                        split[i] = record.Substring(position, x);
+                    }
+                    if (nextPosition - position < x)
+                        x = nextPosition - position;
+                    split[i] = record.Substring(position, x);
+                    position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else
+                {
+                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    if (ThrowExceptionColumnCountMismatch)
+                    {
+                        if (split.Length < Columns.Count)
+                        {
+                            if(!AllowMissingColumns)
+                                throw new MissingColumnException(split.Length, Columns.Count);
+                        }
+                        else if (split.Length > Columns.Count)
+                            throw new ColumnOverflowException(split.Length, Columns.Count);
+                    }
+                    break;
+                }
+            }
+            return split;
+        }
+        /// <summary>
+        /// Doesn't throw <see cref="MissingColumnException"/> when the number of columns is lower than expected.
+        /// </summary>
+        public bool AllowMissingColumns { get; set; } = false;
+        /// <summary>
         /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
         /// </summary>
         /// <param name="writeMode"></param>
@@ -135,51 +196,20 @@ namespace SEIDR.Doc
                     if (ThrowExceptionColumnCountMismatch)
                     {
                         if (split.Length < Columns.Count)
-                            throw new MissingColumnException(split.Length, Columns.Count);
+                        {
+                            if (!AllowMissingColumns)
+                                throw new MissingColumnException(split.Length, Columns.Count);
+                        }
                         else if (split.Length > Columns.Count)
                             throw new ColumnOverflowException(split.Length, Columns.Count);
                     }
                     break;
-                    /*
-                    int nextPosition = record.IndexOf(Delimiter.Value, position);
-                    int text = record.IndexOf(TextQualifier);
-                    bool odd = true;
-                    while(text > nextPosition)
-                    {
-                        /*
-                         * If not odd, look for the next delimiter after the current quote.
-                         * If odd, look for the next quote.
-                         * If not odd compare the position of next delimiter against quote...
-                         * ( when we get to even, the next delimiter should be before the next quote. 
-                         *      If not, need to search more)
-                         * 
-                         * * /
-                        if (!odd)
-                            nextPosition = record.IndexOf(Delimiter.Value, text);
-                        text = record.IndexOf(Delimiter.Value, text + 1);
-                        //if(odd)
-                        //    text = 
-                    }
-                    if (text >= 0 && text < nextPosition)
-                    {
-                        nextPosition = record.IndexOf(TextQualifier, TextQualifier);
-
-                    }
-                    if (nextPosition < 0)
-                    {
-                        split[i] = record.Substring(position);
-                        break;
-                    }
-                    split[i] = record.Substring(position, nextPosition - position);
-                    position = nextPosition + 1;//Skip the delimiter
-                    */
                 }
 
             }
             DocRecord r = new DocRecord(this, writeMode, split);
             return r;
-        }
-
+        }        
         /// <summary>
         /// If true, throws an exception if the size of a record is too big or too small, based on number of records.
         /// <para>If false, ignores extra columns, and missing columns are treated as null</para>
@@ -250,6 +280,13 @@ namespace SEIDR.Doc
         internal string format;
         void SetFormat()
         {
+            if (!Valid)
+                return;
+
+            Columns.Sort((a, b) =>
+            {
+                return a.Position.CompareTo(b.Position);
+            });
             int last = LastPosition;
             StringBuilder fmt = new StringBuilder();
             for (int i = 0; i <= last; i++)
@@ -375,10 +412,12 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="Column"></param>
         /// <param name="alias"></param>
+        /// <param name="position">Optional position filter</param>
         /// <returns></returns>
-        public DocRecordColumnInfo GetBestMatch(string Column, string alias = null)
+        public DocRecordColumnInfo GetBestMatch(string Column, string alias = null, int position = -1)
         {
-            return Columns.FirstOrDefault(c => (c.OwnerAlias == alias || alias == null) && c.ColumnName == Column) ?? Columns.FirstOrDefault(c => c.ColumnName == Column);
+            return Columns.FirstOrDefault(c => (c.OwnerAlias == alias || alias == null) && c.ColumnName == Column && (position < 0 || c.Position == position)) 
+                ?? Columns.FirstOrDefault(c => c.ColumnName == Column && (position < 0 || c.Position == position));
         }
         /// <summary>
         /// Validates that the column is considered a member of this collection.
@@ -387,7 +426,19 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public bool HasColumn(DocRecordColumnInfo columnInfo)
         {
-            return Columns.Exists(c => c.Position == columnInfo.Position && c.OwnerAlias == columnInfo.OwnerAlias && c.ColumnName == columnInfo.ColumnName);
+            return Columns.Contains(columnInfo);
+        }
+        /// <summary>
+        /// Check if a column exists that matches
+        /// </summary>
+        /// <param name="SpecificAlias"></param>
+        /// <param name="ColumnName"></param>
+        /// <param name="Position"></param>
+        /// <returns></returns>
+        public bool HasColumn(string SpecificAlias, string ColumnName, int Position = -1)
+        {
+
+            return Columns.Exists(c => (c.OwnerAlias == SpecificAlias || SpecificAlias == null) && c.ColumnName == ColumnName && (Position < 0 || c.Position == Position));
         }
         /// <summary>
         /// Access columns by position. 
@@ -431,6 +482,34 @@ namespace SEIDR.Doc
             SetFormat();
             return col;
         }
+        internal void RemoveColumn(string alias, string ColumnName, int position = -1)
+        {
+            if (!HasColumn(alias, ColumnName, position))
+                return;
+            var c = GetBestMatch(ColumnName, alias, position);
+
+            int p = Columns.IndexOf(c) + 1;
+            int l = Columns.Count;
+            for (int i = p; i < l; i++)
+            {                
+                Columns[i].Position -= 1; //move position down by one for removed column.
+            }
+            Columns.Remove(c);
+            SetFormat();
+        }
+        internal void RemoveColumn(DocRecordColumnInfo toRemove)
+        {
+            if (!HasColumn(toRemove))
+                return;            
+            int p = Columns.IndexOf(toRemove) + 1;
+            int l = Columns.Count;
+            for (int i = p; i < l; i++)
+            {                                
+                Columns[i].Position -= 1; //move position down by one for removed column.
+            }
+            Columns.Remove(toRemove);
+            SetFormat();
+        }
         public DocRecordColumnInfo CopyColumnIntoCollection(DocRecordColumnInfo toCopy)
         {
             var col = new DocRecordColumnInfo(toCopy.ColumnName, toCopy.OwnerAlias, LastPosition + 1)
@@ -445,7 +524,7 @@ namespace SEIDR.Doc
 
             if (toCopy.MaxLength == null)
                 canFixedWidth = false;
-
+            
             SetFormat();
             return col;
         }
@@ -491,9 +570,12 @@ namespace SEIDR.Doc
         {
             if(column.Position >= 0)
             {
+                int last = LastPosition;
                 int np = column.Position;
-                for(int i = np; i <= LastPosition; i++)
+                for(int i = np; i <= last; i++)
                 {
+                    if (i > Columns.Count)
+                        break;
                     if (Columns[i].Position > i)
                         break;
                     Columns[i].Position = i + 1;
@@ -536,7 +618,7 @@ namespace SEIDR.Doc
             canFixedWidth = true;
         }        
         public IEnumerator<DocRecordColumnInfo> GetEnumerator()
-        {
+        {            
             return Columns.GetEnumerator();
         }
 

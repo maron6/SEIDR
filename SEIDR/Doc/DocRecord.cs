@@ -113,50 +113,26 @@ namespace SEIDR.Doc
         #endregion
 
         /// <summary>
-        /// Merges the DocRecords and specifies the alias for the new Column Collection underlying.
-        /// <para>The new alias will be used for any new columns added to the underlying collection</para>
+        /// Merges <paramref name="left"/> and <paramref name="right"/> into a new DocRecord using the Column meta data from <paramref name="collection"/>.
         /// </summary>
-        /// <param name="Alias"></param>
+        /// <param name="collection"></param>
         /// <param name="left"></param>
         /// <param name="right"></param>
+        /// <param name="checkExist">If true, only sets the column if it exists in the target collection. Otherwise, may throw na error if <paramref name="left"/> or <paramref name="right"/> contains a column not in the destination.</param>
         /// <returns></returns>
-        public static DocRecord Merge(string Alias, DocRecord left, DocRecord right)
-        {
-            DocRecordColumnCollection columns = DocRecordColumnCollection.Merge(Alias, left.Columns, right.Columns);
-            List<string> newContent = new List<string>(left.Columns.Count + right.Columns.Count);
-            foreach(var col in left.Columns)
-            {
-                newContent.Add(left[col]);
-            }
-            foreach(var col in right.Columns)
-            {
-                newContent.Add(right[col]);
-            }
-            return new DocRecord(columns, left.CanWrite || right.CanWrite, newContent);
-        }/*
-        public DocRecord Merge(DocRecord toMerge)
-        {
-            DocRecordColumnCollection cols = DocRecordColumnCollection.Merge(null, Columns, toMerge.Columns);
-            List<string> newContent = new List<string>(Columns.Count + toMerge.Columns.Count);
-            foreach(var col in Columns)
-            {
-                newContent.Add(this[col]);
-            }
-            foreach(var col in toMerge.Columns)
-            {
-                newContent.Add(toMerge[col]);
-            }
-            return new DocRecord(cols, CanWrite || toMerge.CanWrite, newContent);
-        }*/
-        public static DocRecord Merge(DocRecordColumnCollection collection, DocRecord left, DocRecord right)
+        public static DocRecord Merge(DocRecordColumnCollection collection, DocRecord left, DocRecord right, bool checkExist = false)
         {            
             DocRecord l = new DocRecord(collection, true);
             foreach(var col in left.Columns)
             {
+                if (checkExist && !collection.HasColumn(col.OwnerAlias, col.ColumnName))
+                    continue;
                 l[col.OwnerAlias, col.ColumnName] = left[col];
             }
             foreach(var col in right.Columns)
             {
+                if (checkExist && !collection.HasColumn(col.OwnerAlias, col.ColumnName))
+                    continue;
                 l[col.OwnerAlias, col.ColumnName] = right[col];
             }
             return l;
@@ -196,9 +172,9 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public bool HasColumn(string ColumnName) => HasColumn(null, ColumnName);
         /// <summary>
-        /// Used for determining records...
+        /// Used for determining records information and order/formatting.
         /// </summary>
-        DocRecordColumnCollection Columns;
+        protected DocRecordColumnCollection Columns;        
         List<string> Content;
         //Dictionary<DocRecordColumnInfo, string> Content;
 
@@ -320,7 +296,7 @@ namespace SEIDR.Doc
         {
             Columns = owner;
             CanWrite = canWrite;
-            Content = new List<string>();// new Dictionary<DocRecordColumnInfo, string>();
+            Content = new List<string>(owner.Columns.Count);
         }        
         /// <summary>
         /// Sets up the DocRecord with an owner, CanWrite, and initial content
@@ -331,9 +307,9 @@ namespace SEIDR.Doc
         public DocRecord(DocRecordColumnCollection owner, bool canWrite, IList<string> ParsedContent)
             :this(owner, canWrite)
         {
-            for(int i = 0; i < Columns.Count; i++)
+            for(int i = 0; i < ParsedContent.Count; i++)
             {
-                Content.SetWithExpansion(owner[i].Position, ParsedContent[i]);                
+                Content.SetWithExpansion(i, ParsedContent[i]);
             }
         }
         #endregion
@@ -342,6 +318,10 @@ namespace SEIDR.Doc
         /// Sets whether user can update values of the record.
         /// </summary>
         public bool CanWrite { get; private set; } = false;
+        /// <summary>
+        /// If true, indicates that there was an early line terminator in delimited mode. (e.g. Column meta data indicates that there should be columns 1, 2, 3. But DocRecord only has data for columns 1 and 2)
+        /// </summary>
+        public bool MissingData => Content.Count < Columns.Count;
         /// <summary>
         /// Gets/sets the column using Column name. Uses the column collection's default alias
         /// <para>Can only set the column if <see cref="CanWrite"/> is true.</para>
@@ -369,6 +349,8 @@ namespace SEIDR.Doc
                     if (col == null)
                         throw new ArgumentException("Column not found");
                     Content.SetWithExpansion(col.Position, value);
+                    if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                        col.TextQualify = true;
                 }
                 else
                     throw new InvalidOperationException("Record does not allow writing/updating.");
@@ -385,11 +367,8 @@ namespace SEIDR.Doc
         {
             get
             {
-                string x;
                 var col = Columns[alias, ColumnName];
-                if (col == null)
-                    throw new ArgumentException("Column not found");
-                x = Content[col.Position];
+                string x = Content[col.Position];
                 if (col.NullIfEmpty && x == string.Empty)
                     return null;
                 return x;
@@ -398,10 +377,11 @@ namespace SEIDR.Doc
             {
                 if (CanWrite)
                 {
-                    var col = Columns.GetBestMatch(ColumnName, alias);
-                    if (col == null)
-                        throw new ArgumentException("Column not found");
+
+                    var col = Columns[alias, ColumnName];
                     Content.SetWithExpansion(col.Position, value);
+                    if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                        col.TextQualify = true;
                 }
                 else
                     throw new InvalidOperationException("Record does not allow writing/updating.");
@@ -412,16 +392,35 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="ColumnName"></param>
         /// <param name="alias"></param>
+        /// <param name="position">Optional position filter if source file has more than one column with the same name.</param>
         /// <returns></returns>
-        public string GetBestMatch(string ColumnName, string alias = null)
+        public string GetBestMatch(string ColumnName, string alias = null, int position = -1)
         {
-            var col = Columns.GetBestMatch(ColumnName, alias);
+            var col = Columns.GetBestMatch(ColumnName, alias, position);
             if (col == null)
                 return null;
             string x = Content[col.Position];            
             if (col.NullIfEmpty.And(x == string.Empty))
                 x = null;
             return x;
+        }
+        /// <summary>
+        /// Attempts to set the value for the first column that matches specified criteria.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="ColumnName"></param>
+        /// <param name="alias"></param>
+        /// <param name="position"></param>
+        /// <returns></returns>
+        public bool SetBestMatch(string value, string ColumnName, string alias = null, int position = -1)
+        {
+            var col = Columns.GetBestMatch(ColumnName, alias, position);
+            if (col == null)
+                return false;            
+            if (col.NullIfEmpty.And(value == string.Empty))
+                value = null;
+            Content.SetWithExpansion(col.Position, value);
+            return true;
         }
         /// <summary>
         /// Gets/sets the value associated with the column
@@ -446,6 +445,8 @@ namespace SEIDR.Doc
                     if(!Columns.HasColumn(column))
                         throw new ArgumentException("Column is not a member of the ColumnCollection associated with this record.");
                     Content.SetWithExpansion(column.Position, value);
+                    if (!column.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                        column.TextQualify = true;
                 }
                 else
                     throw new InvalidOperationException("Record is not allowed to write.");
@@ -473,6 +474,8 @@ namespace SEIDR.Doc
                 if (col == null)
                     throw new ArgumentException("No Column specified for position " + columnIndex);
                 Content.SetWithExpansion(columnIndex, value);
+                if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    col.TextQualify = true;
             }
         }
     }

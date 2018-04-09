@@ -112,8 +112,11 @@ namespace SEIDR.Doc
         /// Adds the record to the file via streamWriter
         /// </summary>
         /// <param name="record"></param>
-        /// <param name="columnMapping">Optional mapping override. Positions can be set to null or ignored to use the default mapping</param>
-        public void AddRecord(DocRecord record, IList<DocRecordColumnInfo> columnMapping = null)
+        /// <param name="columnMapping">Optional mapping override. Positions can be set to null or ignored to use the default mapping. 
+        /// <para>Key should be the target position in the output file, value should be the column information from the source.
+        /// </para>
+        /// </param>
+        public void AddRecord(DocRecord record, IDictionary<int, DocRecordColumnInfo> columnMapping = null)
         {
             if (!Columns.Valid)
                 throw new InvalidOperationException("Column state Invalid");
@@ -123,8 +126,8 @@ namespace SEIDR.Doc
                 if (!md.FixedWidthMode && col.TextQualify)
                     sb.Append(Columns.TextQualifier);
                 DocRecordColumnInfo map = col;
-                if (columnMapping != null && idx < columnMapping.Count)
-                    map = columnMapping[idx] ?? col;
+                if (columnMapping != null && columnMapping.ContainsKey(idx))
+                    map = columnMapping[idx];
                 string s = record.GetBestMatch(map.ColumnName, map.OwnerAlias) ?? string.Empty;
                 if (FixedWidthMode)
                 {
@@ -187,7 +190,7 @@ namespace SEIDR.Doc
         /// <param name="record"></param>
         public void AddRecord(string record)
         {
-            AddRecord(Columns.ParseRecord(false, record));
+            AddRecord(Columns.ParseRecord(false, record), null);
         }
         /// <summary>
         /// Parses the strings and maps them using this collection's MetaData. Will add the LineEndDelimiter of this metaData if specified, though.

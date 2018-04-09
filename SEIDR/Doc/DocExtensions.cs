@@ -443,8 +443,8 @@ namespace SEIDR.Doc
         public static string CleanLine(this string line)
         {
             string fastInvalids = @"[\u0000-\u0008\u000B-\u0019\u00A0]";
-            line = System.Text.RegularExpressions.Regex.Replace(line, fastInvalids, "");
-            line = System.Text.RegularExpressions.Regex.Replace(line, @"[\u0092]", "'");
+            line = Regex.Replace(line, fastInvalids, "");
+            line = Regex.Replace(line, @"[\u0092]", "'");
             return line;
         }
         /// <summary>
@@ -460,7 +460,10 @@ namespace SEIDR.Doc
             string[] switcher = line.Split(TextQual);
             for (int i = 0; i < switcher.Length; i += 2)
             {
-                switcher[i] = switcher[i].Replace(delimiter, (char)0);
+                System.Text.StringBuilder sb = new System.Text.StringBuilder(switcher[i]);
+                sb.Replace("" + (char)0, string.Empty);
+                sb.Replace(delimiter, (char)0);
+                switcher[i] = sb.ToString();
             }
             line = string.Join("" + TextQual, switcher);
             return line.Split((char)0);

@@ -40,14 +40,17 @@ namespace SEIDR.Test
             using (DocReader r1 = new DocReader("r1", FilePath))
             using (DocReader r2 = new DocReader("r2", FilePath))
             {
-                DocMetaData dm = new DocMetaData(TEST_FOLDER + "multiWrit.txt", "w").CopyDetailedColumnCollection(DocRecordColumnCollection.Merge("w", r1.Columns, r2.Columns)).SetDelimiter('|');
+                DocMetaData dm = new DocMetaData(TEST_FOLDER + "multiWrit.txt", "w")
+                    .CopyDetailedColumnCollection(DocRecordColumnCollection.Merge("w", r1.Columns, r2.Columns))
+                    .RemoveColumn("LineNumber", "r2")
+                    .SetDelimiter('|');
                 using (DocWriter dw = new DocWriter(dm))
                 {
                     foreach(var r1r in r1)
                     {
                         foreach(var r2r in r2)
                         {
-                            var dwr = DocRecord.Merge(dw.Columns, r1r, r2r);
+                            var dwr = DocRecord.Merge(dw.Columns, r1r, r2r, checkExist: true); 
                             dwr["r1", "Description"] = "R1  - " + dwr["r1", "Description"];
                             dwr["r2", "Description"] = "R2  - " + dwr["r2", "Description"];
                             dw.AddRecord(dwr);
@@ -57,7 +60,7 @@ namespace SEIDR.Test
                     {
                         foreach (var r1r in r1)
                         {
-                            var dwr = DocRecord.Merge(dw.Columns, r2r, r1r);
+                            var dwr = DocRecord.Merge(dw.Columns, r2r, r1r, checkExist: true);//removed a column above, so need  checkExist set to true.
                             dwr["r1", "Description"] = "R1  SECOND - " + dwr["r1", "Description"];
                             dwr["r2", "Description"] = "R2  SECOND - " + dwr["r2", "Description"];
                             dw.AddRecord(dwr);
@@ -98,6 +101,35 @@ namespace SEIDR.Test
             m.Dispose();
             r.Dispose();
         }
+        [TestMethod]
+        public void ToFixWidthFile()
+        {
+            DocMetaData mixed = new DocMetaData(MultiLineEndFilePath, "Multi")                
+                 .SetHasHeader(true)
+                 .AddMultiLineEndDelimiter("\r", "\n"); //The normal LineEnd Delimiter is also going to be included when actually reading.
+            mixed.CanWrite = true;
+            using (DocReader m = new DocReader(mixed))
+            {
+                var extra = new DocRecordColumnInfo("", "fw", 1).SetMaxLength(5);
+                DocMetaData fixWidth = new DocMetaData(TEST_FOLDER + "FixWidth.txt", "fw")
+                    .AddDetailedColumnCollection(mixed.Columns);
+                fixWidth
+                    .AddDetailedColumn(extra);
+                fixWidth.Columns["LineNumber"].SetMaxLength("LineNumber".Length).SetLeftJustify(false);
+                fixWidth.Columns["Garbage"].SetMaxLength(300);
+                fixWidth.Columns["Description"].SetMaxLength(120);
+                fixWidth.TrySetFixedWidthMode(true);
+                using (var w = new DocWriter(fixWidth))
+                {
+                    foreach(var record in m)
+                    {
+                        w.AddRecord(record);
+                    }
+                }
+            }
+            
+        }
+
         void FilePrep()
         {
             DirectoryInfo di = new DirectoryInfo(TEST_FOLDER);
@@ -201,8 +233,8 @@ LineNumber|Description
             md= new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.txt", "F").AddDelimitedColumns("LineNumber", "Empty", "Description", "Empty", "Test").SetDelimiter('\t').SetHasHeader(true);
             var w = new DocWriter(md);
             w.SetTextQualify(true, "Description", "Test");
-            List<DocRecordColumnInfo> map = new List<DocRecordColumnInfo>();
-            map.AddRange(null, null, null, null, md2.Columns["LineNumber"]);
+            Dictionary<int, DocRecordColumnInfo> map = new Dictionary<int, DocRecordColumnInfo>();
+            map[md.Columns["Test"].Position] = md2.Columns["LineNumber"]; //Position = 4 should be the 
             foreach(var record in r)
             {                
                 w.AddRecord(record, map);
@@ -222,6 +254,78 @@ LineNumber|Description
             string s2 = File.ReadAllText(md2.FilePath).Substring(md2.GetHeader().Length);
             Assert.AreNotEqual(File.ReadAllText(md.FilePath), File.ReadAllText(md2.FilePath)); //Meta data was ignored, so even though the md has a different header, the content is the same.
             Assert.AreEqual(s, s2);
+        }
+        const int nineNineMil = 99999999; //2 min for Inheritance record test, 3 min for Inheritance RecordTestUpdate
+        const int nineNineHT = 9999999; //14 seconds for InheritanceRecordTest, 18 seconds for Inheritance RecordTestUpdate
+        [TestMethod]
+        public void InheritanceRecordTest()
+        {
+            FilePrep();
+            var md = new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
+                .AddDelimitedColumns("LineNumber", "Description")
+                .SetDelimiter('|')
+                .SetHasHeader(false);
+            using (var w = new DocWriter(md))
+            {
+                for (int i = 1; i < nineNineHT; i++)
+                {
+                    var ti = new TestRecordInheritance(w.Columns, i, "Line # " + i); //initialize with constructor originall, will be a bit faster.
+                    if (i % 183 == 0)
+                        ti.Description += " - Mod 183 = 0";
+                    w.AddRecord(ti);
+                }
+            }
+        }
+        [TestMethod]
+        public void InheritanceRecordTestUpdate()
+        {
+            FilePrep();
+            var md = new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
+                .AddDelimitedColumns("LineNumber", "Description")
+                .SetDelimiter('|')
+                .SetHasHeader(false);
+            using (var w = new DocWriter(md))
+            {
+                for (int i = 1; i < nineNineHT; i++)
+                {
+                    var ti = new TestRecordInheritance(w.Columns) //Update columns *after* constructor
+                    {
+                        LineNumber = i,
+                        Description = "Line # " + i
+                    };
+                    if (i % 183 == 0)
+                        ti.Description += " - Mod 183 = 0";
+                    w.AddRecord(ti);
+                }
+            }
+        }
+
+    }
+
+    public class TestRecordInheritance: DocRecord
+    {
+        public TestRecordInheritance(DocRecordColumnCollection columnCollection, int LineNumber, string Description)
+            :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description })
+        {
+
+        }
+        public TestRecordInheritance(DocRecordColumnCollection col)
+            : base(col, true)
+        {
+        }
+        public TestRecordInheritance(DocRecordColumnCollection col, IList<string> parsedContent)
+            : base(col, true, parsedContent)
+        {
+        }
+        public int LineNumber
+        {
+            get { return Convert.ToInt32(this[nameof(LineNumber)]); }
+            set { this[nameof(LineNumber)] = value.ToString(); }
+        }
+        public string Description
+        {
+            get { return this[nameof(Description)]; }
+            set { this[nameof(Description)] = value; }
         }
     }
 }
