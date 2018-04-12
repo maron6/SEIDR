@@ -67,6 +67,7 @@ namespace SEIDR.Doc
         /// <para>E.g., final column ends as soon as it reaches a newline instead of after <see cref="MaxLength"/> characters</para>
         /// <para>Note: last column in fixed width should account for the space taken by NewLine</para>
         /// </summary>
+        [Obsolete("Correct usage not fully implemented, not planned.")]
         public string EarlyTerminator { get; set; } = null;
         /// <summary>
         /// Name of the column

@@ -350,7 +350,10 @@ namespace SEIDR.Doc
                         throw new ArgumentException("Column not found");
                     Content.SetWithExpansion(col.Position, value);
                     if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    {
                         col.TextQualify = true;
+                        Columns.SetFormat();
+                    }
                 }
                 else
                     throw new InvalidOperationException("Record does not allow writing/updating.");
@@ -381,7 +384,10 @@ namespace SEIDR.Doc
                     var col = Columns[alias, ColumnName];
                     Content.SetWithExpansion(col.Position, value);
                     if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    {
                         col.TextQualify = true;
+                        Columns.SetFormat();
+                    }
                 }
                 else
                     throw new InvalidOperationException("Record does not allow writing/updating.");
@@ -446,7 +452,10 @@ namespace SEIDR.Doc
                         throw new ArgumentException("Column is not a member of the ColumnCollection associated with this record.");
                     Content.SetWithExpansion(column.Position, value);
                     if (!column.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    {
                         column.TextQualify = true;
+                        Columns.SetFormat();
+                    }
                 }
                 else
                     throw new InvalidOperationException("Record is not allowed to write.");
@@ -475,7 +484,10 @@ namespace SEIDR.Doc
                     throw new ArgumentException("No Column specified for position " + columnIndex);
                 Content.SetWithExpansion(columnIndex, value);
                 if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                {
                     col.TextQualify = true;
+                    Columns.SetFormat();
+                }
             }
         }
     }

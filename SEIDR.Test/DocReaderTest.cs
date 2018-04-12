@@ -78,6 +78,7 @@ namespace SEIDR.Test
             DocMetaData mixed = new DocMetaData(MultiLineEndFilePath, "Multi")
                 .SetHasHeader(true)
                 .AddMultiLineEndDelimiter("\r", "\n"); //The normal LineEnd Delimiter is also going to be included when actually reading.
+            mixed.CanWrite = true;
             DocReader m = new DocReader(mixed);
             var normal = r.GetPage(0);
             var mixPage = m.GetPage(0);
@@ -96,7 +97,10 @@ namespace SEIDR.Test
             using(DocWriter dw = new DocWriter(doc))
             {
                 foreach (var rec in m)
+                {
+                    rec["Description"] += "\t Test"; 
                     dw.AddRecord(rec);
+            	}
             }
             m.Dispose();
             r.Dispose();
@@ -104,6 +108,7 @@ namespace SEIDR.Test
         [TestMethod]
         public void ToFixWidthFile()
         {
+            FilePrep();
             DocMetaData mixed = new DocMetaData(MultiLineEndFilePath, "Multi")                
                  .SetHasHeader(true)
                  .AddMultiLineEndDelimiter("\r", "\n"); //The normal LineEnd Delimiter is also going to be included when actually reading.
@@ -165,7 +170,7 @@ namespace SEIDR.Test
             };
             string multiEndcontent = "LineNumber|Garbage|Description\r1|alifmaif|First\r\n2|aliefnaognaognagfnbaovoaignaoehngvoah|Second\n3|lai fmaovfhahv aawoief jslafima|Third\r\n"
                 + "4|amfoeaijvnba[pbn [a a[va[n apv mfa,iutva;fja jan b[a [anmvfiesp|Fourth\r\n5|oaifjvnamv  anafjwno; nafsaj|Fifth\r\n"
-                + "6|al;vin ;ambivewauwfu sma[nbmaj[nb|Sixth\r7|a;vnslirj|Seventh\n8|Testjao;sv garbage|Eighth\r\n9||Ninth\r"
+                + "6|al;vin ;\"  |  \"ambivewauwfu sma[nbmaj[nb|Sixth\r7|a;vnslirj|Seventh\n8|Testjao;sv garbage|Eighth\r\n9||Ninth\r"
                 + "10|a;svna tbija nswowros snv|Tenth";
             if (File.Exists(FilePath))
                 File.Delete(FilePath);
@@ -193,6 +198,7 @@ namespace SEIDR.Test
             Assert.AreEqual('|', r.Columns.Delimiter);
             var l = r.GetPage(0);
             Assert.AreEqual(10, l.Count);
+            Assert.AreEqual(10, r.RecordCount);
             var rec = l[0];            
             Assert.AreEqual("1", l[0]["LineNumber"]);
             Assert.AreEqual("Second", l[1]["Description"]);            
@@ -206,6 +212,7 @@ namespace SEIDR.Test
             Assert.AreEqual(2, r.Columns.Count);
             l = r.GetPage(0);
             Assert.AreEqual(8, l.Count);
+            Assert.AreEqual(8, r.RecordCount); //skipped the first 2 lines, so record count should also go down by 2.
             r.Dispose();
             md.SetPageSize(30);
             //md.PageSize = 30; 
@@ -260,25 +267,32 @@ LineNumber|Description
         [TestMethod]
         public void InheritanceRecordTest()
         {
+            const int LOOP_LIMIT = nineNineHT;
             FilePrep();
             var md = new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
-                .AddDelimitedColumns("LineNumber", "Description")
+                .AddDelimitedColumns("LineNumber", "Description", "IsMod183")
                 .SetDelimiter('|')
                 .SetHasHeader(false);
             using (var w = new DocWriter(md))
             {
-                for (int i = 1; i < nineNineHT; i++)
+                for (int i = 1; i <= LOOP_LIMIT; i++)
                 {
-                    var ti = new TestRecordInheritance(w.Columns, i, "Line # " + i); //initialize with constructor originall, will be a bit faster.
-                    if (i % 183 == 0)
+                    bool b = i % 183 == 0;
+                    var ti = new TestRecordInheritance(w.Columns, i, "Line # " + i, b); //initialize with constructor originall, will be a bit faster.
+                    if (b)
                         ti.Description += " - Mod 183 = 0";
                     w.AddRecord(ti);
                 }
+            }
+            using (var dr = new DocReader(md))
+            {
+                Assert.AreEqual(LOOP_LIMIT, dr.RecordCount);
             }
         }
         [TestMethod]
         public void InheritanceRecordTestUpdate()
         {
+            const int LOOP_LIMIT = nineNineHT;
             FilePrep();
             var md = new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
                 .AddDelimitedColumns("LineNumber", "Description")
@@ -286,7 +300,7 @@ LineNumber|Description
                 .SetHasHeader(false);
             using (var w = new DocWriter(md))
             {
-                for (int i = 1; i < nineNineHT; i++)
+                for (int i = 1; i <= LOOP_LIMIT; i++)
                 {
                     var ti = new TestRecordInheritance(w.Columns) //Update columns *after* constructor
                     {
@@ -298,14 +312,18 @@ LineNumber|Description
                     w.AddRecord(ti);
                 }
             }
+            using (var dr = new DocReader(md))
+            {
+                Assert.AreEqual(LOOP_LIMIT, dr.RecordCount);
+            }
         }
 
     }
 
     public class TestRecordInheritance: DocRecord
     {
-        public TestRecordInheritance(DocRecordColumnCollection columnCollection, int LineNumber, string Description)
-            :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description })
+        public TestRecordInheritance(DocRecordColumnCollection columnCollection, int LineNumber, string Description, bool mod)
+            :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description , mod? "true": "false" })
         {
 
         }
@@ -326,6 +344,17 @@ LineNumber|Description
         {
             get { return this[nameof(Description)]; }
             set { this[nameof(Description)] = value; }
+        }
+        public bool IsMod183
+        {
+            get { return this[nameof(IsMod183)] == "true"; }
+            set
+            {
+                if (value)
+                    this[nameof(IsMod183)] = "true";
+                else
+                    this[nameof(IsMod183)] = "false";
+            }
         }
     }
 }

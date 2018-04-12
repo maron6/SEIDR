@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
@@ -81,15 +83,62 @@ namespace SEIDR.Doc
         {
             string Delimiter = "|" + ",\t;:";
             char current = '\0';
+            int mx = 1;            
             foreach (char i in Delimiter)
             {
-                if (line.Split(i).Length > 1)
+                int x = line.Split(i).Length;
+                if (x > mx)
                 {
                     current = i;
-                    break;
+                    mx = x;
                 }
             }
             return current;
+        }
+        /// <summary>
+        /// Guess the delimiter from a List of strings, assuming they will have the same primary delimiter.
+        /// </summary>
+        /// <param name="lines"></param>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static char GuessDelimiter(this IList<string> lines, int count = 1000)
+        {
+            if (lines.Count == 0)
+                throw new ArgumentException("Expected populated list - received empty list", nameof(lines));
+            if (lines.Count < count)
+                count = lines.Count;
+            char tb = (char) 0;
+            int maxCount = 0;
+            Dictionary<char, int> counter = new Dictionary<char, int>();
+            for(int i = 0; i < count; i++)
+            {
+                char ck = lines[i].GuessDelimiter();
+                if (i == 0)
+                    tb = ck;
+                if (counter.ContainsKey(ck))
+                {
+                    int temp = ++counter[ck];
+                    if (temp > maxCount)
+                        maxCount = temp;
+                }
+                else
+                {
+                    counter[ck] = 1;
+                    if (maxCount == 0)
+                        maxCount = 1;
+                }
+            }
+            var query = (from kv in counter
+                         where kv.Value > maxCount / 2
+                         select kv.Key);
+            if (query.HasMinimumCount(2))
+            {
+                if (query.Contains(tb))
+                    return tb;
+                return query.First();
+            }            
+            else
+                return query.First(); 
         }
         /// <summary>
         /// Uses md5 to create a hash of the file content. Returns null if the file does not exist.
@@ -103,18 +152,25 @@ namespace SEIDR.Doc
             return GetFileHash(file.FullName);
         }
         /// <summary>
-        /// Uses md5 to create a hash of the file's content
+        /// Uses md5 to create a hash of the file content from the file whose path is specified.
+        /// <para>Returns null if file does not exist.</para>
         /// </summary>
         /// <param name="fullFilePath"></param>
         /// <returns></returns>
         public static string GetFileHash(this string fullFilePath)
         {
-
+            if (!File.Exists(fullFilePath))
+                return null;
             using (FileStream fs = new FileStream(fullFilePath, FileMode.Open, FileAccess.Read))
             {
-                var m = System.Security.Cryptography.MD5.Create();
-                return m.ComputeHash(fs).ToString();
+                return Convert.ToBase64String((new System.Security.Cryptography.SHA512Managed()).ComputeHash(fs));
             }
+            
+            //using (FileStream fs = new FileStream(fullFilePath, FileMode.Open, FileAccess.Read))
+            //{
+            //    var m = System.Security.Cryptography.MD5.Create();
+            //    return Convert.ToBase64String(m.ComputeHash(fs));
+            //}
         }
         /// <summary>
         /// Add listed attributes to the File and refreshes the FilInfo. Does nothing if the File doesn't exist.

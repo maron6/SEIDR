@@ -278,7 +278,7 @@ namespace SEIDR.Doc
         public string LineEndDelimiter { get; set; } = Environment.NewLine;
         bool fixedWidthMode = false;
         internal string format;
-        void SetFormat()
+        internal void SetFormat()
         {
             if (!Valid)
                 return;

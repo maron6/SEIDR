@@ -138,6 +138,12 @@ namespace SEIDR.Doc
                 }
                 else
                 {
+                    if (s.Contains(Columns.Delimiter.Value) && !col.TextQualify)
+                    {
+                        sb.Append(Columns.TextQualifier);
+                        col.TextQualify = true; //force text qualify in the column going forward.
+                    }
+
                     sb.Append(s);
                     if (col.TextQualify)
                         sb.Append(Columns.TextQualifier);

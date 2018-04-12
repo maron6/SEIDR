@@ -213,7 +213,7 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="file"></param>
         /// <param name="alias"></param>
-        public DocMetaData(string file, string alias)
+        public DocMetaData(string file, string alias = null)
         {
             FilePath = file;
             if (string.IsNullOrWhiteSpace(alias))

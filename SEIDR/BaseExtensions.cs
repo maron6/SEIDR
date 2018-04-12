@@ -32,12 +32,12 @@
         public static string GetDescription(this Enum value)
         {
             Type t = value.GetType();
-            var mem = t.GetMember(nameof(value));
+            var mem = t.GetMember(value.ToString());
             if (mem != null && mem.Length == 1)
             {
                 return mem[0].GetDescription();
             }
-            return nameof(value);
+            return value.ToString();
         }
         #endregion
 
