@@ -22,40 +22,81 @@ namespace SEIDR.Doc
         /// Column position for getting a record from an <see cref="IRecord"/>
         /// </summary>
         public int Position => _Position;
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="position"></param>
+        /// <param name="ascOrder"></param>
         public SortColumn(int position, bool ascOrder = true)
         {
             _Position = position;
             SortASC = ascOrder;
         }
     }
+    /// <summary>
+    /// Default DocSorter, for <see cref="DocRecord"/> collection
+    /// </summary>
     public class DocSorter : DocSorter<DocRecord>
     {
+        /// <summary>
+        /// Constructor with DocReader, columns to sort on
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="mainSort">Sort columns</param>
         public DocSorter(DocReader source, params IRecordColumnInfo[] mainSort)
             :base(source, mainSort)
         {
-
+        }
+        /// <summary>
+        /// Constructor with DocReader, columns to sort on
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="createIndexFile">If true, will auto create the index at the end of construction</param>
+        /// <param name="mainSort">Sort columns</param>
+        public DocSorter(DocReader source, bool createIndexFile, params IRecordColumnInfo[] mainSort)
+            : base(source, createIndexFile, mainSort)
+        {
+        }
+        /// <summary>
+        /// Constructor with DocReader, columns to sort on
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="createIndexFile">If true, will auto create the index at the end of construction</param>
+        /// <param name="disposeCleansIndex">If true, <see cref="DocSorter{DocRecord}.Dispose()"/> will also delete the sort index file.</param>
+        /// <param name="mainSort">Sort columns</param>
+        public DocSorter(DocReader source, bool createIndexFile, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
+            : base(source, createIndexFile, disposeCleansIndex, mainSort)
+        {
         }
     }
+
+    /// <summary>
+    /// Parameterized sorter for a parameterized DocReader.
+    /// </summary>
+    /// <typeparam name="G"></typeparam>
     public class DocSorter<G>:IEnumerable<G>, IDisposable where G:DocRecord, new()
     {
         DocReader<G> _source;
         List<IRecordColumnInfo> sortColumns = new List<IRecordColumnInfo>();
-
         /// <summary>
         /// Constructor. Parameters: Parameterized DocReader, column to sort on.
         /// </summary>
         /// <param name="source"></param>
+        /// <param name="createIndex">If true, will auto create the index at the end of construction</param>
+        /// <param name="disposeCleansIndex">If true, <see cref="Dispose()"/> will also delete the sort index file.</param>
         /// <param name="mainSort"></param>
-        public DocSorter(DocReader<G> source, params IRecordColumnInfo[] mainSort)
+        public DocSorter(DocReader<G> source, bool createIndex, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
         {
             FileInfo f = new FileInfo(source.FilePath);
             if (!f.Exists)
-                throw new ArgumentException("FilePath of source not a valid file.", nameof(source));            
+                throw new ArgumentException("FilePath of source not a valid file.", nameof(source));
+            if (mainSort.Exists(r => r == null))
+                throw new ArgumentException("Cannot use null as a sort column", nameof(mainSort));
             _source = source;
 
             sortColumns = new List<IRecordColumnInfo>(mainSort);
-            INDEX_PATH = f.FullName + "." + EXTENSION;
-            index = new DocMetaData(INDEX_PATH, EXTENSION)
+            INDEX_PATH = f.FullName + "." + INDEX_EXTENSION;
+            index = new DocMetaData(INDEX_PATH, INDEX_EXTENSION)
                 .AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
                 .SetFileAccess(FileAccess.ReadWrite)
                 .SetDelimiter(DELIM)
@@ -65,12 +106,41 @@ namespace SEIDR.Doc
             if (idx.Exists)
             {
                 if (idx.CreationTime > f.LastWriteTime)
+                {
+                    indexReader = new DocReader<sortInfo>(index);
                     return; //don't need to sort index.
+                }
                 File.Delete(idx.FullName);
             }
-            CreateSortIndex();
+            if(createIndex)
+                CreateSortIndex();
+            CleanIndexFile = disposeCleansIndex;
         }
-        const string EXTENSION = "sidxf";
+        /// <summary>
+        /// Check if the sort index has been created.
+        /// </summary>
+        public bool SortIndexConfigured => index.CheckExists();
+        /// <summary>
+        /// Constructor. Parameters: Parameterized DocReader, column to sort on.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="mainSort"></param>
+        public DocSorter(DocReader<G> source, params IRecordColumnInfo[] mainSort)
+            :this(source, true, true, mainSort)
+        {         
+        }
+        /// <summary>
+        /// Constructor. Parameters: Parameterized DocReader, column to sort on.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="createIndex">If true, will auto create the index at the end of construction</param>
+        /// <param name="mainSort"></param>
+        public DocSorter(DocReader<G> source, bool createIndex, params IRecordColumnInfo[] mainSort) 
+            :this(source, createIndex, true, mainSort)
+        {
+
+        }
+        const string INDEX_EXTENSION = "sidxf";
         readonly string INDEX_PATH;
         DocMetaData index;
         DocReader<sortInfo> indexReader;
@@ -134,24 +204,52 @@ namespace SEIDR.Doc
             throw new NotImplementedException();
         }
         #endregion
-        public DocSorter<G> AddSortColumn(IRecordColumnInfo toSort)
+
+        /// <summary>
+        /// Adds one or more column sort information to the list of columns to sort.
+        /// </summary>
+        /// <param name="toSort"></param>
+        /// <returns></returns>
+        public DocSorter<G> AddSortColumn(params IRecordColumnInfo[] toSort)
         {
-            sortColumns.Add(toSort);
+            if (toSort.Exists(r => r == null))
+                throw new ArgumentException("Cannot use null as a sort column", nameof(toSort));
+
+            sortColumns.AddRange(toSort);
+            return this;
+        }
+        /// <summary>
+        /// clears the columns associated with sorting. Does not clear the index if that has been created
+        /// </summary>
+        /// <returns></returns>
+        public DocSorter<G> ResetSortColumns()
+        {
+            sortColumns.Clear();
             return this;
         }
         const char DELIM = '|';
         const string LINE_END = "\n";
         #region index creation, management
-
+        /// <summary>
+        /// Deletes the sort index associated with the DocReader's file.
+        /// </summary>
+        public void DeleteSortIndex()
+        {
+            indexReader.Dispose();
+            if (File.Exists(INDEX_PATH))
+                File.Delete(INDEX_PATH);
+        }
         /// <summary>
         /// Creates the sort index for pulling data from the initially passed <see cref="DocReader{ReadType}"/>
         /// </summary>
         public void CreateSortIndex()
         {
+            if (sortColumns.Count == 0)
+                throw new InvalidOperationException("No Sort columns specified");
             sort = new Comparison<IRecord>((a, b) =>
             {
                 foreach (var col in sortColumns)
-                {
+                {                    
                     string l = a[col.Position];
                     string r = b[col.Position];
 
@@ -177,7 +275,7 @@ namespace SEIDR.Doc
         }
         void sortPage(int page)
         {
-            DocMetaData pidx = new DocMetaData(INDEX_PATH + page, EXTENSION + page)
+            DocMetaData pidx = new DocMetaData(INDEX_PATH + page, INDEX_EXTENSION + page)
                 .AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
                 .SetFileAccess(FileAccess.Write)
                 .SetPageSize(index.PageSize)
@@ -243,7 +341,7 @@ namespace SEIDR.Doc
             bool useW1 = true;
             for (int page = 1; page < _source.PageCount; page++)
             {
-                DocMetaData pidx = new DocMetaData(INDEX_PATH + page, EXTENSION + page)
+                DocMetaData pidx = new DocMetaData(INDEX_PATH + page, INDEX_EXTENSION + page)
                     .AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
                     .SetFileAccess(FileAccess.Read)
                     .SetPageSize(index.PageSize)
@@ -440,7 +538,7 @@ namespace SEIDR.Doc
         Comparison<IRecord> sort;
         IList<IRecord> GetIndexPage(int page)
         {
-            DocMetaData dm = new DocMetaData(INDEX_PATH + page, EXTENSION + page)
+            DocMetaData dm = new DocMetaData(INDEX_PATH + page, INDEX_EXTENSION + page)
                 .AddDelimitedColumns(nameof(sortInfo.Line))
                 .SetFileAccess(FileAccess.Read)
                 .SetHasHeader(false);
@@ -474,7 +572,7 @@ namespace SEIDR.Doc
         }
 
         /// <summary>
-        /// Delete the index file during disposal
+        /// If true, delete the index file during <see cref="Dispose"/>
         /// </summary>
         public bool CleanIndexFile { get; set; } = true;
         #region IDisposable Support
@@ -504,7 +602,9 @@ namespace SEIDR.Doc
             Dispose(false);
         }
 
-        // This code added to correctly implement the disposable pattern.
+        /// <summary>
+        /// IDisposable support
+        /// </summary>
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.

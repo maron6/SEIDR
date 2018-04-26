@@ -373,7 +373,14 @@ namespace SEIDR.Doc
                 return _FileHash;
             }
         }
-
+        /// <summary>
+        /// Check if the file exists
+        /// </summary>
+        /// <returns></returns>
+        public bool CheckExists()
+        {            
+            return File.Exists(FilePath);
+        }
 
     }   
 }
