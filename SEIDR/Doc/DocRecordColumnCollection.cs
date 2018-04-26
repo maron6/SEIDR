@@ -209,6 +209,69 @@ namespace SEIDR.Doc
             }
             DocRecord r = new DocRecord(this, writeMode, split);
             return r;
+        }
+        /// <summary>
+        /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
+        /// </summary>
+        /// <param name="writeMode"></param>
+        /// <param name="record"></param>
+        /// <returns></returns>
+        public ReadType ParseRecord<ReadType>(bool writeMode, string record) where ReadType:DocRecord, new()
+        {            
+            if (string.IsNullOrEmpty(record))
+                return null;
+            if (!Valid)
+                throw new InvalidOperationException("Collection state is not valid.");
+            string[] split = new string[LastPosition];
+            int position = 0;
+            for (int i = 0; i < Columns.Count; i++)
+            {
+                if (position >= record.Length)
+                {
+                    //have gone beyond length of record
+                    if (ThrowExceptionColumnCountMismatch)
+                        throw new MissingColumnException(i, Columns.Count - 1);
+                    break;
+                }
+                if (fixedWidthMode)
+                {
+                    int x = Columns[i].MaxLength.Value;
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read
+                    int nextPosition = record.IndexOf(Columns[i].EarlyTerminator);
+                    if (nextPosition < 0)
+                    {
+
+                        split[i] = record.Substring(position, x);
+                        //break;
+                    }
+                    if (nextPosition - position < x)
+                        x = nextPosition - position;
+                    split[i] = record.Substring(position, x);
+                    position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else
+                {
+                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    if (ThrowExceptionColumnCountMismatch)
+                    {
+                        if (split.Length < Columns.Count)
+                        {
+                            if (!AllowMissingColumns)
+                                throw new MissingColumnException(split.Length, Columns.Count);
+                        }
+                        else if (split.Length > Columns.Count)
+                            throw new ColumnOverflowException(split.Length, Columns.Count);
+                    }
+                    break;
+                }
+
+            }
+            ReadType r = new ReadType();
+            r.Configure(this, writeMode, split);
+            return r;
         }        
         /// <summary>
         /// If true, throws an exception if the size of a record is too big or too small, based on number of records.

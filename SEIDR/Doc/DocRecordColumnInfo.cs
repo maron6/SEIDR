@@ -7,10 +7,28 @@ using System.Threading.Tasks;
 namespace SEIDR.Doc
 {
     /// <summary>
+    /// Column information
+    /// </summary>
+    public interface IRecordColumnInfo
+    {
+        /// <summary>
+        /// Column position in a record.
+        /// </summary>
+        int Position { get; }
+        /// <summary>
+        /// If sort is ascending order.
+        /// </summary>
+        bool SortASC { get; set; } 
+    }
+    /// <summary>
     /// Column information for Doc Reader/Writer
     /// </summary>
-    public sealed class DocRecordColumnInfo
-    {        
+    public sealed class DocRecordColumnInfo : IRecordColumnInfo
+    {
+        /// <summary>
+        /// Sort order for <see cref="IRecordColumnInfo"/>
+        /// </summary>
+        bool IRecordColumnInfo.SortASC { get; set; } = true;
         /// <summary>
         /// If true, a value matching <see cref="string.Empty"/> will be treated as null.
         /// </summary>

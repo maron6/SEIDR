@@ -13,11 +13,75 @@ namespace SEIDR.Doc
     /// Includes paging for working with large files in batches
     /// </para>
     /// </summary>
-    public class DocReader:IEnumerable<DocRecord>, IDisposable
+    public class DocReader : DocReader<DocRecord>
     {
+
+        /// <summary>
+        /// Basic constructor, no meta data configured yet.
+        /// </summary>
+        public DocReader() : base() { }
+        /// <summary>
+        /// Sets up a doc reader for DocRecord enumeration.
+        /// </summary>
+        /// <param name="info"></param>
+        public DocReader(DocMetaData info) : base(info) { }
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="alias"></param>
+        /// <param name="FilePath"></param>
+        /// <param name="LineEnd"></param>
+        /// <param name="Delimiter"></param>
+        public DocReader(string alias, string FilePath, string LineEnd = null, char? Delimiter = null, int? pageSize = null)
+            :base(alias, FilePath, LineEnd, Delimiter, pageSize) { }
+
+        /// <summary>
+        /// Gets the DocRecords from the page.
+        /// </summary>
+        /// <param name="pageNumber"></param>
+        /// <param name="useCache">If true and a specific page is accessed more than once in a row, will immediately return a cached reference to the List.</param>
+        /// <returns></returns>
+        public override List<DocRecord> GetPage(int pageNumber, bool useCache = true)
+        {
+            if (pageNumber == lastPage && CurrentPage != null && useCache)
+                return CurrentPage;
+            var lines = GetPageLines(pageNumber);
+            List<DocRecord> LineRecords = new List<DocRecord>();
+            lines.ForEachIndex((line, idx) =>
+            {
+                var rec = Columns.ParseRecord(md.CanWrite, line);
+                if (rec == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Empty Record found! Page: " + pageNumber + ", LineNumber: " + idx);
+                    /*
+                    if (idx == lines.Count)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Last Line of page - Skipping empty record.");
+                        return;
+                    }*/
+                }
+                LineRecords.Add(rec);
+            }, 1, 1);
+            CurrentPage = LineRecords;
+            return LineRecords;
+        }
+    }
+
+    /// <summary>
+    /// Allows reading a delimited or fixed width file based on meta data. <para>
+    /// Includes paging for working with large files in batches
+    /// </para>
+    /// </summary>
+    public class DocReader<ReadType>:IEnumerable<ReadType>, IDisposable where ReadType:DocRecord, new()
+    {
+
         FileStream fs;
         StreamReader sr;
-        DocMetaData md;
+        protected DocMetaData md;
+        /// <summary>
+        /// Underlying MetaData
+        /// </summary>
+        public DocMetaData MetaData => md;
         /// <summary>
         /// Columns associated with the meta data.
         /// </summary>
@@ -34,7 +98,7 @@ namespace SEIDR.Doc
         /// File alias, from meta data
         /// </summary>
         public string Alias => md.Alias;
-        
+
         /// <summary>
         /// Sets up a doc reader for DocRecord enumeration.
         /// </summary>
@@ -44,11 +108,14 @@ namespace SEIDR.Doc
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             if (!info.AccessMode.HasFlag(FileAccess.Read))
-                throw new ArgumentException(nameof(info), "Not Configured for read mode");                
-            md = info;            
-            SetupStream();            
+                throw new ArgumentException(nameof(info), "Not Configured for read mode");
+            md = info;
+            SetupStream();
         }
-        
+        /// <summary>
+        /// Number of records in the file
+        /// </summary>
+        public long RecordCount { get; private set; } = 0;
         /// <summary>
         /// Reconfigures the Reader settings/paging information, using any changes to the DocMetaData that was provided
         /// </summary>
@@ -58,9 +125,9 @@ namespace SEIDR.Doc
             if(md.LineEndDelimiter != null && !md.MultiLineEndDelimiter.Contains(md.LineEndDelimiter))
                     md.AddMultiLineEndDelimiter(md.LineEndDelimiter);
             else if (md.ReadWithMultiLineEndDelimiter && md.LineEndDelimiter == null)
-            {                
-                md.Columns.LineEndDelimiter = md.MultiLineEndDelimiter[0];                
-            }            
+            {
+                md.Columns.LineEndDelimiter = md.MultiLineEndDelimiter[0];
+            }
             if (!md.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter))
                 throw new InvalidOperationException("Cannot Do Delimited document without a line End delimiter.");
             if (md.FixedWidthMode && !md.HeaderConfigured)
@@ -70,13 +137,14 @@ namespace SEIDR.Doc
 
             disposedValue = false;
             if (sr != null) { sr.Close(); sr = null; }
-            if (fs != null) { fs.Close(); fs = null; }            
+            if (fs != null) { fs.Close(); fs = null; }
             fs = new FileStream(md.FilePath, FileMode.Open, md.AccessMode);
             sr = new StreamReader(fs, md.FileEncoding);
             if (Pages == null)
                 Pages = new List<PageHelper>();
             else
                 Pages.Clear();
+            CurrentPage = null;
             int extra = 0; //Add extra space for buffer so we don't have to discard buffer when going from one page to the next while avoiding including the ending newLine information (because we don't need it in the output)
             if (md.ReadWithMultiLineEndDelimiter)
             {
@@ -84,7 +152,7 @@ namespace SEIDR.Doc
             }
             else if (md.LineEndDelimiter != null)
                 extra = md.LineEndDelimiter.Length;
-            buffer = new char[md.PageSize + extra];                                    
+            buffer = new char[md.PageSize + extra];
             int pp = md.SkipLines;
             if (md.HasHeader && md.HeaderConfigured)
                 pp = md.SkipLines + 1;
@@ -97,7 +165,7 @@ namespace SEIDR.Doc
                 throw new InvalidOperationException("Meta Data is not valid.");
             }
             RecordCount = Pages.Sum(p => (long)p.RecordCount);
-        }                
+        }
         /// <summary>
         /// Total number of records in the file after set up.
         /// <para>If the file cannot be parsed, or has not yet been parsed, the value will be -1.</para>
@@ -137,27 +205,30 @@ namespace SEIDR.Doc
             public PageHelper(long position, long endPosition, int pageSize, int recordCount)
             {
                 StartPosition = position;
-                EndPosition = endPosition;                
+                EndPosition = endPosition;
                 Fullness = ((decimal)(endPosition - position)) / pageSize;
                 Length = (int)(endPosition - position);
                 RecordCount = recordCount;
             }
+            public readonly int RecordCount;
 
         }
         bool setupPageMetaData(ref long startPosition, ref int skipLine)
+        public PageHelper GetPageInfo(int page) => Pages[page];
+        bool ReadNextPage(ref long startPosition, ref int skipLine)
         {
             fs.Seek(startPosition, SeekOrigin.Begin);
             sr.DiscardBufferedData();
             int x = sr.ReadBlock(buffer, 0, md.PageSize);
             if (x == 0)
                 return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
-            bool end = x < md.PageSize; 
-            
+            bool end = x < md.PageSize;
+            bool inferredHeader = false;
             string content = /*working.ToString() +*/ new string(buffer, 0, x);
             IList<string> lines = null;
 
             bool fixWidth_NoNewLine = md.Columns.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter) && !md.ReadWithMultiLineEndDelimiter;
-            bool removeHeaderFromRecordCount = false;            
+            bool removeHeaderFromRecordCount = false;
             int endLine;
             int removed = 0;
             int lastNLSize = 0; //Size of the NewLine Delimiter if the page ends on a NewLine delimiter. //Note: Potential for extra line if we have multiple line ends and end a page between an \r and \n, but that would be adding an empty record (null)
@@ -170,7 +241,7 @@ namespace SEIDR.Doc
                     lines = content.SplitOnString(md.LineEndDelimiter);
 
                 if (end && lines[lines.Count-1].Trim() != string.Empty)
-                {                    
+                {
                     endPosition = startPosition + x;
                     if (md.ReadWithMultiLineEndDelimiter)
                     {
@@ -190,7 +261,7 @@ namespace SEIDR.Doc
                     endLine = lines.Count;
                 }
                 else
-                {                    
+                {
                     int temp = lines.Count - 1;
                     if (temp == 0)
                         throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
@@ -213,7 +284,7 @@ namespace SEIDR.Doc
                         lastNLSize = md.LineEndDelimiter.Length;
 
                     endLine = lines.Count - 1;
-                }                
+                }
             }
             else
             {
@@ -229,7 +300,7 @@ namespace SEIDR.Doc
                     content = new string(buffer, 0, x - removed);
                     endPosition = startPosition + x - removed;
                     endLine = content.Length / md.Columns.MaxLength;
-                }                
+                }
             }
             if(skipLine > 0)
             {
@@ -271,12 +342,12 @@ namespace SEIDR.Doc
                     skipLine = 0;
                     return true; //re-read from the correct starting position instead of trying to mess with the list.
                 }
-                
+
             }
             if (!md.HeaderConfigured)
             {
                 string firstLine = lines[0];
-                //must be delimited in this section...                
+                //must be delimited in this section...
                 if (!md.Delimiter.HasValue)
                     md.SetDelimiter(lines.GuessDelimiter());
                 string[] firstLineS = firstLine.Split(md.Delimiter.Value);
@@ -299,6 +370,9 @@ namespace SEIDR.Doc
                     }
                     else
                         startPosition += firstLine.Length + md.LineEndDelimiter.Length; //move forward by a line...
+
+                    if (startPosition > endPosition - lastNLSize)
+                        return true; //don't add a page, instead go to next page so we can start adding lines together.
                     //lines.RemoveAt(0); // ... Probably don't really care about this at this point actually.
                 }
                 else
@@ -315,8 +389,8 @@ namespace SEIDR.Doc
             startPosition = endPosition;
             return !end;
         }
-        
-        
+
+
         /// <summary>
         /// Sets up a basic delimited reader, assuming the file has headers starting on the first line.
         /// </summary>
@@ -324,13 +398,14 @@ namespace SEIDR.Doc
         /// <param name="FilePath"></param>
         /// <param name="LineEnd">The line ending. If null, will use <see cref="Environment.NewLine"/></param>
         /// <param name="Delimiter">Column delimiter. If null, will try to guess when parsing, based on the content of the first line found.</param>
-        public DocReader(string alias, string FilePath, string LineEnd = null, char? Delimiter = null)
+        /// <param name="pageSize">Overwrites the meta data page size of the inferred DocMetaData</param>
+        public DocReader(string alias, string FilePath, string LineEnd = null, char? Delimiter = null, int? pageSize = null)
         {
             md = new DocMetaData(FilePath, alias)
-            {                
+            {
                 HasHeader = true,
                 SkipLines = 0,
-                EmptyIsNull = true,                
+                EmptyIsNull = true,
             };
             if(Delimiter.HasValue)
                 md.SetDelimiter(Delimiter.Value);
@@ -338,7 +413,10 @@ namespace SEIDR.Doc
             md
                 .SetLineEndDelimiter(LineEnd ?? Environment.NewLine)
                 .SetFileAccess(FileAccess.Read) //allow multiple docReaders to access the same file.
-                .SetFileEncoding(Encoding.Default);                
+                .SetFileEncoding(Encoding.Default);
+            if(pageSize != null)
+                md.SetPageSize(pageSize.Value);
+
             SetupStream();
         }
         /// <summary>
@@ -371,13 +449,110 @@ namespace SEIDR.Doc
         public int PageCount => Pages?.Count ?? 0;
 
         int LastPage => Pages.Count - 1;
-        
+        #region records, indexer logic
+
         /// <summary>
-        /// Yield returns each parsed document in the page.
+        /// Checks the page that the specified line number (file wide, from the start after skipping any lines/header)
         /// </summary>
-        /// <param name="pageNumber"></param>
+        /// <param name="lineNumber"></param>
+        /// <returns>Tuple indicating the page number and position of the line.</returns>
+        public Tuple<int, int> CheckPage(long lineNumber)
+        {
+            for (int i = 0; i < Pages.Count; i++)
+            {
+                PageHelper p = Pages[i];
+                if (lineNumber <= p.RecordCount)
+                    return new Tuple<int, int>(i, (int)lineNumber);
+                lineNumber -= p.RecordCount;
+            }
+            throw new ArgumentOutOfRangeException(nameof(lineNumber));
+        }
+        /// <summary>
+        /// Gets the overall line number based on number of records per page used.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="pageLine"></param>
         /// <returns></returns>
-        public IEnumerable<DocRecord> this[int pageNumber]
+        public long CheckLine(int page, int pageLine)
+        {
+            long LineNumber = 0;
+            for (int i = 0; i < page; i ++)
+                LineNumber += Pages[i].RecordCount;
+            return LineNumber + pageLine; //portion of page = page used
+        }
+        /// <summary>
+        /// Enumerates the record contents from the spefied line numbers
+        /// </summary>
+        /// <param name="Lines"></param>
+        /// <returns></returns>
+        public IEnumerable<string> GetSpecificLines(IEnumerable<long> Lines)
+        {
+            var pp = GetPagePositions(Lines);
+            for (int i = 0; i < pp.Length; i++)
+            {
+                var pl = GetPageLines(i);
+                foreach (var p in pp[i])
+                {
+                    yield return pl[p];
+                }
+            }
+        }
+        /// <summary>
+        /// Enumerates specific records from the file, based on line number
+        /// </summary>
+        /// <param name="Lines"></param>
+        /// <returns></returns>
+        public IEnumerable<ReadType> GetSpecificRecords(IEnumerable<long> Lines)
+        {
+            var pp = GetPagePositions(Lines);
+            for (int i = 0; i < pp.Length; i++)
+            {
+                var pl = GetPageLines(i);
+                foreach (var p in pp[i])
+                    yield return this[i, p];
+            }
+        }
+        /// <summary>
+        /// Gets the record from the specified position
+        /// </summary>
+        /// <param name="position"></param>
+        /// <returns></returns>
+        public ReadType this[long position]
+        {
+            get
+            {
+                var pl = CheckPage(position);
+                return this[pl.Item1, pl.Item2];
+            }
+        }
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="lineNumberList"></param>
+        /// <returns></returns>
+        public List<int>[] GetPagePositions(params long[] lineNumberList)
+            => GetPagePositions((IEnumerable<long>)lineNumberList);
+        /// <summary>
+        /// Gets all the line numbers used for a given line Number
+        /// </summary>
+        /// <param name="lineNumberList"></param>
+        /// <returns></returns>
+        public List<int>[] GetPagePositions(IEnumerable<long> lineNumberList)
+        {
+            List<int>[] ret = new List<int>[Pages.Count];
+            for (int i = 0; i < Pages.Count; i++)
+            {
+                ret[i] = new List<int>();
+            }
+            foreach (var ln in lineNumberList)
+            {
+                var tpl = CheckPage(ln);
+                ret[tpl.Item1].Add(tpl.Item2);
+            }
+            return ret;
+        }
+
+        public IEnumerable<ReadType> this[int pageNumber]
         {
             get
             {
@@ -391,16 +566,16 @@ namespace SEIDR.Doc
         /// <param name="lineNumber"></param>
         /// <returns>Tuple indicating the page number and position of the line.</returns>
         public Tuple<int, int> CheckPage(long lineNumber)
-        {            
+        {
             for(int i = 0; i < Pages.Count; i++)
             {
                 PageHelper p = Pages[i];
                 if (lineNumber <= p.RecordCount)
                     return new Tuple<int, int>(i, (int)lineNumber);
-                lineNumber -= p.RecordCount;                    
+                lineNumber -= p.RecordCount;
             }
             throw new ArgumentOutOfRangeException(nameof(lineNumber));
-        }        
+        }
         /// <summary>
         /// Enumerates the record contents from the spefied line numbers
         /// </summary>
@@ -434,11 +609,11 @@ namespace SEIDR.Doc
             }
         }
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="lineNumberList"></param>
         /// <returns></returns>
-        public List<int>[] GetPagePositions(params long[] lineNumberList) 
+        public List<int>[] GetPagePositions(params long[] lineNumberList)
             => GetPagePositions((IEnumerable<long>)lineNumberList);
         /// <summary>
         /// Gets all the line numbers used for a given line Number
@@ -465,18 +640,19 @@ namespace SEIDR.Doc
         /// <param name="pageNumber"></param>
         /// <param name="pageLineNumber"></param>
         /// <returns></returns>
-        public DocRecord this[int pageNumber, int pageLineNumber]
+        public ReadType this[int pageNumber, int pageLineNumber]
         {
             get
             {
                 return GetPage(pageNumber)[pageLineNumber];
             }
         }
+
         /// <summary>
-        /// Determine if need to 
+        /// The last pageNumber that was used for grabbing content from a file
         /// </summary>
-        int lastPage = -2;
-        
+        protected int lastPage = -2;
+
         /// <summary>
         /// Returns an IList of strings. May be either an <see cref="Array"/> of strings(MultiLineEnd Delimiter mode..) or a <see cref="List{string}"/>.
         /// <para>May be more useful when dealing with a class that inherits from <see cref="DocRecord"/></para>
@@ -524,17 +700,24 @@ namespace SEIDR.Doc
             return lines;
         }
         /// <summary>
+        /// cached list, the most recent result from calling <see cref="GetPage(int, bool)"/>
+        /// </summary>
+        protected List<ReadType> CurrentPage = null;
+        /// <summary>
         /// Gets the content of the specified 'page'
         /// </summary>
         /// <param name="pageNumber"></param>
+        /// <param name="cached">If the same page is accessed more than once in a row, the same List of objects will be returned</param>
         /// <returns></returns>
-        public List<DocRecord> GetPage(int pageNumber)
+        public virtual List<ReadType> GetPage(int pageNumber, bool cached = true)
         {
+            if (pageNumber == lastPage && CurrentPage != null && cached)
+                return CurrentPage;
             var lines = GetPageLines(pageNumber);
-            List<DocRecord> LineRecords = new List<DocRecord>();
+            List<ReadType> LineRecords = new List<ReadType>();
             lines.ForEachIndex((line, idx) =>
             {
-                var rec = Columns.ParseRecord(md.CanWrite, line);
+                var rec = Columns.ParseRecord<ReadType>(md.CanWrite, line);
                 if (rec == null)
                 {
                     System.Diagnostics.Debug.WriteLine("Empty Record found! Page: " + pageNumber + ", LineNumber: " + idx);
@@ -547,9 +730,13 @@ namespace SEIDR.Doc
                 }
                 LineRecords.Add(rec);
             }, 1, 1);
+            CurrentPage = LineRecords;
             return LineRecords;
-        }        
-        public IEnumerator<DocRecord> GetEnumerator()
+        }
+
+        #endregion
+
+        public IEnumerator<ReadType> GetEnumerator()
         {
             for(int pn = 0; pn < PageCount; pn ++)
             {
@@ -577,7 +764,7 @@ namespace SEIDR.Doc
                     {
                         Pages.Clear();
                         Pages = null;
-                    }                   
+                    }
                 }
                 if (sr != null)
                 {
@@ -589,7 +776,7 @@ namespace SEIDR.Doc
                     fs.Close();
                     fs = null;
                 }
-                
+
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
 

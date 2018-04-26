@@ -108,6 +108,7 @@ namespace SEIDR.Doc
         /// Column meta Data
         /// </summary>
         public DocRecordColumnCollection Columns => md.Columns;
+     
         /// <summary>
         /// Adds the record to the file via streamWriter
         /// </summary>
@@ -116,7 +117,7 @@ namespace SEIDR.Doc
         /// <para>Key should be the target position in the output file, value should be the column information from the source.
         /// </para>
         /// </param>
-        public void AddRecord(DocRecord record, IDictionary<int, DocRecordColumnInfo> columnMapping = null)
+        public void AddRecord<RecordType>(RecordType record, IDictionary<int, DocRecordColumnInfo> columnMapping = null) where RecordType: DocRecord
         {
             if (!Columns.Valid)
                 throw new InvalidOperationException("Column state Invalid");
@@ -150,12 +151,13 @@ namespace SEIDR.Doc
                     if (idx < Columns.Count - 1)
                         sb.Append(md.Delimiter.Value);
                 }
-                
+
             });
             if (!string.IsNullOrEmpty(md.LineEndDelimiter))
                 sb.Append(md.LineEndDelimiter);
-            sw.Write(sb);            
+            sw.Write(sb);
         }
+
         /// <summary>
         /// Writes the records out using ToString without validating that they match the column meta data of the writer.
         /// <para>NOTE: THIS IGNORES METADATA.</para>

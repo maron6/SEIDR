@@ -56,12 +56,20 @@ namespace SEIDR.Doc
         /// <param name="RollingHash"></param>
         /// <param name="columnsToHash"></param>
         /// <returns></returns>
-        public ulong? GetPartialHash(bool RollingHash, params string[] columnsToHash)
+        public ulong? GetPartialHash(bool RollingHash, params string[] columnsToHash) => GetPartialHash(RollingHash, (IList<string>)columnsToHash);
+        /// <summary>
+        /// Returns an unsigned long hash code, using either a rolling hash or string's GetHashCode.
+        /// If any of the column values are null or empty strings, will return null instead of a value
+        /// </summary>
+        /// <param name="RollingHash"></param>
+        /// <param name="columnsToHash"></param>
+        /// <returns></returns>
+        public ulong? GetPartialHash(bool RollingHash, IList<string> columnsToHash)
         {
             if (Content == null || Content.Count == 0)
                 return null; 
             StringBuilder work = new StringBuilder();
-            if (columnsToHash.Length == 0)
+            if (columnsToHash.Count == 0)
                 work.Append(ToString());
             else
             {
@@ -174,8 +182,8 @@ namespace SEIDR.Doc
         /// <summary>
         /// Used for determining records information and order/formatting.
         /// </summary>
-        protected DocRecordColumnCollection Columns;        
-        List<string> Content;
+        internal protected DocRecordColumnCollection Columns;        
+        List<string> Content = new List<string>();
         //Dictionary<DocRecordColumnInfo, string> Content;
 
         /// <summary>
@@ -280,6 +288,12 @@ namespace SEIDR.Doc
 
         #region constructors
         /// <summary>
+        /// Basic constructor, for use with DocReader. Does not do anything, Columns CanWrite, and content will need to be set separately
+        /// </summary>        
+        public DocRecord()
+        { 
+        }
+        /// <summary>
         /// Sets up a very basic DocRecord
         /// </summary>
         /// <param name="owner"></param>
@@ -296,7 +310,7 @@ namespace SEIDR.Doc
         {
             Columns = owner;
             CanWrite = canWrite;
-            Content = new List<string>(owner.Columns.Count);
+            //Content = new List<string>(owner.Columns.Count);
         }        
         /// <summary>
         /// Sets up the DocRecord with an owner, CanWrite, and initial content
@@ -312,12 +326,39 @@ namespace SEIDR.Doc
                 Content.SetWithExpansion(i, ParsedContent[i]);
             }
         }
+        /// <summary>
+        /// Resets the underlying content list and sets the values from the Ilist
+        /// </summary>
+        /// <param name="ParsedContent"></param>
+        protected internal void SetParsedContent(IList<string> ParsedContent)
+        {
+            Content = new List<string>();
+            for (int i = 0; i < ParsedContent.Count; i++)
+            {
+                Content.SetWithExpansion(i, ParsedContent[i]);
+            }
+        }
+        /// <summary>
+        /// Allows using the more complex constructor logic after construction. Mainly intended for use by DocColumnCollection generic parse
+        /// </summary>
+        /// <param name="owner"></param>
+        /// <param name="canWrite"></param>
+        /// <param name="parsedContent"></param>
+        protected internal virtual void Configure(DocRecordColumnCollection owner, bool? canWrite = null, IList<string>parsedContent = null)
+        {
+            Columns = owner;
+            CanWrite = canWrite ?? CanWrite;
+            if (parsedContent != null)
+                SetParsedContent(parsedContent);
+            else
+                Content.Clear();
+        }
         #endregion
 
         /// <summary>
         /// Sets whether user can update values of the record.
         /// </summary>
-        public bool CanWrite { get; private set; } = false;
+        public bool CanWrite { get; internal set; } = false;
         /// <summary>
         /// If true, indicates that there was an early line terminator in delimited mode. (e.g. Column meta data indicates that there should be columns 1, 2, 3. But DocRecord only has data for columns 1 and 2)
         /// </summary>
@@ -328,7 +369,7 @@ namespace SEIDR.Doc
         /// </summary>        
         /// <param name="ColumnName"></param>
         /// <returns></returns>
-        public string this[string ColumnName]
+        public virtual string this[string ColumnName]
         {
             get
             {                
@@ -366,7 +407,7 @@ namespace SEIDR.Doc
         /// <param name="alias"></param>
         /// <param name="ColumnName"></param>
         /// <returns></returns>
-        public string this[string alias, string ColumnName]
+        public virtual string this[string alias, string ColumnName]
         {
             get
             {
@@ -433,7 +474,7 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="column"></param>
         /// <returns></returns>
-        public string this[DocRecordColumnInfo column]
+        public virtual string this[DocRecordColumnInfo column]
         {
             get
             {
@@ -462,11 +503,34 @@ namespace SEIDR.Doc
             }
         }
         /// <summary>
+        /// Uses the Position specified by column to call <see cref="this[int]"/>.
+        /// </summary>
+        /// <param name="column"></param>
+        /// <returns></returns>
+        public string this[IRecordColumnInfo column]
+        {
+            get
+            {
+                var dc = column as DocRecordColumnInfo;
+                if (dc != null)
+                    return this[dc];                
+                return this[column.Position];
+            }
+            set
+            {
+                var dc = column as DocRecordColumnInfo;
+                if (dc != null)
+                    this[dc] = value;
+                else
+                    this[column.Position] = value;
+            }
+        }
+        /// <summary>
         /// Getter/setter using position of the columns
         /// </summary>
         /// <param name="columnIndex"></param>
         /// <returns></returns>
-        public string this[int columnIndex]
+        public virtual string this[int columnIndex]
         {
             get
             {
