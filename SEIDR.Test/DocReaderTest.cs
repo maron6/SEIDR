@@ -110,7 +110,7 @@ namespace SEIDR.Test
             mixed.CanWrite = true;
             using (DocReader m = new DocReader(mixed))
             {
-                var extra = new DocRecordColumnInfo("", "fw", 1).SetMaxLength(5);
+                var extra = new DocRecordColumnInfo("", "fw", 1).SetMaxLength(5); //extra, hard coded boundary between LineNumber and garbage for readability with justification switch
                 DocMetaData fixWidth = new DocMetaData(TEST_FOLDER + "FixWidth.txt", "fw")
                     .AddDetailedColumnCollection(mixed.Columns);
                 fixWidth
@@ -149,6 +149,110 @@ namespace SEIDR.Test
                 "9|Ninth",
                 "10|Tenth"
             };
+            string[] bigLines = new[]
+            {
+                "LineNumber|Description",
+                "1|First",
+                "2|Second",
+                "3|Third",
+                "4|Fourth",
+                "5|Fifth",
+                "6|Sixth",
+                "7|Seventh",
+                "8|Eighth",
+                "9|Ninth",
+                "10|Tenth",
+                "11|First",
+                "12|Second",
+                "13|Third",
+                "14|Fourth",
+                "15|Fifth",
+                "16|Sixth",
+                "17|Seventh",
+                "18|Eighth",
+                "19|Ninth",
+                "20|Tenth",
+                "21|First",
+                "22|Second",
+                "23|Third",
+                "24|Fourth",
+                "25|Fifth",
+                "26|Sixth",
+                "27|Seventh",
+                "28|Eighth",
+                "29|Ninth",
+                "30|Tenth",
+                "31|First",
+                "32|Second",
+                "33|Third",
+                "34|Fourth",
+                "35|Fifth",
+                "36|Sixth",
+                "37|Seventh",
+                "38|Eighth",
+                "39|Ninth",
+                "40|Tenth",
+                "41|First",
+                "42|Second",
+                "43|Third",
+                "44|Fourth",
+                "45|Fifth",
+                "46|Sixth",
+                "47|Seventh",
+                "48|Eighth",
+                "49|Ninth",
+                "50|Tenth",
+                "51|First",
+                "52|Second",
+                "53|Third",
+                "54|Fourth",
+                "55|Fifth",
+                "56|Sixth",
+                "57|Seventh",
+                "58|Eighth",
+                "59|Ninth",
+                "60|Tenth",
+                "61|First",
+                "62|Second",
+                "63|Third",
+                "64|Fourth",
+                "65|Fifth",
+                "66|Sixth",
+                "67|Seventh",
+                "68|Eighth",
+                "69|Ninth",
+                "70|Tenth",
+                "71|First",
+                "72|Second",
+                "73|Third",
+                "74|Fourth",
+                "75|Fifth",
+                "76|Sixth",
+                "77|Seventh",
+                "78|Eighth",
+                "79|Ninth",
+                "80|Tenth",
+                "81|First",
+                "82|Second",
+                "83|Third",
+                "84|Fourth",
+                "85|Fifth",
+                "86|Sixth",
+                "87|Seventh",
+                "88|Eighth",
+                "89|Ninth",
+                "90|Tenth",
+                "91|First",
+                "92|Second",
+                "93|Third",
+                "94|Fourth",
+                "95|Fifth",
+                "96|Sixth",
+                "97|Seventh",
+                "98|Eighth",
+                "99|Ninth",
+                "100|Tenth"
+            };
             string[] CommaLines = new[]
             {
                 "LineNumber,Description",
@@ -173,15 +277,32 @@ namespace SEIDR.Test
                 File.Delete(CommaFile);
             if (File.Exists(MultiLineEndFilePath))
                 File.Delete(MultiLineEndFilePath);
+            if (File.Exists(BiggerFilePath))
+                File.Delete(BiggerFilePath);
+            
             File.WriteAllLines(FilePath, Lines);
             File.WriteAllLines(CommaFile, CommaLines);
             File.WriteAllText(MultiLineEndFilePath, multiEndcontent);
+            File.WriteAllLines(BiggerFilePath, bigLines);
         }
         const string TEST_FOLDER = @"C:\DocReaderTest\";
         string MultiLineEndFilePath = @"C:\DocReaderTest\MixedLineEnding.txt";
         string MultiLineEndWriteFilePath = @"C:\DocReaderTest\WRITE_MixedLineEnding.txt";
         string FilePath = @"C:\DocReaderTest\Reader.txt";
         string CommaFile = @"C:\DocReaderTest\Reader.csv";
+        string BiggerFilePath = @"C:\DocReaderTest\BigReader.txt";
+        [TestMethod]
+        public void TestReaderGeneric()
+        {
+            DocMetaData.TESTMODE = true; //Allow page size below minimum for test purposes
+            FilePrep();
+
+            var r = new DocReader<TestRecordInheritance>("F", FilePath);
+            Assert.AreEqual(2, r.Columns.Count);
+            Assert.AreEqual(10, r.RecordCount);
+            System.Diagnostics.Debug.WriteLine(r[0, 0].LineNumber + ":" + r[0, 0].Description + " - first line parsed LineNumber:Description");
+        }
+
         [TestMethod]
         public void TestRead()
         {
@@ -206,6 +327,7 @@ namespace SEIDR.Test
             Assert.AreEqual(2, r.Columns.Count);
             l = r.GetPage(0);
             Assert.AreEqual(8, l.Count);
+            Assert.AreEqual(8, r.RecordCount);
             r.Dispose();
             md.SetPageSize(30);
             //md.PageSize = 30; 
@@ -223,6 +345,7 @@ LineNumber|Description
             r.ReConfigure();
             l = r.GetPage(0); //ToDo: make sure we have a newline delimiter.... ended after |D
             Assert.AreEqual(3, l.Count);
+            Assert.AreEqual(8, r.RecordCount); //skipped first 2 lines
             Assert.AreEqual("3", l[0]["LineNumber"]);
             r.Dispose();
             var md2 = new DocMetaData(CommaFile, "C");
@@ -300,14 +423,52 @@ LineNumber|Description
             }
         }
 
-    }
+        [TestMethod]
+        public void SortedReadTest()
+        {
+            FilePrep();
+            DocMetaData.TESTMODE = true;
+            var md = new DocMetaData(TEST_FOLDER + "SortedFile.txt", "w")
+                .AddDelimitedColumns("LineNumber", "Description")
+                .SetDelimiter('|');
+            using (var r = new DocReader("r", FilePath, pageSize: 30))
+            using (var s = new DocSorter(r, r.Columns["Description"]))
+            using (var w = new DocWriter(md))
+            {                
+                foreach(var record in s)
+                {
+                    w.AddRecord(record);
+                }
+            }
+        }
+        [TestMethod]
+        public void BigSortedReadTest()
+        {
+            FilePrep();
+            DocMetaData.TESTMODE = true;
+            var md = new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
+                .AddDelimitedColumns("LineNumber", "Description")
+                .SetDelimiter('|');
+            using (var r = new DocReader("r", BiggerFilePath, pageSize: 50))
+            using (var s = new DocSorter(r, r.Columns["Description"], r.Columns["LineNumber"]))
+            using (var w = new DocWriter(md))
+            {
+                foreach (var record in s)
+                {
+                    w.AddRecord(record);
+                }
+            }
+        }
+    }    
 
     public class TestRecordInheritance: DocRecord
     {
+        public TestRecordInheritance() : base() { }
         public TestRecordInheritance(DocRecordColumnCollection columnCollection, int LineNumber, string Description)
-            :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description })
+            :base(columnCollection, true, new []{ LineNumber.ToString(), Description })
         {
-
+            if (columnCollection.Count != 2)
+                throw new ArgumentException("Too many columns specified", nameof(columnCollection));
         }
         public TestRecordInheritance(DocRecordColumnCollection col)
             : base(col, true)
