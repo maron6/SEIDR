@@ -484,7 +484,7 @@ LineNumber|Description
         public TestRecordInheritance(DocRecordColumnCollection columnCollection, int LineNumber, string Description, bool mod)
             :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description , mod? "true": "false" })
         {
-            if (columnCollection.Count != 2)
+            if (columnCollection.Count != 3)
                 throw new ArgumentException("Too many columns specified", nameof(columnCollection));
         }
         public TestRecordInheritance(DocRecordColumnCollection col)

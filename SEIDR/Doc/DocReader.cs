@@ -113,7 +113,8 @@ namespace SEIDR.Doc
             SetupStream();
         }
         /// <summary>
-        /// Number of records in the file
+        /// Total number of records in the file after set up.
+        /// <para>If the file cannot be parsed, or has not yet been parsed, the value will be -1.</para>
         /// </summary>
         public long RecordCount { get; private set; } = 0;
         /// <summary>
@@ -157,7 +158,7 @@ namespace SEIDR.Doc
             if (md.HasHeader && md.HeaderConfigured)
                 pp = md.SkipLines + 1;
             long position = 0;
-            while(setupPageMetaData(ref position, ref pp)) { }
+            while(SetupPageMetaData(ref position, ref pp)) { }
             if (!md.Valid)
             {
                 RecordCount = -1;
@@ -166,11 +167,6 @@ namespace SEIDR.Doc
             }
             RecordCount = Pages.Sum(p => (long)p.RecordCount);
         }
-        /// <summary>
-        /// Total number of records in the file after set up.
-        /// <para>If the file cannot be parsed, or has not yet been parsed, the value will be -1.</para>
-        /// </summary>
-        public long RecordCount { get; private set; } = -1;
         List<PageHelper> Pages;
         /// <summary>
         /// Paging information for reading from the file.
@@ -210,12 +206,11 @@ namespace SEIDR.Doc
                 Length = (int)(endPosition - position);
                 RecordCount = recordCount;
             }
-            public readonly int RecordCount;
+           
 
         }
-        bool setupPageMetaData(ref long startPosition, ref int skipLine)
         public PageHelper GetPageInfo(int page) => Pages[page];
-        bool ReadNextPage(ref long startPosition, ref int skipLine)
+        bool SetupPageMetaData(ref long startPosition, ref int skipLine)
         {
             fs.Seek(startPosition, SeekOrigin.Begin);
             sr.DiscardBufferedData();
@@ -223,7 +218,6 @@ namespace SEIDR.Doc
             if (x == 0)
                 return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
             bool end = x < md.PageSize;
-            bool inferredHeader = false;
             string content = /*working.ToString() +*/ new string(buffer, 0, x);
             IList<string> lines = null;
 
@@ -560,80 +554,8 @@ namespace SEIDR.Doc
                     yield return record;
             }
         }
-        /// <summary>
-        /// Checks the page that the specified line number (file wide, from the start after skipping any lines/header)
-        /// </summary>
-        /// <param name="lineNumber"></param>
-        /// <returns>Tuple indicating the page number and position of the line.</returns>
-        public Tuple<int, int> CheckPage(long lineNumber)
-        {
-            for(int i = 0; i < Pages.Count; i++)
-            {
-                PageHelper p = Pages[i];
-                if (lineNumber <= p.RecordCount)
-                    return new Tuple<int, int>(i, (int)lineNumber);
-                lineNumber -= p.RecordCount;
-            }
-            throw new ArgumentOutOfRangeException(nameof(lineNumber));
-        }
-        /// <summary>
-        /// Enumerates the record contents from the spefied line numbers
-        /// </summary>
-        /// <param name="Lines"></param>
-        /// <returns></returns>
-        public IEnumerable<string> GetSpecificLines(IEnumerable<long> Lines)
-        {
-            var pp = GetPagePositions(Lines);
-            for(int i = 0; i < pp.Length; i++)
-            {
-                var pl = GetPageLines(i);
-                foreach (var p in pp[i])
-                {
-                    yield return pl[p];
-                }
-            }
-        }
-        /// <summary>
-        /// Enumerates specific records from the file, based on line number
-        /// </summary>
-        /// <param name="Lines"></param>
-        /// <returns></returns>
-        public IEnumerable<DocRecord> GetSpecificRecords(IEnumerable<long> Lines)
-        {
-            var pp = GetPagePositions(Lines);
-            for (int i = 0; i < pp.Length; i++)
-            {
-                var pl = GetPageLines(i);
-                foreach (var p in pp[i])
-                    yield return this[i, p];
-            }
-        }
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="lineNumberList"></param>
-        /// <returns></returns>
-        public List<int>[] GetPagePositions(params long[] lineNumberList)
-            => GetPagePositions((IEnumerable<long>)lineNumberList);
-        /// <summary>
-        /// Gets all the line numbers used for a given line Number
-        /// </summary>
-        /// <param name="lineNumberList"></param>
-        /// <returns></returns>
-        public List<int>[] GetPagePositions(IEnumerable<long> lineNumberList)
-        {
-            List<int>[] ret = new List<int>[Pages.Count];
-            for(int i = 0; i < Pages.Count; i++)
-            {
-                ret[i] = new List<int>();
-            }
-            foreach(var ln in lineNumberList)
-            {
-                var tpl = CheckPage(ln);
-                ret[tpl.Item1].Add(tpl.Item2);
-            }
-            return ret;
-        }
+ 
+ 
         /// <summary>
         /// Attempts to grab a specific DocRecord off the specified page
         /// </summary>
