@@ -455,7 +455,7 @@ namespace SEIDR.Doc
             for (int i = 0; i < Pages.Count; i++)
             {
                 PageHelper p = Pages[i];
-                if (lineNumber <= p.RecordCount)
+                if (lineNumber < p.RecordCount)
                     return new Tuple<int, int>(i, (int)lineNumber);
                 lineNumber -= p.RecordCount;
             }

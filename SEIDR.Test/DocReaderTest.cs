@@ -439,7 +439,27 @@ LineNumber|Description
                 Assert.AreEqual(LOOP_LIMIT, dr.RecordCount);
             }
         }
+        [TestMethod]
+        public void InheritanceRecordSortTest()
+        {
+            InheritanceRecordTest();
+            using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
+            using (var sorter = new DocSorter(reader, reader.Columns[1]))                
+            {                
+                var md = new DocMetaData(reader.FilePath + "_Sorted")
+                    .AddDetailedColumnCollection(reader.Columns)
+                    .SetFileAccess(FileAccess.Write)
+                    .SetDelimiter('|');
+                using (var writer = new DocWriter(md))
+                {
+                    foreach(var line in sorter)
+                    {
+                        writer.AddRecord(line);
+                    }
+                }
 
+            }
+        }
         [TestMethod]
         public void SortedReadTest()
         {
@@ -461,7 +481,7 @@ LineNumber|Description
         [TestMethod]
         public void BigSortedReadTest()
         {
-            FilePrep();
+            FilePrep(); // with 9.99.. million, 29 'page' file, sorter cache size of 4 - 
             DocMetaData.TESTMODE = true;
             var md = new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
                 .AddDelimitedColumns("LineNumber", "Description")

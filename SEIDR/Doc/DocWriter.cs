@@ -121,6 +121,8 @@ namespace SEIDR.Doc
         {
             if (!Columns.Valid)
                 throw new InvalidOperationException("Column state Invalid");
+            if (record == null)
+                throw new ArgumentNullException(nameof(record));
             StringBuilder sb = new StringBuilder();
             Columns.ForEachIndex((col, idx) =>
             {
