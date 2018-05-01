@@ -85,7 +85,18 @@ namespace SEIDR.Doc
         /// The columns from the file
         /// </summary>
         public DocRecordColumnCollection Columns { get; private set; }
+        /// <summary>
+        /// Full path of the file being described.
+        /// </summary>
         public readonly string FilePath;
+        /// <summary>
+        /// Gets the name of the directory for the specified path (<see cref="FilePath"/>)
+        /// </summary>
+        public string Directory => Path.GetDirectoryName(FilePath);
+        /// <summary>
+        /// Returns name of file at specified path. (<see cref="FilePath"/>)
+        /// </summary>
+        public string FileName => Path.GetFileName(FilePath);
         /// <summary>
         /// Used for associating column information to an originating file when merging column collections
         /// </summary>
@@ -223,6 +234,17 @@ namespace SEIDR.Doc
             Columns = new DocRecordColumnCollection(Alias);
         }
         /// <summary>
+        /// Creates meta Data for the given file
+        /// </summary>
+        /// <param name="DirectoryPath"></param>
+        /// <param name="FileName"></param>
+        /// <param name="alias"></param>
+        public DocMetaData(string DirectoryPath, string FileName, string alias = null)
+            :this(Path.Combine(DirectoryPath, FileName, alias))
+        {
+
+        }
+        /// <summary>
         /// Sets <see cref="HasHeader"/>
         /// </summary>
         /// <param name="headerIncluded"></param>
@@ -235,7 +257,7 @@ namespace SEIDR.Doc
         public string GetHeader()
         {
             return string.Format(Columns.format, Columns.Columns.Select(c => c.ColumnName).ToArray());
-        }
+        }        
         /// <summary>
         /// Number of lines to skip at the start of the file when reading. Does not include the header's line
         /// </summary>

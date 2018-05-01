@@ -32,8 +32,20 @@ namespace SEIDR.Doc
         /// <param name="FilePath"></param>
         /// <param name="LineEnd"></param>
         /// <param name="Delimiter"></param>
-        public DocReader(string alias, string FilePath, string LineEnd = null, char? Delimiter = null, int? pageSize = null)
-            :base(alias, FilePath, LineEnd, Delimiter, pageSize) { }
+        /// <param name="pageSize"></param>
+        public DocReader(string alias, string FilePath, char? Delimiter = null, string LineEnd = null,  int? pageSize = null)
+            :base(alias, FilePath,  Delimiter, LineEnd, pageSize) { }
+        /// <summary>
+        /// Creates a DocReader for the specified file by combining Directory and FileName
+        /// </summary>
+        /// <param name="alias"></param>
+        /// <param name="Directory"></param>
+        /// <param name="FileName"></param>
+        /// <param name="LineEnd"></param>
+        /// <param name="Delimiter"></param>
+        /// <param name="pageSize"></param>
+        public DocReader(string alias, string Directory, string FileName, char? Delimiter = null, string LineEnd = null, int? pageSize = null)
+            : this(alias, Path.Combine(Directory, FileName), Delimiter, LineEnd, pageSize) { }
 
         /// <summary>
         /// Gets the DocRecords from the page.
@@ -393,7 +405,7 @@ namespace SEIDR.Doc
         /// <param name="LineEnd">The line ending. If null, will use <see cref="Environment.NewLine"/></param>
         /// <param name="Delimiter">Column delimiter. If null, will try to guess when parsing, based on the content of the first line found.</param>
         /// <param name="pageSize">Overwrites the meta data page size of the inferred DocMetaData</param>
-        public DocReader(string alias, string FilePath, string LineEnd = null, char? Delimiter = null, int? pageSize = null)
+        public DocReader(string alias, string FilePath,  char? Delimiter = null, string LineEnd = null, int? pageSize = null)
         {
             md = new DocMetaData(FilePath, alias)
             {

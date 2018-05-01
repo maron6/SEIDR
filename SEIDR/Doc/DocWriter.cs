@@ -175,7 +175,7 @@ namespace SEIDR.Doc
         /// <para>NOTE: THIS IGNORES METADATA.</para>
         /// </summary>
         /// <param name="toWrite"></param>
-        public void BulkWrite(params DocRecord[] toWrite) => BulkWrite(toWrite);
+        public void BulkWrite(params DocRecord[] toWrite) => BulkWrite((IEnumerable<DocRecord>)toWrite);
 
         /// <summary>
         /// Writes the strings out without validating that they match the column meta data of the writer. Will add the LineEndDelimiter of this metaData if specified, though.

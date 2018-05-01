@@ -394,7 +394,7 @@ LineNumber|Description
             var md = new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
                 .AddDelimitedColumns("LineNumber", "Description", "IsMod183")
                 .SetDelimiter('|')
-                .SetHasHeader(false);
+                .SetHasHeader(true);
             using (var w = new DocWriter(md))
             {
                 for (int i = 1; i <= LOOP_LIMIT; i++)
@@ -442,9 +442,21 @@ LineNumber|Description
         [TestMethod]
         public void InheritanceRecordSortTest()
         {
-            InheritanceRecordTest();
+            /*
+             * with 9.99.. million, 29 'page' file, sorter cache size of 5 
+             * Index creation: 32 ~minutes
+             * Write sorted file out: ~22 minutes
+             * Total: ~54 minutes             
+             * 
+             * Cache size of 7:
+             * Index Creation: ~27 minutes
+             * Write sorted file out: ~20 minutes
+             * Total: ~46 m
+             * 
+             */
+            InheritanceRecordTest(); 
             using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
-            using (var sorter = new DocSorter(reader, reader.Columns[1]))                
+            using (var sorter = new DocSorter(reader, 11, true, false, reader.Columns[1]))                
             {                
                 var md = new DocMetaData(reader.FilePath + "_Sorted")
                     .AddDetailedColumnCollection(reader.Columns)
@@ -452,9 +464,9 @@ LineNumber|Description
                     .SetDelimiter('|');
                 using (var writer = new DocWriter(md))
                 {
-                    foreach(var line in sorter)
+                    for(int i =0; i < reader.PageCount; i++)
                     {
-                        writer.AddRecord(line);
+                        writer.BulkWrite(sorter.GetPage(i));
                     }
                 }
 
@@ -465,7 +477,7 @@ LineNumber|Description
         {
             FilePrep();
             DocMetaData.TESTMODE = true;
-            var md = new DocMetaData(TEST_FOLDER + "SortedFile.txt", "w")
+            var md = new DocMetaData(TEST_FOLDER, "SortedFile.txt", "w")
                 .AddDelimitedColumns("LineNumber", "Description")
                 .SetDelimiter('|');
             using (var r = new DocReader("r", FilePath, pageSize: 30))
@@ -481,13 +493,13 @@ LineNumber|Description
         [TestMethod]
         public void BigSortedReadTest()
         {
-            FilePrep(); // with 9.99.. million, 29 'page' file, sorter cache size of 4 - 
+            FilePrep(); 
             DocMetaData.TESTMODE = true;
             var md = new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
                 .AddDelimitedColumns("LineNumber", "Description")
                 .SetDelimiter('|');
             using (var r = new DocReader("r", BiggerFilePath, pageSize: 50))
-            using (var s = new DocSorter(r, r.Columns["Description"], r.Columns["LineNumber"]))
+            using (var s = new DocSorter(r, 5, true, false, r.Columns["Description"], r.Columns["LineNumber"]))
             using (var w = new DocWriter(md))
             {
                 foreach (var record in s)

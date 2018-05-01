@@ -11,11 +11,11 @@ namespace SEIDR.Doc
         class sortInfoCache
         {
             public List<CacheEntry> list { get; private set; }
-            SortedList<int, int> pages = new SortedList<int, int>();
+            List<int> pages = new List<int>();            
             public IEnumerable<int> GetPagesUsed()
             {
-                foreach (var kv in pages)
-                    yield return kv.Value;
+                foreach (var pageNum in pages)
+                    yield return pageNum;
                 yield break;
                 //return (from e in list
                 //        select e.Info.Page).Distinct().OrderBy(p => p);
@@ -26,10 +26,11 @@ namespace SEIDR.Doc
                 for(; startLine < endLine; startLine++)
                 {
                     var info = index[startLine];
-                    if (!pages.ContainsKey(info.Page))
-                        pages.Add(info.Page, info.Page);
+                    if (!pages.Contains(info.Page))
+                        pages.Add(info.Page);                    
                     list.Add(new CacheEntry(startLine, info));
                 }
+                pages.Sort();
             }
             public List<CacheEntry> PullInfo(int page)
             {
@@ -41,7 +42,8 @@ namespace SEIDR.Doc
                     if (e.Info.Page == page)
                     {
                         ret.Add(e);
-                        list.RemoveAt(idx);                        
+                        list.RemoveAt(idx);
+                        continue;
                     }
                     idx++;
                 }
