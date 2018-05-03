@@ -55,7 +55,8 @@ namespace SEIDR.Doc
     {
         DocReader<G> _source;
         List<IRecordColumnInfo> sortColumns = new List<IRecordColumnInfo>();
-        pageCache cache;
+        
+        pageCache cache; //Not as useful now, but may still help for iterating
         DocMetaData index;
         DocReader<sortInfo> indexReader;
 
@@ -131,6 +132,11 @@ namespace SEIDR.Doc
         readonly string INDEX_PATH;
         #endregion
         #region sorted file access
+        /// <summary>
+        /// Gets the record at position <paramref name="position"/> after mapping from sort. Note: If <see cref="DuplicateHandling"/> is <see cref="DuplicateHandling.Delete"/>, result may be null.
+        /// </summary>
+        /// <param name="position"></param>
+        /// <returns></returns>
         public G this[long position]
         {
             get
@@ -139,6 +145,12 @@ namespace SEIDR.Doc
                 return _source[idx.Page, idx.Line];
             }
         }
+        /// <summary>
+        /// Gets the record at position <paramref name="page"/>/<paramref name="pageLine"/> after mapping from sort. Note: If <see cref="DuplicateHandling"/> is <see cref="DuplicateHandling.Delete"/>, result may be null.
+        /// </summary> 
+        /// <param name="page"></param>
+        /// <param name="pageLine"></param>
+        /// <returns></returns>
         public G this[int page, int pageLine]
         {
             get
@@ -148,14 +160,21 @@ namespace SEIDR.Doc
                 return _source[idx.Page, idx.Line];
             }
         }
+        /// <summary>
+        /// Returns the records mapped to this index after sorting.Note: duplicate records may be marked as null and placed somewhat arbitrarily.(When index is created with <see cref="DuplicateHandling.Delete"/>)
+        /// </summary>
+        /// <param name="page"></param>
+        /// <returns></returns>
         public G[] GetPage(int page)
         {
+            if (!index.CheckExists())
+                throw new InvalidOperationException("Index not found.");
             var p = _source.GetPageInfo(page);
             var start = _source.CheckLine(page, 0);
             var offset = start;
             long end = start + p.RecordCount;
             G[] gpage = new G[p.RecordCount];
-            sortInfoCache infoCache = new sortInfoCache(indexReader, start, end);
+            sortInfoCache infoCache = new sortInfoCache(indexReader, start, end); //ignores records with page < 0 (dupes)
             foreach(var pageNum in infoCache.GetPagesUsed())
             {
                 var pageData = cache.Get(pageNum, _source);
@@ -167,6 +186,10 @@ namespace SEIDR.Doc
         }
         #endregion
         #region enumeration
+        /// <summary>
+        /// Enumerate records. Note: if deduping, duplicates will be returned as null.
+        /// </summary>
+        /// <returns></returns>
         public IEnumerator<G> GetEnumerator()
         {
             for (int pn = 0; pn < _source.PageCount; pn++)
@@ -227,9 +250,14 @@ namespace SEIDR.Doc
 
             public int Page;// => Convert.ToInt32(this["PAGE"]);
             public int Line;// => Convert.ToInt32(this["LINE"]);
+            public string GetData(int index)
+            {
+                return this[index + 2];//PAGE|LINE|DATA0|DATA1|...
+            }
         }
         #endregion
-
+        //ToDo: SortMethod - takes target filepath as parameter, and sorts content itself into sub files and merges into end file, instead of only the index columns. For when no processing is being done.
+        //DuplicateHandling enum: Ignore, Remove, Exception
        
 
         /// <summary>
@@ -245,6 +273,7 @@ namespace SEIDR.Doc
             {
                 if (disposing)
                 {
+                    cache.Clear();
                     // TODO: dispose managed state (managed objects).
                 }
                 indexReader.Dispose(); //because the indexReader has some unmanaged resources, I believe (stream fields)

@@ -453,6 +453,11 @@ LineNumber|Description
              * Write sorted file out: ~20 minutes
              * Total: ~46 m
              * 
+             * 
+             * After switching from cache to storing sort columns in index: ~19m to create index, ~21 m to write out. total 40m
+             * 
+             * Storing sort columns in index + merging groups of index pages instead of going into a target index: ~8m to create index, ~20m to write out, total 28m. 
+             * Note: Cache is still used some for indexer access from the sorter/getting a page's content
              */
             InheritanceRecordTest(); 
             using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))

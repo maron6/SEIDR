@@ -26,6 +26,8 @@ namespace SEIDR.Doc
                 for(; startLine < endLine; startLine++)
                 {
                     var info = index[startLine];
+                    if (info.Page < 0) //dupe
+                        continue;
                     if (!pages.Contains(info.Page))
                         pages.Add(info.Page);                    
                     list.Add(new CacheEntry(startLine, info));
@@ -62,6 +64,7 @@ namespace SEIDR.Doc
         }
         class pageCache
         {
+            public void Clear() => entryList.Clear();
             LinkedList<cacheEntry> entryList;
             readonly int CacheSize = 2;
             public pageCache(int cacheSize)

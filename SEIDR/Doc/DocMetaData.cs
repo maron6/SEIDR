@@ -240,7 +240,7 @@ namespace SEIDR.Doc
         /// <param name="FileName"></param>
         /// <param name="alias"></param>
         public DocMetaData(string DirectoryPath, string FileName, string alias = null)
-            :this(Path.Combine(DirectoryPath, FileName, alias))
+            :this(Path.Combine(DirectoryPath, FileName), alias)
         {
 
         }

@@ -540,10 +540,24 @@ namespace SEIDR.Doc
             };
             Columns.Add(col);
             if (MaxSize == null)            
-                canFixedWidth = false;                
+                canFixedWidth = false;             
             
             SetFormat();
             return col;
+        }
+        /// <summary>
+        /// Adds an object to the column collection by mapping it to a name and adding any additional parameters
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="colSource"></param>
+        /// <param name="map"></param>
+        /// <param name="MaxSize"></param>
+        /// <param name="leftJustify"></param>
+        /// <param name="textQualify"></param>
+        /// <returns></returns>
+        public DocRecordColumnInfo AddColumn<T>(T colSource, Func<T, string> map, int? MaxSize = null, bool leftJustify = true, bool textQualify = false)
+        {
+            return AddColumn(ColumnName: map(colSource), MaxSize:MaxSize, leftJustify:leftJustify, textQualify:textQualify);
         }
         internal void RemoveColumn(string alias, string ColumnName, int position = -1)
         {
@@ -558,7 +572,13 @@ namespace SEIDR.Doc
                 Columns[i].Position -= 1; //move position down by one for removed column.
             }
             Columns.Remove(c);
+            CheckForFixedWidthValid();
             SetFormat();
+        }
+        internal void ClearColumns()
+        {
+            Columns.Clear();
+            canFixedWidth = true;
         }
         internal void RemoveColumn(DocRecordColumnInfo toRemove)
         {
@@ -571,6 +591,7 @@ namespace SEIDR.Doc
                 Columns[i].Position -= 1; //move position down by one for removed column.
             }
             Columns.Remove(toRemove);
+            CheckForFixedWidthValid();
             SetFormat();
         }
         public DocRecordColumnInfo CopyColumnIntoCollection(DocRecordColumnInfo toCopy)
@@ -659,9 +680,9 @@ namespace SEIDR.Doc
                 column.Position = LastPosition + 1;
                 Columns.Add(column);
             }
-            SetFormat();
             if (column.MaxLength == null)
                 canFixedWidth = false;
+            SetFormat();
             return column.Position;
         }
         /// <summary>

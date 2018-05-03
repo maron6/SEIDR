@@ -119,10 +119,16 @@ namespace SEIDR.Doc
         /// </param>
         public void AddRecord<RecordType>(RecordType record, IDictionary<int, DocRecordColumnInfo> columnMapping = null) where RecordType: DocRecord
         {
-            if (!Columns.Valid)
+            if (!md.Columns.Valid)
                 throw new InvalidOperationException("Column state Invalid");
             if (record == null)
                 throw new ArgumentNullException(nameof(record));
+            if(record.Columns == md.Columns 
+                && (columnMapping == null || columnMapping.Count == 0))
+            {
+                sw.Write(record.ToString()); //same column collection, no mapping override, just write the toString
+                return;
+            }
             StringBuilder sb = new StringBuilder();
             Columns.ForEachIndex((col, idx) =>
             {
@@ -162,13 +168,18 @@ namespace SEIDR.Doc
 
         /// <summary>
         /// Writes the records out using ToString without validating that they match the column meta data of the writer.
+        /// <para>Null records will be ignored.</para>
         /// <para>NOTE: THIS IGNORES METADATA.</para>
         /// </summary>
         /// <param name="toWrite"></param>
         public void BulkWrite(IEnumerable<DocRecord> toWrite)
         {
             foreach (var rec in toWrite)
+            {
+                if (rec == null)
+                    continue;
                 sw.Write(rec.ToString());
+            }
         }
         /// <summary>
         /// Writes the records out using ToString without validating that they match the column meta data of the writer.
