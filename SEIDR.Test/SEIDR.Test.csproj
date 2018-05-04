@@ -62,7 +62,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringExtensionTest.cs" />
     <Compile Include="ThreadManaging.cs" />
-    <Compile Include="CompressionTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SEIDR\SEIDR.csproj">
