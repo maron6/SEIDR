@@ -34,6 +34,23 @@ namespace SEIDR.Doc
                 }
                 pages.Sort();
             }
+
+            public sortInfoCache(IList<sortInfo> index, long startLine)
+            {
+                
+                list = new List<CacheEntry>();
+                for(int i = 0; i < index.Count; i++, startLine++)
+                {                    
+                    var info = index[i];
+                    if (info.Page < 0)
+                        continue; //dupe
+                    if (!pages.Contains(info.Page))
+                        pages.Add(info.Page);
+                    list.Add(new CacheEntry(startLine, info));
+                    
+                }
+                pages.Sort();
+            }
             public List<CacheEntry> PullInfo(int page)
             {
                 List<CacheEntry> ret = new List<CacheEntry>();

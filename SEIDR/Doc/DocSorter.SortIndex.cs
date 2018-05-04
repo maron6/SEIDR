@@ -568,5 +568,84 @@ namespace SEIDR.Doc
             }
             //addto.CanWrite = true;
         }
+        /// <summary>
+        /// Writes the index to a specified file path. Somewhat optimized compared to using the enumerator to write loop through records and write
+        /// </summary>
+        /// <param name="destination"></param>
+        /// <param name="indexCache"></param>
+        public void WriteToFile(DocMetaData destination, int indexCache = 3)
+        {  
+            using (DocWriter dw = new DocWriter(destination))
+            {
+                var startRecord = 0L;
+                for (int i = 0; i < indexReader.PageCount; i += indexCache)
+                {
+                    var endRecord = startRecord;
+                    for (int j = i; j < i + indexCache; j++)
+                    {
+                        endRecord += indexReader.GetPageInfo(j).RecordCount;
+                    }
+                    sortInfoCache info = new sortInfoCache(indexReader, startRecord, endRecord);
+                    List<G> toWrite = new List<G>();
+                    foreach (var p in info.GetPagesUsed())
+                    {
+                        var page = _source.GetPage(p);
+                        var pageInfo = _source.GetPageInfo(p);
+                        foreach (var line in info.PullInfo(p))
+                        {
+                            toWrite.SetWithExpansion((int)(line.FileLine - startRecord), page[line.Info.Line], filler: null);
+                        }
+                    }
+                    dw.BulkWrite(toWrite);
+                    startRecord = endRecord + 1;//inclusive
+                }
+            }
+        }
+        /// <summary>
+        /// Writes the index to a specified file path. Somewhat optimized compared to using the enumerator to write loop through records and write
+        /// </summary>
+        /// <param name="filePath"></param>
+        public void WriteToFile(string filePath)
+        {
+            if (filePath == null)
+                throw new ArgumentNullException(nameof(filePath));
+            DocMetaData destination = new DocMetaData(filePath)            
+                .SetHasHeader(_source.MetaData.HasHeader)                
+                .SetFileEncoding(_source.MetaData.FileEncoding)                
+                .SetLineEndDelimiter(_source.MetaData.LineEndDelimiter)
+                .AddDetailedColumnCollection( _source.MetaData.Columns);
+            if (_source.MetaData.Delimiter.HasValue)
+                destination.SetDelimiter(_source.MetaData.Delimiter.Value); //doesn't really matter...writing lines without modifying or parsing.
+
+            using (DocWriter dw = new DocWriter(destination))
+            {
+                var startRecord = 0L;
+                for (int i = 0; i < indexReader.PageCount; i ++)
+                {
+                    var endRecord = startRecord + indexReader.GetPageInfo(i).RecordCount;
+                    
+                    sortInfoCache info = new sortInfoCache(indexReader.GetPage(i), startRecord);
+                    string[] toWrite = new string[endRecord - startRecord];
+                    //List<G> toWrite = new List<G>();
+                    foreach (var p in info.GetPagesUsed())
+                    {
+                        var page = _source.GetPageLines(p);
+                        foreach (var line in info.PullInfo(p))
+                        {
+                            toWrite[line.FileLine - startRecord] = page[line.Info.Line];
+                            //toWrite.SetWithExpansion((int)(line.FileLine - startRecord), page[line.Info.Line], filler: null);
+                        }
+                    }
+                    dw.BulkWrite(toWrite);
+                    startRecord = endRecord;//not inclusive
+                }
+            }
+        }
+        /// <summary>
+        /// Writes the index to a specified file path. Somewhat optimized compared to using the enumerator to write loop through records and write
+        /// </summary>
+        /// <param name="folder"></param>
+        /// <param name="fileName"></param>
+        public void WriteToFile(string folder, string fileName) => WriteToFile(Path.Combine(folder, fileName));
     }
 }

@@ -190,21 +190,33 @@ namespace SEIDR.Doc
 
         /// <summary>
         /// Writes the strings out without validating that they match the column meta data of the writer. Will add the LineEndDelimiter of this metaData if specified, though.
-        /// <para>NOTE: THIS IGNORES METADATA.</para>
+        /// <para>NOTE: THIS IGNORES METADATA EXCEPT FOR LINE END DELIMITER.</para>
         /// </summary>
         /// <param name="Lines"></param>
         public void BulkWrite(IEnumerable<string> Lines)
         {
             foreach (var line in Lines)
+            {
+                if (line == null)
+                    continue;
                 sw.Write(line + Columns.LineEndDelimiter ?? string.Empty);
+            }
         }
 
         /// <summary>
         /// Writes the strings out without validating that they match the column meta data of the writer. Will add the LineEndDelimiter of this metaData if specified, though.
-        /// <para>NOTE: THIS IGNORES METADATA.</para>
+        /// <para>NOTE: THIS IGNORES METADATA EXCEPT FOR LINE END DELIMITER.</para>
         /// </summary>
         /// <param name="Lines"></param>
-        public void BulkWrite(params string[] Lines) => BulkWrite(Lines);
+        public void BulkWrite(params string[] Lines)
+        {
+            foreach (var line in Lines)
+            {
+                if (line == null)
+                    continue;
+                sw.Write(line + Columns.LineEndDelimiter ?? string.Empty);
+            }
+        }
         /// <summary>
         /// Adds record to the file via underlying streamWriter
         /// </summary>

@@ -314,6 +314,7 @@
             }
             toFill[index] = value;
         }
+ 
         /// <summary>
         /// Returns the length of the trimmed string, or -1 if null
         /// </summary>

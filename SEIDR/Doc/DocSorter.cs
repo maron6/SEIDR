@@ -70,6 +70,17 @@ namespace SEIDR.Doc
         /// <param name="disposeCleansIndex">If true, <see cref="Dispose()"/> will also delete the sort index file.</param>
         /// <param name="mainSort"></param>
         public DocSorter(DocReader<G> source, int cacheSize, bool createIndex, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
+            :this(source, cacheSize, DocMetaData.DEFAULT_PAGE_SIZE/2, createIndex, disposeCleansIndex, mainSort) { }
+        /// <summary>
+        /// Constructor. Parameters: Parameterized DocReader, column to sort on.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="cacheSize"></param>
+        /// <param name="indexPageSize"></param>
+        /// <param name="createIndex">If true, will auto create the index at the end of construction</param>
+        /// <param name="disposeCleansIndex">If true, <see cref="Dispose()"/> will also delete the sort index file.</param>
+        /// <param name="mainSort"></param>
+        public DocSorter(DocReader<G> source, int cacheSize, int indexPageSize, bool createIndex, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
         {
             FileInfo f = new FileInfo(source.FilePath);
             if (!f.Exists)
@@ -82,27 +93,31 @@ namespace SEIDR.Doc
             sortColumns = new List<IRecordColumnInfo>(mainSort);
             INDEX_PATH = f.FullName + "." + INDEX_EXTENSION;
             index = new DocMetaData(INDEX_PATH, INDEX_EXTENSION)
-                .AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
+                //.AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
                 .SetFileAccess(FileAccess.ReadWrite)
                 .SetDelimiter(DELIM)
+                .SetPageSize(indexPageSize)
                 .SetLineEndDelimiter(LINE_END)
                 .SetHasHeader(false);
             FileInfo idx = new FileInfo(INDEX_PATH);
+            CleanIndexFile = disposeCleansIndex;
             if (idx.Exists)
             {
                 if (idx.CreationTime > f.LastWriteTime)
                 {
                     indexReader = new DocReader<sortInfo>(index);
-                    if (indexReader.RecordCount == _source.RecordCount)
+                    if (indexReader.RecordCount == _source.RecordCount && indexReader.Columns.Count == mainSort.Length + 2) //sort columns + page/line
                         return; //don't need to sort index.
                     else
+                    {
+                        indexReader.Dispose();
                         indexReader = null;
+                    }
                 }
                 File.Delete(idx.FullName);
             }
             if(createIndex)
                 CreateSortIndex();
-            CleanIndexFile = disposeCleansIndex;
         }
         /// <summary>
         /// Check if the sort index has been created.

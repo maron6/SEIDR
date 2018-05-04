@@ -478,6 +478,17 @@ LineNumber|Description
             }
         }
         [TestMethod]
+        public void InheritanceRecordSortToFileTest()
+        {           
+            //InheritanceRecordTest();
+            using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
+            using (var sorter = new DocSorter(reader, 1, true, false, reader.Columns[1]))
+            {
+                sorter.WriteToFile(reader.FilePath + "_SortedFromSorter");//don't bother with meta data, going to be ignored by bulk write anyway. Also, use getPageLINES in the method, less processing, same effect since no transforming.
+
+            }
+        }
+        [TestMethod]
         public void SortedReadTest()
         {
             FilePrep();
@@ -511,6 +522,20 @@ LineNumber|Description
                 {
                     w.AddRecord(record);
                 }
+            }
+        }
+        [TestMethod]
+        public void BigSortedReadToFileTest()
+        {
+            FilePrep();
+            DocMetaData.TESTMODE = true;
+            var md = new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
+                .AddDelimitedColumns("LineNumber", "Description")
+                .SetDelimiter('|');
+            using (var r = new DocReader("r", BiggerFilePath, pageSize: 50))
+            using (var s = new DocSorter(r, 5, true, false, r.Columns["Description"], r.Columns["LineNumber"]))    
+            {
+                s.WriteToFile(TEST_FOLDER, "BigSortToFile.txt");
             }
         }
     }

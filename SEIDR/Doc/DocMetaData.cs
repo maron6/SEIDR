@@ -65,17 +65,18 @@ namespace SEIDR.Doc
         /// Max number of characters to have in a page when reading from a file
         /// <para>Will throw an exception if the page is too small to completely parse a line somewhere in the file</para>
         /// </summary>
-        public int PageSize { get; private set; } = 10000000;
+        public int PageSize { get; private set; } = DEFAULT_PAGE_SIZE;
+        public const int DEFAULT_PAGE_SIZE = 10000000;
         /// <summary>
         /// Minimum page size (in characters)
         /// </summary>
-        public const int minPageSize = 1028;
+        public const int MIN_PAGE_SIZE = 1028;
         public DocMetaData SetPageSize(int pageSize)
         {
-            if (!TESTMODE && pageSize < minPageSize)
+            if (!TESTMODE && pageSize < MIN_PAGE_SIZE)
             {
-                System.Diagnostics.Debug.WriteLine($"Page Size is below minimum. Setting to {minPageSize}.");
-                PageSize = minPageSize;
+                System.Diagnostics.Debug.WriteLine($"Page Size is below minimum. Setting to {MIN_PAGE_SIZE}.");
+                PageSize = MIN_PAGE_SIZE;
             }
             else
                 PageSize = pageSize;
