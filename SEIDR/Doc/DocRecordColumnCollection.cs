@@ -545,20 +545,7 @@ namespace SEIDR.Doc
             SetFormat();
             return col;
         }
-        /// <summary>
-        /// Adds an object to the column collection by mapping it to a name and adding any additional parameters
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="colSource"></param>
-        /// <param name="map"></param>
-        /// <param name="MaxSize"></param>
-        /// <param name="leftJustify"></param>
-        /// <param name="textQualify"></param>
-        /// <returns></returns>
-        public DocRecordColumnInfo AddColumn<T>(T colSource, Func<T, string> map, int? MaxSize = null, bool leftJustify = true, bool textQualify = false)
-        {
-            return AddColumn(ColumnName: map(colSource), MaxSize:MaxSize, leftJustify:leftJustify, textQualify:textQualify);
-        }
+
         internal void RemoveColumn(string alias, string ColumnName, int position = -1)
         {
             if (!HasColumn(alias, ColumnName, position))
@@ -684,6 +671,21 @@ namespace SEIDR.Doc
                 canFixedWidth = false;
             SetFormat();
             return column.Position;
+        }
+        /// <summary>
+        /// Adds a mapping of a source column to a column in this collection (Best Match)
+        /// <para>Returns 'this' for method chaining.</para>
+        /// </summary>
+        /// <param name="map"></param>
+        /// <param name="source"></param>
+        /// <param name="ColumnName"></param>
+        /// <param name="alias"></param>
+        /// <returns></returns>
+        public DocRecordColumnCollection AddMapping(Dictionary<int, DocRecordColumnInfo>  map, DocRecordColumnInfo source,string ColumnName, string alias = null)
+        {
+            DocRecordColumnInfo temp = GetBestMatch(ColumnName, alias);
+            map[temp.Position] = source;
+            return this;
         }
         /// <summary>
         /// Checks if the object can be used for fixed width. 

@@ -547,7 +547,7 @@ LineNumber|Description
             :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description , mod? "true": "false" })
         {
             if (columnCollection.Count != 3)
-                throw new ArgumentException("Too many columns specified", nameof(columnCollection));
+                throw new ArgumentException("Incorrect number of columns specified", nameof(columnCollection));
         }
         public TestRecordInheritance(DocRecordColumnCollection col)
             : base(col, true)
@@ -556,6 +556,12 @@ LineNumber|Description
         public TestRecordInheritance(DocRecordColumnCollection col, IList<string> parsedContent)
             : base(col, true, parsedContent)
         {
+        }
+        protected override void Configure(DocRecordColumnCollection owner, bool? canWrite = default(bool?), IList<string> parsedContent = null)
+        {
+            base.Configure(owner, canWrite, parsedContent);
+            if(owner.Count != 2 && owner.Count != 3)
+                throw new ArgumentException("Incorrect number of columns specified", nameof(owner));
         }
         public int LineNumber
         {

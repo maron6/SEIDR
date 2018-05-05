@@ -147,13 +147,13 @@ namespace SEIDR.DataBase
         public DatabaseManager Clone(bool reThrowException = true, string programName = null)
         {
             DatabaseManager toClone = this;
-            DatabaseManager clone = new DatabaseManager(toClone._conn, toClone._Schema,
+            var db = toClone.CloneConnection(programName ?? toClone.ProgramName); //So that we have separate DB Connection objects and do not share program name settings.
+            DatabaseManager clone = new DatabaseManager(db, toClone._Schema,
                 toClone.SaveFormat, toClone.UpdateFormat, toClone.InsertFormat,
                 toClone.DeleteFormat, toClone.SelectRowFormat, toClone.SelectListFormat);
             clone._Parameters = toClone._Parameters;
             clone.DefaultRetryOnDeadlock = toClone.DefaultRetryOnDeadlock;
             clone.RethrowException = reThrowException;
-            clone.ProgramName = programName ?? ProgramName;            
             return clone;
         }
         /// <summary>
@@ -185,7 +185,7 @@ namespace SEIDR.DataBase
         }
         
 
-        readonly DatabaseConnection _conn;
+        DatabaseConnection _conn;
         /// <summary>
         /// Connection timeout
         /// </summary>
@@ -197,6 +197,14 @@ namespace SEIDR.DataBase
         #endregion
         
         #region Default setup properties
+        /// <summary>
+        /// Changes the underlying connection
+        /// </summary>
+        /// <param name="newConnection"></param>
+        public void ChangeConnection(DatabaseConnection newConnection)
+        {
+            _conn = newConnection;
+        }
         string _Schema = "dbo";
         /// <summary>
         /// Sets the default schema - used when parameters are not passed to methods to override the schema. 
@@ -629,6 +637,7 @@ namespace SEIDR.DataBase
         /// <param name="ReturnCode">The SQL Return code from calling the stored procedure</param>
         /// <param name="mapObj"></param>
         /// <param name="RetryDeadlock">Priority for determining whether to retry on deadlock</param>
+        /// <param name="updateMap">Indicates whether the map object should have its properties updated</param>
         /// <returns>RowCount from ExecuteNonQuery</returns>
         public int ExecuteNonQuery(string QualifiedProcedureName, out int ReturnCode, object mapObj = null, bool? RetryDeadlock = null, bool updateMap = true)
         {
