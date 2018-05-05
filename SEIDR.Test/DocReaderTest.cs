@@ -461,7 +461,7 @@ LineNumber|Description
              */
             InheritanceRecordTest(); 
             using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
-            using (var sorter = new DocSorter(reader, 11, true, false, reader.Columns[1]))                
+            using (var sorter = new DocSorter(reader, 11, true, false, DuplicateHandling.Ignore, reader.Columns[1]))                
             {                
                 var md = new DocMetaData(reader.FilePath + "_Sorted")
                     .AddDetailedColumnCollection(reader.Columns)
@@ -482,7 +482,7 @@ LineNumber|Description
         {           
             //InheritanceRecordTest();
             using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
-            using (var sorter = new DocSorter(reader, 1, true, false, reader.Columns[1]))
+            using (var sorter = new DocSorter(reader, 1, true, false, DuplicateHandling.Ignore, reader.Columns[1]))
             {
                 sorter.WriteToFile(reader.FilePath + "_SortedFromSorter");//don't bother with meta data, going to be ignored by bulk write anyway. Also, use getPageLINES in the method, less processing, same effect since no transforming.
 
@@ -538,6 +538,20 @@ LineNumber|Description
                 s.WriteToFile(TEST_FOLDER, "BigSortToFile.txt");
             }
         }
+        [TestMethod]
+        public void BigSortedReadDedupeToFileTest()
+        {
+            FilePrep();
+            DocMetaData.TESTMODE = true;
+            var md = new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
+                .AddDelimitedColumns("LineNumber", "Description")
+                .SetDelimiter('|');
+            using (var r = new DocReader("r", BiggerFilePath, pageSize: 50))
+            using (var s = new DocSorter(r, 5, true, false, DuplicateHandling.Delete, r.Columns["Description"]))
+            {
+                s.WriteToFile(TEST_FOLDER, "BigSortToFile.NoDupe.txt");
+            }
+        }
     }
 
     public class TestRecordInheritance: DocRecord
@@ -547,7 +561,7 @@ LineNumber|Description
             :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description , mod? "true": "false" })
         {
             if (columnCollection.Count != 3)
-                throw new ArgumentException("Incorrect number of columns specified", nameof(columnCollection));
+                throw new ArgumentException("Too many columns specified", nameof(columnCollection));
         }
         public TestRecordInheritance(DocRecordColumnCollection col)
             : base(col, true)
@@ -556,12 +570,6 @@ LineNumber|Description
         public TestRecordInheritance(DocRecordColumnCollection col, IList<string> parsedContent)
             : base(col, true, parsedContent)
         {
-        }
-        protected override void Configure(DocRecordColumnCollection owner, bool? canWrite = default(bool?), IList<string> parsedContent = null)
-        {
-            base.Configure(owner, canWrite, parsedContent);
-            if(owner.Count != 2 && owner.Count != 3)
-                throw new ArgumentException("Incorrect number of columns specified", nameof(owner));
         }
         public int LineNumber
         {

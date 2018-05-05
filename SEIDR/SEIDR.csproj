@@ -59,6 +59,7 @@
     <Compile Include="Doc\DocSorter.cs" />
     <Compile Include="Doc\DocSorter.SortIndex.cs" />
     <Compile Include="Doc\DocWriter.cs" />
+    <Compile Include="Doc\DuplicateRecordException.cs" />
     <Compile Include="Doc\SortColumn.cs" />
     <Compile Include="NumExtensions.cs" />
     <Compile Include="Doc\ColumnDateFormatter.cs" />

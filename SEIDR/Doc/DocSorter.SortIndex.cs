@@ -10,24 +10,6 @@ namespace SEIDR.Doc
     public partial class DocSorter<G>
     {
         /// <summary>
-        /// Handling for duplicates when creating the index file.
-        /// </summary>
-        public enum DuplicateHandling
-        {
-            /// <summary>
-            /// Do nothing when a duplicate appears
-            /// </summary>
-            Ignore,
-            /// <summary>
-            /// Remove duplicates
-            /// </summary>
-            Delete,
-            /// <summary>
-            /// Throw an exception if a duplicate is found.
-            /// </summary>
-            Exception
-        }
-        /// <summary>
         /// Deletes the sort index associated with the DocReader's file.
         /// </summary>
         public void DeleteSortIndex()
@@ -39,9 +21,8 @@ namespace SEIDR.Doc
         /// <summary>
         /// Creates the sort index for pulling data from the initially passed <see cref="DocReader{ReadType}"/>
         /// </summary>
-        public void CreateSortIndex()
-        {
-            DuplicateHandling handling = DuplicateHandling.Ignore; //ToDo: Parameter..
+        public void CreateSortIndex(DuplicateHandling handling = DuplicateHandling.Ignore)
+        {             
             if (sortColumns.Count == 0)
                 throw new InvalidOperationException("No Sort columns specified");
             index.Columns.ClearColumns();
@@ -95,7 +76,7 @@ namespace SEIDR.Doc
             {
                 sortPage(i, handling);
             }
-            MergeIndexFiles();
+            MergeIndexFiles(handling);
             //SortIndexFiles();
             indexReader = new DocReader<sortInfo>(index);
         }
@@ -148,7 +129,7 @@ namespace SEIDR.Doc
                 }
             }
         }
-        void MergeIndexFiles(DuplicateHandling handling = DuplicateHandling.Ignore)
+        void MergeIndexFiles(DuplicateHandling handling)
         {
             string W2 = INDEX_PATH + nameof(W2);            
             bool loopL = false;
@@ -204,8 +185,9 @@ namespace SEIDR.Doc
                         using (var r = new DocReader<sortInfo>(odd))
                         using (var w = new DocWriter(w1))
                         {
-                            foreach (var si in SortPositions(fold, r, handling))
-                                w.AddRecord(si);
+                            //foreach (var si in SortPositions(fold, r, handling))
+                            //    w.AddRecord(si);
+                            w.BulkWrite(SortPositions(fold, r, handling));
                         }
                         try
                         {
@@ -347,13 +329,19 @@ namespace SEIDR.Doc
                 if (comp == 0)
                 {
                     if (handling == DuplicateHandling.Exception)
-                        throw new Exception($"Duplicate records via sort: P{sa.Page}#{sa.Line} and {sb.Page}#{sb.Line}.");                    
+                        throw new DuplicateRecordException($"Duplicate records via sort: P{sa.Page}#{sa.Line} and {sb.Page}#{sb.Line}.");                    
                     yield return sa;
 
                     if (handling == DuplicateHandling.Ignore)
                         yield return sb;
                     else
-                        yield return new sortInfo(sb.Columns, new List<string> { "-1", "-1" });
+                    {
+                        var dummyContent = new string[2 + sortColumns.Count];
+                        dummyContent[0] = "-1";
+                        dummyContent[1] = "-1";
+                        yield return new sortInfo(sb.Columns, dummyContent);
+                    }
+
 
                     //ret.Add(sa);
                     //ret.Add(sb);
@@ -412,72 +400,6 @@ namespace SEIDR.Doc
 
             }
         }
-        IList<int> SortPage(IList<int> A, IList<int> B, List<G> page)
-        {
-            if (B.Count == 0)
-                return A;
-            if (A.Count == 0)
-                return B;
-            List<int> ret = new List<int>();
-            int aidx = 0, bidx = 0;
-            IRecord a = page[A[aidx]];
-            IRecord b = page[B[bidx]];
-            while (true)
-            {
-                var comp = sort(a, b);
-                if (comp == 0)
-                {
-                    ret.Add(A[aidx++]);
-                    ret.Add(B[bidx++]);
-                    if (aidx == A.Count)
-                    {
-                        for (; bidx < B.Count; bidx++)
-                        {
-                            ret.Add(B[bidx]);
-                        }
-                        return ret; //finished
-                    }
-                    if (bidx == B.Count)
-                    {
-                        for (; aidx < A.Count; aidx++)
-                        {
-                            ret.Add(A[aidx]);
-                        }
-                        return ret; //finished
-                    }
-                    a = page[A[aidx]];
-                    b = page[B[bidx]];
-                }
-                else if (comp < 0)
-                {
-                    // a<b by compare...
-                    ret.Add(A[aidx++]);
-                    if (aidx == A.Count)
-                    {
-                        for (; bidx < B.Count; bidx++)
-                        {
-                            ret.Add(B[bidx]);
-                        }
-                        return ret; //finished
-                    }
-                    a = page[A[aidx]];
-                }
-                else
-                {
-                    ret.Add(B[bidx++]);
-                    if (bidx == B.Count)
-                    {
-                        for (; aidx < A.Count; aidx++)
-                        {
-                            ret.Add(A[aidx]);
-                        }
-                        return ret;
-                    }
-                    b = page[B[bidx]];
-                }
-
-            }
-        }
         IList<int> SortPositions(IList<int> A, IList<int> B, List<G> page, DuplicateHandling handling)
         {
             if (B.Count == 0)
@@ -494,12 +416,15 @@ namespace SEIDR.Doc
                 if (comp == 0)
                 {
                     if (handling == DuplicateHandling.Exception)
-                        throw new Exception("Duplicate records found within page..");
+                        throw new DuplicateRecordException("Duplicate records found within page..");
                     ret.Add(A[aidx++]);
                     if (handling == DuplicateHandling.Ignore)
                         ret.Add(B[bidx++]);
                     else
+                    {
                         ret.Add(-1);
+                        bidx++; //move to next Line of B
+                    }
                     if (aidx == A.Count)
                     {
                         for (; bidx < B.Count; bidx++)

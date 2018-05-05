@@ -41,8 +41,23 @@ namespace SEIDR.Doc
         /// <param name="createIndexFile">If true, will auto create the index at the end of construction</param>
         /// <param name="disposeCleansIndex">If true, <see cref="DocSorter{DocRecord}.Dispose()"/> will also delete the sort index file.</param>
         /// <param name="mainSort">Sort columns</param>
-        public DocSorter(DocReader source, int pageCacheSize, bool createIndexFile, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
-            : base(source, pageCacheSize, createIndexFile, disposeCleansIndex, mainSort)
+        public DocSorter(DocReader source, int pageCacheSize, bool createIndexFile, bool disposeCleansIndex,
+             params IRecordColumnInfo[] mainSort)
+            : base(source, pageCacheSize, createIndexFile, disposeCleansIndex, DuplicateHandling.Ignore, mainSort)
+        {
+        }
+        /// <summary>
+        /// Constructor with DocReader, columns to sort on
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="pageCacheSize"></param>
+        /// <param name="createIndexFile">If true, will auto create the index at the end of construction</param>
+        /// <param name="disposeCleansIndex">If true, <see cref="DocSorter{DocRecord}.Dispose()"/> will also delete the sort index file.</param>
+        /// <param name="handling">Determines what to do when duplicate records are found based on sorting. Note: Handled in the index logic.</param>
+        /// <param name="mainSort">Sort columns</param>
+        public DocSorter(DocReader source, int pageCacheSize, bool createIndexFile, bool disposeCleansIndex,
+            DuplicateHandling handling, params IRecordColumnInfo[] mainSort)
+            : base(source, pageCacheSize, createIndexFile, disposeCleansIndex, handling, mainSort)
         {
         }
     }
@@ -68,15 +83,29 @@ namespace SEIDR.Doc
         /// <param name="cacheSize"></param>
         /// <param name="createIndex">If true, will auto create the index at the end of construction</param>
         /// <param name="disposeCleansIndex">If true, <see cref="Dispose()"/> will also delete the sort index file.</param>
+        /// <param name="handling">Determines what to do when duplicate records are discovered by the sort.</param>
         /// <param name="mainSort"></param>
-        public DocSorter(DocReader<G> source, int cacheSize, bool createIndex, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
+        public DocSorter(DocReader<G> source, int cacheSize, bool createIndex, bool disposeCleansIndex,
+            DuplicateHandling handling, params IRecordColumnInfo[] mainSort)
             :this(source, 
                  cacheSize, 
                  (source.MetaData.PageSize * mainSort.Length.MaxCompare(1)) 
                     / source.Columns.Count.MaxCompare(1), 
                  createIndex, 
                  disposeCleansIndex, 
+                 handling,
                  mainSort) { }
+        /// <summary>
+        /// Constructor. Parameters: Parameterized DocReader, column to sort on.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="indexPageSize"></param>
+        /// <param name="cacheSize"></param>
+        /// <param name="createIndex">If true, will auto create the index at the end of construction</param>
+        /// <param name="disposeCleansIndex">If true, <see cref="Dispose()"/> will also delete the sort index file.</param>
+        /// <param name="mainSort"></param>
+        public DocSorter(DocReader<G> source, int cacheSize, int indexPageSize, bool createIndex, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
+            :this(source, cacheSize, indexPageSize, createIndex, disposeCleansIndex, DuplicateHandling.Ignore, mainSort) { }
         /// <summary>
         /// Constructor. Parameters: Parameterized DocReader, column to sort on.
         /// </summary>
@@ -85,8 +114,9 @@ namespace SEIDR.Doc
         /// <param name="indexPageSize"></param>
         /// <param name="createIndex">If true, will auto create the index at the end of construction</param>
         /// <param name="disposeCleansIndex">If true, <see cref="Dispose()"/> will also delete the sort index file.</param>
+        /// <param name="handling">Determines what to do when duplicate records are found based on sorting. Note: Handled in the index logic.</param>
         /// <param name="mainSort"></param>
-        public DocSorter(DocReader<G> source, int cacheSize, int indexPageSize, bool createIndex, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
+        public DocSorter(DocReader<G> source, int cacheSize, int indexPageSize, bool createIndex, bool disposeCleansIndex, DuplicateHandling handling, params IRecordColumnInfo[] mainSort)
         {
             FileInfo f = new FileInfo(source.FilePath);
             if (!f.Exists)
@@ -123,7 +153,7 @@ namespace SEIDR.Doc
                 File.Delete(idx.FullName);
             }
             if(createIndex)
-                CreateSortIndex();
+                CreateSortIndex(handling);
         }
         /// <summary>
         /// Check if the sort index has been created.
@@ -134,8 +164,8 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="source"></param>
         /// <param name="mainSort"></param>
-        public DocSorter(DocReader<G> source, params IRecordColumnInfo[] mainSort)
-            :this(source, 4, true, true, mainSort)
+        public DocSorter(DocReader<G> source,  params IRecordColumnInfo[] mainSort)
+            :this(source, 4, true, true, DuplicateHandling.Ignore, mainSort)
         {         
         }
         /// <summary>
@@ -144,8 +174,8 @@ namespace SEIDR.Doc
         /// <param name="source"></param>
         /// <param name="createIndex">If true, will auto create the index at the end of construction</param>
         /// <param name="mainSort"></param>
-        public DocSorter(DocReader<G> source, bool createIndex, params IRecordColumnInfo[] mainSort) 
-            :this(source, 4, createIndex, true, mainSort)
+        public DocSorter(DocReader<G> source, bool createIndex,  params IRecordColumnInfo[] mainSort) 
+            :this(source, 4, createIndex, true, DuplicateHandling.Ignore, mainSort)
         {
 
         }
@@ -297,7 +327,7 @@ namespace SEIDR.Doc
                     cache.Clear();
                     // TODO: dispose managed state (managed objects).
                 }
-                indexReader.Dispose(); //because the indexReader has some unmanaged resources, I believe (stream fields)
+                indexReader?.Dispose(); //because the indexReader has some unmanaged resources, I believe (stream fields)
                 if (File.Exists(INDEX_PATH) && CleanIndexFile)
                     File.Delete(INDEX_PATH);
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

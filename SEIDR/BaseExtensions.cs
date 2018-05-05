@@ -1061,7 +1061,8 @@
             int i = startIndex;
             foreach (T l in list)
             {
-                Update(l, i );
+                if(l != null)
+                    Update(l, i );
                 i += Interval;
             }
         }
