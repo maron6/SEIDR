@@ -142,6 +142,7 @@ namespace SEIDR.Doc
                 if (idx.CreationTime > f.LastWriteTime)
                 {
                     indexReader = new DocReader<sortInfo>(index);
+                    //ToDo: Compare column names of ending index file by writing it with headers indicating position..
                     if (indexReader.RecordCount == _source.RecordCount && indexReader.Columns.Count == mainSort.Length + 2) //sort columns + page/line
                         return; //don't need to sort index.
                     else

@@ -489,6 +489,17 @@ LineNumber|Description
             }
         }
         [TestMethod]
+        public void InheritanceRecordDedupeToFileTest()
+        {
+            InheritanceRecordTest();
+            using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
+            using (var sorter = new DocSorter(reader, 1, true, false, DuplicateHandling.Delete, reader.Columns[2]))
+            {
+                sorter.WriteToFile(reader.FilePath + "_DedupeFromSorter");//don't bother with meta data, going to be ignored by bulk write anyway. Also, use getPageLINES in the method, less processing, same effect since no transforming.
+
+            }
+        }
+        [TestMethod]
         public void SortedReadTest()
         {
             FilePrep();

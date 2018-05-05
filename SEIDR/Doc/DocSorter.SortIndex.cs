@@ -121,8 +121,17 @@ namespace SEIDR.Doc
                     groups = orders.Count;
                 }
                 foreach (var o in orders[0]) //group count == 1
-                {
-
+                {                    
+                    if(o < 0)
+                    {
+                        StringBuilder sb = new StringBuilder("-1|-1");
+                        for(int i=0; i < sortColumns.Count; i++)
+                        {
+                            sb.Append(DELIM);
+                        }
+                        w.AddRecord(sb.ToString());
+                        continue;
+                    }
                     StringBuilder data = new StringBuilder($"{page}{DELIM}{o}");
                     sortColumns.ForEach(c => { data.AppendFormat("{0}{1}", DELIM, p[o][c.Position]); });
                     w.AddRecord(data.ToString());
@@ -408,6 +417,33 @@ namespace SEIDR.Doc
                 return B;
             List<int> ret = new List<int>();
             int aidx = 0, bidx = 0;
+            while (A[aidx] < 0)
+            {
+                ret.Add(-1);
+                aidx++;
+                if (aidx == A.Count)
+                {
+
+                    for (; bidx < B.Count; bidx++)
+                    {
+                        ret.Add(B[bidx]);
+                    }
+                    return ret; //finished
+                }
+            }
+            while (B[bidx] < 0)
+            {
+                ret.Add(-1);
+                bidx++;
+                if (bidx == B.Count)
+                {
+                    for (; aidx < A.Count; aidx++)
+                    {
+                        ret.Add(A[aidx]);
+                    }
+                    return ret; //finished
+                }
+            }
             IRecord a = page[A[aidx]];
             IRecord b = page[B[bidx]];
             while (true)
@@ -441,6 +477,33 @@ namespace SEIDR.Doc
                         }
                         return ret; //finished
                     }
+                    while(A[aidx] < 0)
+                    {
+                        ret.Add(-1);
+                        aidx++;
+                        if(aidx == A.Count)
+                        {
+
+                            for (; bidx < B.Count; bidx++)
+                            {
+                                ret.Add(B[bidx]);
+                            }
+                            return ret; //finished
+                        }
+                    }
+                    while(B[bidx] < 0)
+                    {
+                        ret.Add(-1);
+                        bidx++;
+                        if(bidx == B.Count)
+                        {
+                            for (; aidx < A.Count; aidx++)
+                            {
+                                ret.Add(A[aidx]);
+                            }
+                            return ret; //finished
+                        }
+                    }
                     a = page[A[aidx]];
                     b = page[B[bidx]];
                 }
@@ -456,6 +519,21 @@ namespace SEIDR.Doc
                         }
                         return ret; //finished
                     }
+
+                    while (A[aidx] < 0)
+                    {
+                        ret.Add(-1);
+                        aidx++;
+                        if (aidx == A.Count)
+                        {
+
+                            for (; bidx < B.Count; bidx++)
+                            {
+                                ret.Add(B[bidx]);
+                            }
+                            return ret; //finished
+                        }
+                    }
                     a = page[A[aidx]];
                 }
                 else
@@ -468,6 +546,19 @@ namespace SEIDR.Doc
                             ret.Add(A[aidx]);
                         }
                         return ret;
+                    }
+                    while (B[bidx] < 0)
+                    {
+                        ret.Add(-1);
+                        bidx++;
+                        if (bidx == B.Count)
+                        {
+                            for (; aidx < A.Count; aidx++)
+                            {
+                                ret.Add(A[aidx]);
+                            }
+                            return ret; //finished
+                        }
                     }
                     b = page[B[bidx]];
                 }

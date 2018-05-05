@@ -15,7 +15,7 @@ namespace SEIDR.Doc
         StreamWriter sw;
         DocMetaData md;        
         public bool FixedWidthMode => md.FixedWidthMode;
-        public DocWriter(DocMetaData metaData, bool AppendIfExists = false, int bufferSize = 100000)
+        public DocWriter(DocMetaData metaData, bool AppendIfExists = false, int bufferSize = 10000)
         {
             if (!metaData.Valid)
                 throw new InvalidOperationException("MetaData is not in a valid state");
