@@ -150,6 +150,13 @@ namespace SEIDR.DataBase
                         }
                         else if (underType.IsArray)
                             continue; //Skip arrays...doesn't really make sense for coming from a dataRow, although it might be possible to do dynamically..
+                        else if(underType == typeof(char))
+                        {
+                            var svalue = nValue.ToString();
+                            if (svalue.Length > 1)
+                                throw new InvalidCastException($"{p.Name} tried to set a value of {svalue}, but needs to be a single char.");
+                            nValue = svalue[0];
+                        }
                         /*else
                         {
                             nValue = p.GetValue(map);
@@ -160,55 +167,35 @@ namespace SEIDR.DataBase
             }
         }
         
-        public static DataTable ToTable<RT>(this RT o) where RT : new()
+        public static DataTable ToTable<RT>(this RT o, params string[] ignoredProperties) where RT : new()
         {
-            return o.ToTable(null, null);
+            return o.ToTable(null, ignoredProperties);
         }
         public static DataTable ToTable<RT>(this RT o, string TableName, params string[] ignoredProperties) where RT:new()
         {
-            List<RT> l = new List<RT>();
-            l.Add(o);
-            return l.ToTable(TableName, ignoredProperties);
+            var l = new[] { o };
+            return (l.AsEnumerable()).ToTable(TableName, ignoredProperties);
         }
-        public static DataTable ToTable<RT> (this IEnumerable<RT> o) where RT: new()
+        public static DataTable ToTable<RT> (this IEnumerable<RT> o, params string[] ignoredProperties) where RT: new()
         {
-            return o.ToTable(null, null);
+            return o.ToTable(null, ignoredProperties);
         }        
         public static DataTable ToTable<RT>(this IEnumerable<RT> o, string TableName, params string[] ignoredProperties) where RT : new()
         {
-            Type t = typeof(RT);
-            DataTable dt;
-            if (string.IsNullOrEmpty(TableName))
-                TableName = t.Name;
-            dt = new DataTable(TableName);
-            var props = t.GetProperties().Where(p => p.CanRead && !p.Name.In(ignoredProperties)).ToDictionary(p => p.Name, p => p);
-            foreach(var kv in props)
-            {                    
-                Type underType = Nullable.GetUnderlyingType(kv.Value.PropertyType) 
-                    ?? kv.Value.PropertyType; //If no no underlying type, use prop Info here          
-                dt.Columns.Add(new DataColumn
-                {
-                    ColumnName = kv.Key,
-                    DataType = underType
-                });                
-            }                
-            foreach(RT record in o)
+            DataTable dt = new DataTable(TableName);
+            dt.AddColumns<RT>(ignoredProperties);
+            foreach(var item in o)
             {
-                DataRow r = dt.NewRow();
-                foreach(var kv in props)
-                {
-                    Type underType = Nullable.GetUnderlyingType(kv.Value.PropertyType)
-                        ?? kv.Value.PropertyType; //If no no underlying type, use prop Info here          
-                    object nValue = kv.Value.GetValue(record);
-                    if (nValue == null)
-                        nValue = DBNull.Value;                    
-                    r[kv.Key] = nValue;
-                }
-                dt.Rows.Add(r);
+                dt.AddRow(item);
             }
             return dt;
         }
-        
+        /// <summary>
+        /// Add Missing columns to the datatable by using the names and information of properties from type <typeparamref name="RT"/>
+        /// </summary>
+        /// <typeparam name="RT"></typeparam>
+        /// <param name="dt"></param>
+        /// <param name="IgnoredProperties"></param>
         public static void AddColumns<RT>(this DataTable dt, params string[] IgnoredProperties)
         {            
             Type t = typeof(RT);
@@ -220,7 +207,11 @@ namespace SEIDR.DataBase
             foreach(var prop in props)
             {
                 bool nullable = prop.PropertyType.IsClass || dt.Rows.Count > 0;
+
                 Type underlying = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                if (!nullable && underlying != prop.PropertyType)
+                    nullable = true;
+
                 dt.Columns.Add(new DataColumn
                 {
                     ColumnName = prop.Name,

@@ -471,6 +471,44 @@
             }
             return ret;
         }
+        /// <summary>
+        /// Returns the minimal value of the two parameters.
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="compare"></param>
+        /// <returns></returns>
+        public static int MinCompare(this int left, int compare)
+        {
+            if (left < compare)
+                return left;
+            return compare;
+        }
+        /// <summary>
+        /// Gets the minimal value of all the parameters.
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="compare"></param>
+        /// <returns></returns>
+        public static int MinCompare(this int left, params int[] compare)
+        {
+            return left.MinCompare(compare.Min());
+        }
+        /// <summary>
+        /// Returns the maximum value of the parameters
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="compare"></param>
+        /// <returns></returns>
+        public static int MaxCompare(this int left, int compare)
+        {
+            if (left > compare)
+                return left;
+            return compare;            
+        }
+        public static int MaxCompare(this int left, params int[] compare)
+        {
+            return left.MaxCompare(compare.Max());
+        }
         
         /// <summary>
         /// Adds the range to the list. 

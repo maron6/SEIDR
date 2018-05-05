@@ -66,11 +66,19 @@ namespace SEIDR.Doc
         /// <para>Will throw an exception if the page is too small to completely parse a line somewhere in the file</para>
         /// </summary>
         public int PageSize { get; private set; } = DEFAULT_PAGE_SIZE;
+        /// <summary>
+        /// Default value for <see cref="PageSize"/> 
+        /// </summary>
         public const int DEFAULT_PAGE_SIZE = 10000000;
         /// <summary>
         /// Minimum page size (in characters)
         /// </summary>
         public const int MIN_PAGE_SIZE = 1028;
+        /// <summary>
+        /// Sets <see cref="PageSize"/> 
+        /// </summary>
+        /// <param name="pageSize"></param>
+        /// <returns></returns>
         public DocMetaData SetPageSize(int pageSize)
         {
             if (!TESTMODE && pageSize < MIN_PAGE_SIZE)
@@ -120,7 +128,7 @@ namespace SEIDR.Doc
         /// Use if there may be a mixture of /r/n, /r, /n, etc   
         /// </summary>
         /// <param name="endings"></param>
-        public void SetMultiLineEndDelimiters(params string[] endings)
+        public DocMetaData SetMultiLineEndDelimiters(params string[] endings)
         {
             List<string> l;
             if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
@@ -137,6 +145,7 @@ namespace SEIDR.Doc
                 return 0;
             });
             MultiLineEndDelimiter = l.Where(ln => !string.IsNullOrEmpty(ln)).ToArray();
+            return this;
         }
         /// <summary>
         /// Indicates if the MutliLineEnd Delimiter information should be used by DocReader instances. True if there is more than one line ending in the <see cref="MultiLineEndDelimiter"/> array.

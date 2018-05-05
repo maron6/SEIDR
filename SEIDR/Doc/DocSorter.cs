@@ -70,7 +70,13 @@ namespace SEIDR.Doc
         /// <param name="disposeCleansIndex">If true, <see cref="Dispose()"/> will also delete the sort index file.</param>
         /// <param name="mainSort"></param>
         public DocSorter(DocReader<G> source, int cacheSize, bool createIndex, bool disposeCleansIndex, params IRecordColumnInfo[] mainSort)
-            :this(source, cacheSize, DocMetaData.DEFAULT_PAGE_SIZE/2, createIndex, disposeCleansIndex, mainSort) { }
+            :this(source, 
+                 cacheSize, 
+                 (source.MetaData.PageSize * mainSort.Length.MaxCompare(1)) 
+                    / source.Columns.Count.MaxCompare(1), 
+                 createIndex, 
+                 disposeCleansIndex, 
+                 mainSort) { }
         /// <summary>
         /// Constructor. Parameters: Parameterized DocReader, column to sort on.
         /// </summary>
