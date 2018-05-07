@@ -183,7 +183,7 @@ namespace SEIDR.Doc
         /// Used for determining records information and order/formatting.
         /// </summary>
         internal protected DocRecordColumnCollection Columns;        
-        List<string> Content = new List<string>();
+        List<string> Content = new List<string>(); //toDo: consider changing to an array?  Or else add additional records as needed when calling toString to avoid the format getting messed up if we're allowing records to miss end columns..
         //Dictionary<DocRecordColumnInfo, string> Content;
 
         /// <summary>

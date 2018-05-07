@@ -480,7 +480,7 @@ LineNumber|Description
         [TestMethod]
         public void InheritanceRecordSortToFileTest()
         {           
-            //InheritanceRecordTest();
+            InheritanceRecordTest();
             using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
             using (var sorter = new DocSorter(reader, 1, true, false, DuplicateHandling.Ignore, reader.Columns[1]))
             {

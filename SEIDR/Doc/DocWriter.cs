@@ -15,7 +15,16 @@ namespace SEIDR.Doc
         StreamWriter sw;
         DocMetaData md;        
         public bool FixedWidthMode => md.FixedWidthMode;
-        public DocWriter(DocMetaData metaData, bool AppendIfExists = false, int bufferSize = 10000)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="metaData"></param>
+        /// <param name="AppendIfExists"></param>
+        /// <param name="bufferSize">Initial buffer size for underlying stream in KB. 
+        /// <para>Note: can be forced to grow, which can be expensive according to https://stackoverflow.com/questions/32346051/what-does-buffer-size-mean-when-streaming-text-to-a-file. </para>
+        /// <para>Adding one line at a time, though, so should probably choose based on max size of a line </para>
+        /// <para>May also need to consider whether you're writing locally or on a network.</para></param>
+        public DocWriter(DocMetaData metaData, bool AppendIfExists = false, int bufferSize = 5000)
         {
             if (!metaData.Valid)
                 throw new InvalidOperationException("MetaData is not in a valid state");
