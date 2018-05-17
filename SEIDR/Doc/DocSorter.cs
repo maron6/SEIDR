@@ -213,6 +213,64 @@ namespace SEIDR.Doc
             }
         }
         /// <summary>
+        /// Gets the line
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="pageLine"></param>
+        /// <param name="columnInfo"></param>
+        /// <returns></returns>
+        public string this [int page, int pageLine, IRecordColumnInfo columnInfo]
+        {
+            get
+            {
+                if (!SortIndexConfigured)
+                    throw new InvalidOperationException("Sort index not configured.");
+                int colIdx = -1;
+                for(int i = 0; i < sortColumns.Count; i++)                
+                {
+                    var col = sortColumns[i];
+                    if (col.Position == columnInfo.Position)
+                    {
+                        colIdx = i;
+                        break;
+                    }
+                };
+                if(colIdx < 0)
+                    throw new InvalidOperationException("Column not included in sort index.");
+                long pl = _source.CheckLine(page, pageLine);
+                var idx = indexReader[pl];
+                return idx.GetData(columnInfo.Position);
+            }
+        } 
+        /// <summary>
+        /// Gets the line
+        /// </summary>
+        /// <param name="line">Line number in the entire file</param>
+        /// <param name="columnInfo"></param>
+        /// <returns></returns>
+        public string this [long line, IRecordColumnInfo columnInfo]
+        {
+            get
+            {
+                if (!SortIndexConfigured)
+                    throw new InvalidOperationException("Sort index not configured.");
+                int colIdx = -1;
+                for(int i = 0; i < sortColumns.Count; i++)                
+                {
+                    var col = sortColumns[i];
+                    if (col.Position == columnInfo.Position)
+                    {
+                        colIdx = i;
+                        break;
+                    }
+                };
+                if(colIdx < 0)
+                    throw new InvalidOperationException("Column not included in sort index.");
+                var idx = indexReader[line];
+                return idx.GetData(colIdx);
+            }
+        }
+        /// <summary>
         /// Returns the records mapped to this index after sorting.Note: duplicate records may be marked as null and placed somewhat arbitrarily.(When index is created with <see cref="DuplicateHandling.Delete"/>)
         /// </summary>
         /// <param name="page"></param>
