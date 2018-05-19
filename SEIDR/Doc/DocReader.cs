@@ -15,6 +15,16 @@ namespace SEIDR.Doc
     /// </summary>
     public class DocReader : DocReader<DocRecord>
     {
+        #region operators.
+        public static implicit operator DocMetaData(DocReader r)
+        {
+            return r.MetaData;
+        }
+        public static implicit operator DocRecordColumnCollection(DocReader r)
+        {
+            return r.Columns;
+        }
+        #endregion
 
         /// <summary>
         /// Basic constructor, no meta data configured yet.

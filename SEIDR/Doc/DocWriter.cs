@@ -11,9 +11,30 @@ namespace SEIDR.Doc
     /// Helper using DocMetaData to wrap a StreamWriter and write metaData to a file
     /// </summary>
     public class DocWriter: IDisposable
-    {        
+    {
+        #region operators   
+        /// <summary>
+        /// Allow treating the doc writer as a DocMetaData to help keep code more succinct
+        /// </summary>
+        /// <param name="writer"></param>
+        public static implicit operator DocMetaData(DocWriter writer)
+        {
+            return writer.md;
+        }
+        /// <summary>
+        /// Allow treating the writer as a column colleciton to help keep code more succinct
+        /// </summary>
+        /// <param name="writer"></param>
+        public static implicit operator DocRecordColumnCollection(DocWriter writer)
+        {
+            return writer.md?.Columns;
+        }
+        #endregion
         StreamWriter sw;
         DocMetaData md;        
+        /// <summary>
+        /// True if the file being written to is being written with columns having fixed widths and positions.
+        /// </summary>
         public bool FixedWidthMode => md.FixedWidthMode;
         /// <summary>
         /// 
@@ -117,7 +138,18 @@ namespace SEIDR.Doc
         /// Column meta Data
         /// </summary>
         public DocRecordColumnCollection Columns => md.Columns;
-     
+        
+        /// <summary>
+        /// Calls <see cref="AddRecord{RecordType}(RecordType, IDictionary{int, DocRecordColumnInfo})"/> using the DocWriter's underlying dictionary.
+        /// </summary>
+        /// <typeparam name="RecordType"></typeparam>
+        /// <param name="record"></param>
+        /// <param name="columnMapping"></param>
+        public void AddRecord<RecordType>(RecordType record, DocWriterMap columnMapping) 
+            where RecordType : DocRecord
+        {
+            AddRecord(record, columnMapping.MapData);
+        }
         /// <summary>
         /// Adds the record to the file via streamWriter
         /// </summary>
@@ -126,7 +158,8 @@ namespace SEIDR.Doc
         /// <para>Key should be the target position in the output file, value should be the column information from the source.
         /// </para>
         /// </param>
-        public void AddRecord<RecordType>(RecordType record, IDictionary<int, DocRecordColumnInfo> columnMapping = null) where RecordType: DocRecord
+        public void AddRecord<RecordType>(RecordType record, IDictionary<int, DocRecordColumnInfo> columnMapping = null) 
+            where RecordType: DocRecord
         {
             if (!md.Columns.Valid)
                 throw new InvalidOperationException("Column state Invalid");
@@ -232,7 +265,7 @@ namespace SEIDR.Doc
         /// <param name="record"></param>
         public void AddRecord(string record)
         {
-            AddRecord(Columns.ParseRecord(false, record), null);
+            AddRecord(Columns.ParseRecord(false, record));
         }
         /// <summary>
         /// Parses the strings and maps them using this collection's MetaData. Will add the LineEndDelimiter of this metaData if specified, though.

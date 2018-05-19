@@ -10,6 +10,14 @@ namespace SEIDR.Doc
 
     public class DocMetaData
     {
+        /// <summary>
+        /// Treats the MetaData as the underlying ColumnsCollection
+        /// </summary>
+        /// <param name="data"></param>
+        public static implicit operator DocRecordColumnCollection(DocMetaData data)
+        {
+            return data.Columns;
+        }        
         static bool _TestMode = false;
         /// <summary>
         /// Removes minimum on PageSize. Setting pageSize below the min is silently ignored outside of TestMode

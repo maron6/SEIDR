@@ -18,13 +18,22 @@ namespace SEIDR.Doc
         /// <summary>
         /// If sort is ascending order.
         /// </summary>
-        bool SortASC { get; set; } 
+        bool SortASC { get; set; }
+      
     }
     /// <summary>
     /// Column information for Doc Reader/Writer
     /// </summary>
     public sealed class DocRecordColumnInfo : IRecordColumnInfo
     {
+        /// <summary>
+        /// Treats the column as an int by position.
+        /// </summary>
+        /// <param name="column"></param>
+        public static implicit operator int(DocRecordColumnInfo column)
+        {
+            return column.Position;
+        }
         /// <summary>
         /// Sort order for <see cref="IRecordColumnInfo"/>
         /// </summary>

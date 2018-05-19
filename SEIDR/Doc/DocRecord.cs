@@ -554,5 +554,43 @@ namespace SEIDR.Doc
                 }
             }
         }
+        #region object set with toString
+
+        /// <summary>
+        /// Attempts to set the value to the string representation of the object (by calling <see cref="object.ToString()"/> )
+        /// </summary>
+        /// <param name="columnIndex"></param>
+        /// <param name="value"></param>
+        public DocRecord SetValue(int columnIndex, object value)
+        {
+            this[columnIndex] = value.ToString();
+            return this;
+        }
+        /// <summary>
+        /// Attempts to set the value to the string representation of the object (by calling <see cref="object.ToString()"/> )
+        /// </summary>
+        public DocRecord SetValue(string columnName, string alias, int position, object value)
+        {
+            this[Columns.GetBestMatch(columnName, alias, position)] = value.ToString();
+            return this;
+        }
+        /// <summary>
+        /// Attempts to set the value to the string representation of the object (by calling <see cref="object.ToString()"/> )
+        /// </summary>
+        public DocRecord SetValue(string columnName, string alias, object value)
+        {
+            this[Columns.GetBestMatch(columnName, alias)] = value.ToString();
+            return this;
+        }
+        /// <summary>
+        /// Attempts to set the value to the string representation of the object (by calling <see cref="object.ToString()"/> )
+        /// </summary>
+        public DocRecord SetValue(string columnName, object value)
+        {
+            this[Columns.GetBestMatch(columnName)] = value.ToString();
+            return this;
+        }
+        #endregion
+
     }
 }
