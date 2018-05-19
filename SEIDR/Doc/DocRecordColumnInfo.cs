@@ -71,11 +71,7 @@ namespace SEIDR.Doc
             }
         }
         #region setters
-        public DocRecordColumnInfo SetEarlyTerminator(string value)
-        {
-            EarlyTerminator = value;
-            return this;
-        }
+        
         public DocRecordColumnInfo SetNullIfEmpty(bool value)
         {
             NullIfEmpty = value;
@@ -97,13 +93,15 @@ namespace SEIDR.Doc
             return this;
         }
 #endregion
+        /*
         /// <summary>
-        /// For use with fixed width, cause column to end early. 
+        /// For use with variable width, cause column to end early. Will complicate parsing, DocReader paging, but should be doable, but will assume that 
         /// <para>E.g., final column ends as soon as it reaches a newline instead of after <see cref="MaxLength"/> characters</para>
         /// <para>Note: last column in fixed width should account for the space taken by NewLine</para>
         /// </summary>
         [Obsolete("Correct usage not fully implemented, not planned.")]
         public string EarlyTerminator { get; set; } = null;
+        */
         /// <summary>
         /// Name of the column
         /// </summary>

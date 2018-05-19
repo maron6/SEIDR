@@ -114,16 +114,36 @@ namespace SEIDR.Doc
                 {
                     int x = Columns[i].MaxLength.Value;
                     if (x + position > record.Length)
-                        x = record.Length - position; //Number of characters to read
-                    int nextPosition = record.IndexOf(Columns[i].EarlyTerminator);
-                    if (nextPosition < 0)
-                    {
-                        split[i] = record.Substring(position, x);
-                    }
-                    if (nextPosition - position < x)
-                        x = nextPosition - position;
+                        x = record.Length - position; //Number of characters to read                                        
                     split[i] = record.Substring(position, x);
                     position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
+                {
+                    int x = record.IndexOf(_Delimiter.Value, position) - position;
+                    int y = Columns[i].MaxLength ?? x;
+                    if (y < x || x < 0)
+                    {
+                        x = y;
+                        y = 0;
+                    }
+                    else
+                        y = 1; //Skip delimiter          
+                    if (y < 0)
+                    {
+                        if(i == Columns.Count - 1)
+                        {
+                            split[i] = record.Substring(position);
+                            break;
+                        }
+                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, _Delimiter.Value);
+                    }
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                                                
+                    split[i] = record.Substring(position, x);
+                    position += x + y; 
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
@@ -176,18 +196,36 @@ namespace SEIDR.Doc
                 {
                     int x = Columns[i].MaxLength.Value;
                     if (x + position > record.Length)
-                        x = record.Length - position; //Number of characters to read
-                    int nextPosition = record.IndexOf(Columns[i].EarlyTerminator);
-                    if (nextPosition < 0)
-                    {
-
-                        split[i] = record.Substring(position, x);
-                        //break;
-                    }
-                    if (nextPosition - position < x)
-                        x = nextPosition - position;
+                        x = record.Length - position; //Number of characters to read                                        
                     split[i] = record.Substring(position, x);
                     position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
+                {
+                    int x = record.IndexOf(_Delimiter.Value, position) - position;
+                    int y = Columns[i].MaxLength ?? x;
+                    if (y < x || x < 0)
+                    {
+                        x = y;
+                        y = 0;
+                    }
+                    else
+                        y = 1; //Skip delimiter          
+                    if (y < 0)
+                    {
+                        if (i == Columns.Count - 1)
+                        {
+                            split[i] = record.Substring(position);
+                            break;
+                        }
+                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, _Delimiter.Value);
+                    }
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                                                
+                    split[i] = record.Substring(position, x);
+                    position += x + y;
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
@@ -238,18 +276,36 @@ namespace SEIDR.Doc
                 {
                     int x = Columns[i].MaxLength.Value;
                     if (x + position > record.Length)
-                        x = record.Length - position; //Number of characters to read
-                    int nextPosition = record.IndexOf(Columns[i].EarlyTerminator);
-                    if (nextPosition < 0)
-                    {
-
-                        split[i] = record.Substring(position, x);
-                        //break;
-                    }
-                    if (nextPosition - position < x)
-                        x = nextPosition - position;
+                        x = record.Length - position; //Number of characters to read                                        
                     split[i] = record.Substring(position, x);
                     position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
+                {
+                    int x = record.IndexOf(_Delimiter.Value, position) - position;
+                    int y = Columns[i].MaxLength ?? x;
+                    if (y < x || x < 0)
+                    {
+                        x = y;
+                        y = 0;
+                    }
+                    else
+                        y = 1; //Skip delimiter          
+                    if (y < 0)
+                    {
+                        if (i == Columns.Count - 1)
+                        {
+                            split[i] = record.Substring(position);
+                            break;
+                        }
+                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, _Delimiter.Value);
+                    }
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                                                
+                    split[i] = record.Substring(position, x);
+                    position += x + y;
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
@@ -354,6 +410,7 @@ namespace SEIDR.Doc
         /// </summary>
         public string LineEndDelimiter { get; set; } = Environment.NewLine;
         bool fixedWidthMode = false;
+        bool VariableWidthMode = false;
         internal string format;
         internal void SetFormat()
         {
@@ -542,12 +599,11 @@ namespace SEIDR.Doc
         /// <param name="leftJustify">Indicates if column should be left justified in fix width mode</param>
         /// <param name="textQualify">Indicates whether the column should be text qualified when writing.</param>
         /// <returns></returns>
-        public DocRecordColumnInfo AddColumn(string ColumnName, int? MaxSize = null, string EarlyTerminator = null, bool leftJustify = true, bool textQualify = false)
+        public DocRecordColumnInfo AddColumn(string ColumnName, int? MaxSize = null, bool leftJustify = true, bool textQualify = false)
         {
             var col = new DocRecordColumnInfo(ColumnName, Alias, LastPosition + 1)
             {
-                MaxLength = MaxSize,
-                EarlyTerminator = EarlyTerminator,
+                MaxLength = MaxSize,                
                 NullIfEmpty = NullIfEmpty,
                 LeftJustify = leftJustify,
                 TextQualify = textQualify
@@ -599,8 +655,7 @@ namespace SEIDR.Doc
         {
             var col = new DocRecordColumnInfo(toCopy.ColumnName, toCopy.OwnerAlias, LastPosition + 1)
             {
-                MaxLength = toCopy.MaxLength,
-                EarlyTerminator = toCopy.EarlyTerminator,
+                MaxLength = toCopy.MaxLength,                
                 NullIfEmpty = toCopy.NullIfEmpty,
                 LeftJustify = toCopy.LeftJustify,
                 TextQualify = toCopy.TextQualify,                
@@ -618,26 +673,23 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="ColumnName"></param>
         /// <param name="newName"></param>
-        /// <param name="MaxSize"></param>
-        /// <param name="EarlyTerminator"></param>
+        /// <param name="MaxSize"></param>        
         /// <param name="nullIfEmpty">If set, overrides the column value. If null, leaves the column's value alone</param>
-        public void UpdateColumn(string ColumnName, string newName, int? MaxSize, string EarlyTerminator, bool? nullIfEmpty = null)
-            => UpdateColumn(Alias, ColumnName, newName, MaxSize, EarlyTerminator, NullIfEmpty);
+        public void UpdateColumn(string ColumnName, string newName, int? MaxSize, bool? nullIfEmpty = null)
+            => UpdateColumn(Alias, ColumnName, newName, MaxSize, NullIfEmpty);
         /// <summary>
         /// Updates the column information specified by the Alias/column Name
         /// </summary>
         /// <param name="Alias"></param>
         /// <param name="ColumnName"></param>
         /// <param name="newName"></param>
-        /// <param name="MaxSize"></param>
-        /// <param name="EarlyTerminator"></param>
+        /// <param name="MaxSize"></param>        
         /// <param name="NullIfEmpty">If set, overrides the column value. If null, leaves the column's value alone</param>
-        public void UpdateColumn(string Alias, string ColumnName, string newName, int? MaxSize, string EarlyTerminator, bool? NullIfEmpty = null)
+        public void UpdateColumn(string Alias, string ColumnName, string newName, int? MaxSize, bool? NullIfEmpty = null)
         {
             var col = this[Alias, ColumnName];
             col.ColumnName = newName;
             col.MaxLength = MaxSize;
-            col.EarlyTerminator = EarlyTerminator;
             col.NullIfEmpty = NullIfEmpty ?? col.NullIfEmpty;
             if (MaxSize != null)
                 CheckForFixedWidthValid();

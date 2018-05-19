@@ -6,18 +6,18 @@ using System.Threading.Tasks;
 
 namespace SEIDR.Doc
 {
-    public class MissingColumnException:Exception
+    public class MissingColumnException : Exception
     {
         public int ExpectedCount { get; private set; }
         public int LastColumn { get; private set; }
         public MissingColumnException(int lastColumn, int expectedLastColumn)
-            :base("Missing Columns encountered")
+            : base("Missing Columns encountered")
         {
             ExpectedCount = expectedLastColumn;
             LastColumn = lastColumn;
         }
     }
-    public class ColumnOverflowException :Exception
+    public class ColumnOverflowException : Exception
     {
         public int ExpectedCount { get; private set; }
         public int FoundColumnCount { get; private set; }
@@ -25,13 +25,13 @@ namespace SEIDR.Doc
         public int RemainingCharacters { get; private set; } = -1;
         public int RecordLength { get; private set; } = -1;
         public ColumnOverflowException(int foundColumnCount, int expectedColumnCount)
-            :base("Found too many delimited Columns. Expected " + expectedColumnCount + "; Found " + foundColumnCount)
+            : base("Found too many delimited Columns. Expected " + expectedColumnCount + "; Found " + foundColumnCount)
         {
             ExpectedCount = expectedColumnCount;
             FoundColumnCount = foundColumnCount;
         }
         public ColumnOverflowException(int remainingCharacters, int ExpectedColumnCount, int RecordLength)
-            :base("Too many characters in record. Expected " + (RecordLength - remainingCharacters) + " characters, found "
+            : base("Too many characters in record. Expected " + (RecordLength - remainingCharacters) + " characters, found "
                  + RecordLength + ". Remaining Characters: " + remainingCharacters)
         {
             ExpectedCount = ExpectedColumnCount;
@@ -39,6 +39,25 @@ namespace SEIDR.Doc
             RemainingCharacters = remainingCharacters;
             this.RecordLength = RecordLength;
             FixedWidth = true;
+        }
+    }
+    public class VariableColumnNotFoundException:Exception
+    {
+        public int ExpectedCount { get; private set; }
+        public int FoundColumnCount { get; private set; }        
+        public int RemainingCharacters { get; private set; } = -1;
+        public int RecordLength { get; private set; } = -1;
+        public char ExpectedDelimiter { get; private set; }
+        public VariableColumnNotFoundException(int remainingCharacters, int columnNumber, int ExpectedColumnCount, int RecordLength, char ExpectedDelimiter)
+            : base("Nnot enough data to find column in Variable Width mode. Expected delimiter: '" + ExpectedDelimiter + "'. Total character count for record: " + (RecordLength) + " characters, found "
+                 + RecordLength + ". Remaining Characters: " + remainingCharacters)
+        {
+            ExpectedCount = ExpectedColumnCount;
+            FoundColumnCount = ExpectedColumnCount + 1;
+            RemainingCharacters = remainingCharacters;
+            this.RecordLength = RecordLength;
+            this.ExpectedDelimiter = ExpectedDelimiter;
+            
         }
     }
 }
