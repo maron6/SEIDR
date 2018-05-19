@@ -342,7 +342,7 @@ namespace SEIDR.Doc
         {
             foreach (var col in columnCollection)
             {
-                Columns.AddColumn(col.ColumnName, col.MaxLength, col.EarlyTerminator, col.LeftJustify, col.TextQualify);
+                Columns.AddColumn(col.ColumnName, col.MaxLength, col.LeftJustify, col.TextQualify);
             }
             return this;
         }
@@ -391,11 +391,11 @@ namespace SEIDR.Doc
         /// <param name="MaxLength">optional limit</param>
         /// <param name="EarlyTerminator"></param>
         /// <returns></returns>
-        public DocMetaData AddColumn(string ColumnName, int? MaxLength = null, string EarlyTerminator = null)
+        public DocMetaData AddColumn(string ColumnName, int? MaxLength = null)
         {
             if (this.FixedWidthMode && MaxLength == null)
                 throw new ArgumentNullException(nameof(MaxLength), $"MetaData indicates fixed width mode, but a length was not provided for new column '{ColumnName}'");
-            Columns.AddColumn(ColumnName, MaxLength, EarlyTerminator);
+            Columns.AddColumn(ColumnName, MaxLength);
             return this;
         }
         string _FileHash = null;
