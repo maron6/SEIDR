@@ -35,6 +35,14 @@ namespace SEIDR.Doc
             return column.Position;
         }
         /// <summary>
+        /// Treats the column as a string by taking its Name (primary identifier)
+        /// </summary>
+        /// <param name="column"></param>
+        public static implicit operator string(DocRecordColumnInfo column)
+        {
+            return column.ColumnName;
+        }
+        /// <summary>
         /// Sort order for <see cref="IRecordColumnInfo"/>
         /// </summary>
         bool IRecordColumnInfo.SortASC { get; set; } = true;
@@ -100,6 +108,11 @@ namespace SEIDR.Doc
         /// Name of the column
         /// </summary>
         public string ColumnName { get; internal set; }
+        /// <summary>
+        /// <see cref="ColumnName"/>, but if the <see cref="OwnerAlias"/> is set, will be prepended by the OwnerAlias and a dot.
+        /// <para>E.g. "a.ColName" or "fi .Name of Column"</para>
+        /// </summary>
+        public string FullColumnName => string.IsNullOrWhiteSpace(OwnerAlias) ? ColumnName : OwnerAlias + "." + ColumnName;
         /// <summary>
         /// Alias of the column's owner
         /// </summary>

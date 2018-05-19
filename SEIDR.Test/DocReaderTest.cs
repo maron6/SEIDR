@@ -23,12 +23,14 @@ namespace SEIDR.Test
                 output
                     .AddDetailedColumnCollection(reader.Columns)
                     .AddDelimitedColumns("Random Output!", "Extra output")
-                    .SetDelimiter('|');
+                    .SetDelimiter('|')
+                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex");
                 using (var writer = new DocWriter(output))
                 {
                     DocWriterMap dm = new DocWriterMap(writer, reader);
                     dm.AddMapping(reader.Columns["test 2"], writer.Columns["Random Output!"])
-                        .AddMapping("Test", "Extra output");
+                        .AddMapping("Test", "Extra output")
+                        .AddMapping("Test", "ZeroIndex");
                     int i = 0;
                     foreach (var record in reader)
                     {
@@ -40,7 +42,7 @@ namespace SEIDR.Test
                     }
                     /*
                      * Test -> Extra, test 2 -> Random
-                    LineNumber|Description|Test|test 2|Random Output!|Extra output
+                    LineNumber|Description|ZeroIndex|test 2|Random Output!|Extra output
                     1|First|Hi|0|0|Hi
                     2|Second|Hi|1|1|Hi
                     3|Third|Hi|2|2|Hi
@@ -57,7 +59,7 @@ namespace SEIDR.Test
 
             }
             string s = File.ReadAllText(output.FilePath);
-            Assert.AreEqual("LineNumber|Description|Test|test 2|Random Output!|Extra output\r\n1|First|Hi|0|0|Hi\r\n2|Second|Hi|1|1|Hi\r\n3|Third|Hi|2|2|Hi\r\n4|Fourth|Hi|3|3|Hi\r\n5|Fifth|Hi|4|4|Hi\r\n6|Sixth|Hi|5|5|Hi\r\n7|Seventh|Hi|6|6|Hi\r\n8|Eighth|Hi|7|7|Hi\r\n9|Ninth|Hi|8|8|Hi\r\n10|Tenth|Hi|9|9|Hi\r\n", s);
+            Assert.AreEqual("LineNumber|Description|ZeroIndex|test 2|Random Output!|Extra output\r\n1|First|Hi|0|0|Hi\r\n2|Second|Hi|1|1|Hi\r\n3|Third|Hi|2|2|Hi\r\n4|Fourth|Hi|3|3|Hi\r\n5|Fifth|Hi|4|4|Hi\r\n6|Sixth|Hi|5|5|Hi\r\n7|Seventh|Hi|6|6|Hi\r\n8|Eighth|Hi|7|7|Hi\r\n9|Ninth|Hi|8|8|Hi\r\n10|Tenth|Hi|9|9|Hi\r\n", s);
 
         }
 

@@ -86,7 +86,8 @@ namespace SEIDR.Doc
                 }
                 return x;
             }
-        }        
+        }
+        #region Parsing
         /// <summary>
         /// Parses the record into a list of strings, for use with one of the DocRecord constructors (mainly, when using a class that inherits from DocRecord) 
         /// </summary>
@@ -278,6 +279,19 @@ namespace SEIDR.Doc
         /// <para>If false, ignores extra columns, and missing columns are treated as null</para>
         /// </summary>
         public bool ThrowExceptionColumnCountMismatch { get; set; } = true;
+        #endregion
+        /// <summary>
+        /// Changes the <see cref="DocRecordColumnInfo.ColumnName"/> of the associated column.
+        /// </summary>
+        /// <param name="position"></param>
+        /// <param name="NewName"></param>
+        /// <returns></returns>
+        public DocRecordColumnCollection RenameColumn(int position, string NewName)
+        {
+            Columns[position].ColumnName = NewName;
+            return this;
+        }
+
         /// <summary>
         /// Creates a basic set up
         /// </summary>
