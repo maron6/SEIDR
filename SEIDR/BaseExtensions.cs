@@ -292,9 +292,20 @@
         /// <param name="filler"></param>
         public static void InsertWithExpansion<T>(this List<T> toFill, int index, T value, T filler = default(T))
         {
-            while(index > toFill.Count)
+            if (index > toFill.Count)
             {
-                toFill.Add(filler);
+                if (filler == null || filler.Equals(default(T)))
+                {
+
+                    toFill.AddRange(new T[index - toFill.Count]);
+                }
+                else
+                {
+                    while (index > toFill.Count)
+		            {
+		                toFill.Add(filler);
+		            }
+                }
             }
             toFill.Insert(index, value);
         }
@@ -308,9 +319,20 @@
         /// <param name="filler"></param>
         public static void SetWithExpansion<T>(this List<T> toFill, int index, T value, T filler = default(T))
         {
-            while (index >= toFill.Count)
-            {
-                toFill.Add(filler);
+            if (index >= toFill.Count)
+            { 
+                if (filler == null || filler.Equals(default(T)))
+                {
+                
+                        toFill.AddRange(new T[index + 1 - toFill.Count]);
+                }
+                else
+                {
+		            while (index >= toFill.Count)
+		            {
+		                toFill.Add(filler);
+		            }
+                }
             }
             toFill[index] = value;
         }
@@ -477,7 +499,7 @@
         /// <param name="left"></param>
         /// <param name="compare"></param>
         /// <returns></returns>
-        public static int MinCompare(this int left, int compare)
+        public static int MinOfComparison(this int left, int compare)
         {
             if (left < compare)
                 return left;
@@ -489,9 +511,9 @@
         /// <param name="left"></param>
         /// <param name="compare"></param>
         /// <returns></returns>
-        public static int MinCompare(this int left, params int[] compare)
+        public static int MinOfComparison(this int left, params int[] compare)
         {
-            return left.MinCompare(compare.Min());
+            return left.MinOfComparison(compare.Min());
         }
         /// <summary>
         /// Returns the maximum value of the parameters
@@ -499,15 +521,21 @@
         /// <param name="left"></param>
         /// <param name="compare"></param>
         /// <returns></returns>
-        public static int MaxCompare(this int left, int compare)
+        public static int MaxOfComparison(this int left, int compare)
         {
             if (left > compare)
                 return left;
             return compare;            
         }
-        public static int MaxCompare(this int left, params int[] compare)
+        /// <summary>
+        /// Returns the maximum value of all the parameters
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="compare"></param>
+        /// <returns></returns>
+        public static int MaxOfComparison(this int left, params int[] compare)
         {
-            return left.MaxCompare(compare.Max());
+            return left.MaxOfComparison(compare.Max());
         }
         
         /// <summary>
@@ -1054,6 +1082,16 @@
                     break;
             }
         }
+        /// <summary>
+        /// Apply <paramref name="Update"/> to each item in <paramref name="list"/>. 
+        /// <para>Passes an integer value starting at <paramref name="startIndex"/> to each record in the list. Value is incremented by <paramref name="Interval"/>each time <paramref name="Update"/> is called.
+        /// </para> 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="Update"></param>
+        /// <param name="startIndex">Starting value for the indexes passed to the procedure</param>
+        /// <param name="Interval">Interval that index value increases</param>
         public static void ForEachIndex<T>(this IEnumerable<T> list, Action<T, int> Update, int startIndex = 0, int Interval = 1)
         {
             if (Interval == 0)

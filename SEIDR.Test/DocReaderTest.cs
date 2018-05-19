@@ -361,6 +361,32 @@ namespace SEIDR.Test
             Assert.AreEqual(10, r.RecordCount);
             System.Diagnostics.Debug.WriteLine(r[0, 0].LineNumber + ":" + r[0, 0].Description + " - first line parsed LineNumber:Description");
         }
+        [TestMethod]
+        public void TestReadExtraColumns()
+        {
+            FilePrep();
+            using (var reader = new DocReader("F", FilePath))                
+            {                
+                reader.MetaData.AddDelimitedColumns("Test", "test 2");
+                reader.MetaData.CanWrite = true;
+                reader.MetaData.Columns.AllowMissingColumns = true;
+
+                var output = new DocMetaData(TEST_FOLDER, "ExtraColumnsOut.txt", "w")
+                    .AddDetailedColumnCollection(reader.Columns)
+                    .SetDelimiter('|');
+                using (var writer = new DocWriter(output))
+                {
+                    foreach (var record in reader)
+                    {
+                        record["Test"] = "hi";
+                        record["test 2"] = "5";
+                        writer.AddRecord(record);
+                    }
+                }
+
+            }
+        }
+
 
         [TestMethod]
         public void TestRead()
@@ -623,10 +649,11 @@ LineNumber|Description
     {
             public TestRecordInheritance() : base() { }
         public TestRecordInheritance(DocRecordColumnCollection columnCollection, int LineNumber, string Description, bool mod)
-            :base(columnCollection, true, new List<string> { LineNumber.ToString(), Description , mod? "true": "false" })
+            :base(columnCollection, true, 
+				new List<string> { LineNumber.ToString(), Description , mod? "true": "false" })
         {
             if (columnCollection.Count != 3)
-                throw new ArgumentException("Too many columns specified", nameof(columnCollection));
+                throw new ArgumentException("Incorrect number of columns specified", nameof(columnCollection));
         }
         public TestRecordInheritance(DocRecordColumnCollection col)
             : base(col, true)
@@ -635,6 +662,12 @@ LineNumber|Description
         public TestRecordInheritance(DocRecordColumnCollection col, IList<string> parsedContent)
             : base(col, true, parsedContent)
         {
+        }
+        protected override void Configure(DocRecordColumnCollection owner, bool? canWrite = default(bool?), IList<string> parsedContent = null)
+        {
+            base.Configure(owner, canWrite, parsedContent);
+            if(owner.Count != 2 && owner.Count != 3)
+                throw new ArgumentException("Incorrect number of columns specified", nameof(owner));
         }
         public int LineNumber
         {

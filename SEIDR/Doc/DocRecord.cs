@@ -321,10 +321,7 @@ namespace SEIDR.Doc
         public DocRecord(DocRecordColumnCollection owner, bool canWrite, IList<string> ParsedContent)
             :this(owner, canWrite)
         {
-            for(int i = 0; i < ParsedContent.Count; i++)
-            {
-                Content.SetWithExpansion(i, ParsedContent[i]);
-            }
+            SetParsedContent(ParsedContent);
         }
         /// <summary>
         /// Resets the underlying content list and sets the values from the Ilist
@@ -332,7 +329,6 @@ namespace SEIDR.Doc
         /// <param name="ParsedContent"></param>
         protected internal void SetParsedContent(IList<string> ParsedContent)
         {
-            Content = new List<string>();
             for (int i = 0; i < ParsedContent.Count; i++)
             {
                 Content.SetWithExpansion(i, ParsedContent[i]);
@@ -349,7 +345,10 @@ namespace SEIDR.Doc
             Columns = owner;
             CanWrite = canWrite ?? CanWrite;
             if (parsedContent != null)
+            {
+                Content = new List<string>(new string[Columns.Count]);
                 SetParsedContent(parsedContent);
+            }
             else
                 Content.Clear();
         }

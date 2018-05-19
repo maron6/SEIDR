@@ -89,8 +89,8 @@ namespace SEIDR.Doc
             DuplicateHandling handling, params IRecordColumnInfo[] mainSort)
             :this(source, 
                  cacheSize, 
-                 (source.MetaData.PageSize * mainSort.Length.MaxCompare(1)) 
-                    / source.Columns.Count.MaxCompare(1), 
+                 (source.MetaData.PageSize * mainSort.Length.MaxOfComparison(1)) 
+                    / source.Columns.Count.MaxOfComparison(1), 
                  createIndex, 
                  disposeCleansIndex, 
                  handling,
