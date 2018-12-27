@@ -13,10 +13,20 @@ namespace SEIDR.Doc
     public class DocRecordColumnCollection : IEnumerable<DocRecordColumnInfo>
     {
 
+        string textQualifier = null;
         /// <summary>
         /// Text qualifier
         /// </summary>
-        public char TextQualifier = '"';
+        public string TextQualifier
+        {
+            get { return textQualifier; }
+            set
+            {
+                textQualifier = value ;
+                SetFormat();
+            }
+        } 
+
         /// <summary>
         /// Merges the two column collections and returns a new collection with the specified alias
         /// </summary>
@@ -408,7 +418,16 @@ namespace SEIDR.Doc
         /// <para>Last column in fixed width will not end early on reaching the value.</para>
         /// <para>Note: Ignored if MultiLineEndDelimiter is set, when reading.</para>
         /// </summary>
-        public string LineEndDelimiter { get; set; } = Environment.NewLine;
+        public string LineEndDelimiter
+        {
+            get { return _LineEnd; }
+            set
+            {
+                _LineEnd = value;
+                SetFormat();
+            }
+        }
+        string _LineEnd = Environment.NewLine;
         bool fixedWidthMode = false;
         bool VariableWidthMode = false;
         internal string format;
@@ -496,7 +515,11 @@ namespace SEIDR.Doc
         /// <summary>
         /// Removes the delimiter. Will not allow collection to be used for delimited
         /// </summary>
-        public void RemoveDelimiter() => _Delimiter = null;
+        public void RemoveDelimiter()
+        {
+            _Delimiter = null;
+            //SetFormat(); //Delimiter is used only for delimited mode. This makes the format invalid for delimited mode, though.
+        }
         /// <summary>
         /// Specifies the character that should separate characters
         /// </summary>

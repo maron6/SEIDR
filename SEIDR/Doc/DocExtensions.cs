@@ -524,5 +524,30 @@ namespace SEIDR.Doc
             line = string.Join("" + TextQual, switcher);
             return line.Split((char)0);
         }
+
+        /// <summary>
+        /// Splits a string so that delimiters inside quotes do not create extra fields.
+        /// </summary>
+        /// <remarks>Assumes that there are no NULL characters in the string.</remarks>
+        /// <param name="line">Line to be split</param>
+        /// <param name="delimiter">Delimiter to split the file</param>
+        /// <param name="TextQual">Text qualifier. Delimiters between text qualifiers will be kept. </param>
+        /// <returns>Array of strings split by delimiter except where the delimiter is between text qualifiers</returns>
+        public static string[] SplitOutsideQuotes(this string line, char delimiter, string TextQual)
+        {
+            if (!line.Contains(TextQual))
+                return line.Split(delimiter);
+
+            string[] switcher = line.Split(new[] { TextQual }, StringSplitOptions.None );
+            for (int i = 0; i < switcher.Length; i += 2)
+            {
+                System.Text.StringBuilder sb = new System.Text.StringBuilder(switcher[i]);
+                sb.Replace("" + (char)0, string.Empty);
+                sb.Replace(delimiter, (char)0);
+                switcher[i] = sb.ToString();
+            }
+            line = string.Join("" + TextQual, switcher);
+            return line.Split((char)0);
+        } 
     }
 }

@@ -79,9 +79,9 @@ namespace SEIDR.Doc
             
         }
         /// <summary>
-        /// Sets the textQualifier. Default is "
+        /// Sets the textQualifier. Default is null
         /// </summary>
-        public char TextQualifier
+        public string TextQualifier
         {
             get { return Columns.TextQualifier; }
             set { Columns.TextQualifier = value; }
