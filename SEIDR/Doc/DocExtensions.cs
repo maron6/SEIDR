@@ -535,6 +535,8 @@ namespace SEIDR.Doc
         /// <returns>Array of strings split by delimiter except where the delimiter is between text qualifiers</returns>
         public static string[] SplitOutsideQuotes(this string line, char delimiter, string TextQual)
         {
+            if (string.IsNullOrEmpty(TextQual))
+                return line.Split(delimiter); //char version doesn't have the issue because it's not nullable.
             if (!line.Contains(TextQual))
                 return line.Split(delimiter);
 

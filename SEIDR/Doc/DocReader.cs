@@ -180,6 +180,9 @@ namespace SEIDR.Doc
             if (md.HasHeader && md.HeaderConfigured)
                 pp = md.SkipLines + 1;
             long position = 0;
+            fs.Seek(0, SeekOrigin.Begin);
+            sr.DiscardBufferedData();
+            int throwAway = sr.ReadBlock(buffer, 0, md.PageSize); //Bom issue doesn't show up first pass.
             while(SetupPageMetaData(ref position, ref pp)) { }
             if (!md.Valid)
             {
@@ -241,6 +244,20 @@ namespace SEIDR.Doc
                 return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
             bool end = x < md.PageSize;
             string content = /*working.ToString() +*/ new string(buffer, 0, x);
+            if(startPosition < md.PageSize && ((int)buffer[0]).In(65279, 65533))
+            {
+                startPosition += 1; // BOM fix: move initial position forward 1 by 1 until we have our initial position completely past the BOM 
+                /*
+                 Behaviour seen: 
+                 First Pass: Looks normal
+                 Second pass: character 65279 shows up in position 0
+                 Third pass: 65533 shows up twice. 
+                 
+                May be able to just go forward a hardcoded value if we see 65279 in position 0 with the throwaway from setup, but this way we can be sure that we get a clean start.
+                Would need to see if other encodings that make use of a byte order specification at the start of the stream could have similar issue but with different char values or required position offsets for startPosition
+                 */
+                return true;
+            }
             IList<string> lines = null;
 
             bool fixWidth_NoNewLine = md.Columns.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter) && !md.ReadWithMultiLineEndDelimiter;

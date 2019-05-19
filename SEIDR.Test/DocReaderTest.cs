@@ -643,6 +643,19 @@ LineNumber|Description
                 s.WriteToFile(TEST_FOLDER, "BigSortToFile.NoDupe.txt");
             }
         }
+        [TestMethod]
+        public void BOM_ReadTest()
+        {
+            DocMetaData.TESTMODE = true;
+            var md = new DocMetaData(TEST_FOLDER + "bomCheck.txt", "bc").SetDelimiter('|').SetPageSize(80);
+            using (var r = new DocReader(md))
+            {
+                foreach(var line in r)
+                {
+                    System.Diagnostics.Debug.WriteLine(line[0]);
+                }
+            }
+        }
     }
 
     public class TestRecordInheritance: DocRecord

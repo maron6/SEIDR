@@ -105,8 +105,8 @@ namespace SEIDR
                 mySmtpClient.DeliveryMethod = DeliveryMethod;
                 if (SmtpCredential != null)
                 {
-                    mySmtpClient.Credentials = SmtpCredential;
                     mySmtpClient.UseDefaultCredentials = false;
+                    mySmtpClient.Credentials = SmtpCredential;
                 }
                 else
                     mySmtpClient.UseDefaultCredentials = true;
