@@ -648,6 +648,8 @@ LineNumber|Description
         {
             DocMetaData.TESTMODE = true;
             var md = new DocMetaData(TEST_FOLDER + "bomCheck.txt", "bc").SetDelimiter('|').SetPageSize(80);
+            //md.SetFileEncoding(System.Text.Encoding.UTF8);
+            md.SetFileEncoding(null); 
             using (var r = new DocReader(md))
             {
                 foreach(var line in r)

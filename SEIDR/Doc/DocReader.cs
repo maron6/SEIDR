@@ -162,7 +162,11 @@ namespace SEIDR.Doc
             if (sr != null) { sr.Close(); sr = null; }
             if (fs != null) { fs.Close(); fs = null; }
             fs = new FileStream(md.FilePath, FileMode.Open, md.AccessMode);
-            sr = new StreamReader(fs, md.FileEncoding);
+            if (md.FileEncoding == null)
+                sr = new StreamReader(fs);
+            else
+                sr = new StreamReader(fs, md.FileEncoding);
+
             if (Pages == null)
                 Pages = new List<PageHelper>();
             else
@@ -243,10 +247,15 @@ namespace SEIDR.Doc
             if (x == 0)
                 return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
             bool end = x < md.PageSize;
-            string content = /*working.ToString() +*/ new string(buffer, 0, x);
-            if(startPosition < md.PageSize && ((int)buffer[0]).In(65279, 65533))
+            if (startPosition < md.PageSize && ((int)buffer[0]).In(65279, 65533))
             {
-                startPosition += 1; // BOM fix: move initial position forward 1 by 1 until we have our initial position completely past the BOM 
+                var preamble = sr.CurrentEncoding.GetPreamble();
+                if (preamble.Length > 0 && buffer.StartsWithByteSet(sr.CurrentEncoding, preamble))
+                {                  
+                    startPosition = preamble.Length; //If we have the right encoding, then this should take care of it. If the encoding passed doesn't use a preamble, then just go forward 1 char at a time (original approach). If it's the wrong preamble... May have other issues
+                }
+                else
+                    startPosition += 1; // BOM fix: move initial position forward 1 by 1 until we have our initial position completely past the BOM 
                 /*
                  Behaviour seen: 
                  First Pass: Looks normal
@@ -258,6 +267,7 @@ namespace SEIDR.Doc
                  */
                 return true;
             }
+            string content = /*working.ToString() +*/ new string(buffer, 0, x);
             IList<string> lines = null;
 
             bool fixWidth_NoNewLine = md.Columns.FixedWidthMode && string.IsNullOrEmpty(md.LineEndDelimiter) && !md.ReadWithMultiLineEndDelimiter;

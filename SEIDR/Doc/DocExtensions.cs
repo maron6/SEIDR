@@ -551,5 +551,31 @@ namespace SEIDR.Doc
             line = string.Join("" + TextQual, switcher);
             return line.Split((char)0);
         } 
+        /// <summary>
+        /// Return true if the byte array to check starts with all of the bytes specified in start set, in the same order.
+        /// </summary>
+        /// <param name="check"></param>
+        /// <param name="startSet">Byte list that the CHECK parameter must start with to return true.</param>
+        /// <returns></returns>
+        public static bool StartsWithByteSet(this byte[] check, params byte[] startSet)
+        {
+            for(int i = 0; i < startSet.Length; i++)
+            {
+                if (check[i] != startSet[i])
+                    return false;
+            }
+            return true;
+        }
+        /// <summary>
+        /// Attempt to check if char array converted to bytes matches the start set
+        /// </summary>
+        /// <param name="check"></param>
+        /// <param name="encodingType"></param>
+        /// <param name="startSet"></param>
+        /// <returns></returns>
+        public static bool StartsWithByteSet(this char[] check, System.Text.Encoding encodingType, params byte[] startSet)
+        {
+            return encodingType.GetBytes(check).StartsWithByteSet(startSet);           
+        }
     }
 }
