@@ -27,6 +27,10 @@ namespace SEIDR.Doc
     public sealed class DocRecordColumnInfo : IRecordColumnInfo
     {
         /// <summary>
+        /// Indicates type of data
+        /// </summary>
+        public DocRecordColumnType DataType { get; set; } = DocRecordColumnType.Varchar;
+        /// <summary>
         /// Treats the column as an int by position.
         /// </summary>
         /// <param name="column"></param>
@@ -116,7 +120,7 @@ namespace SEIDR.Doc
         /// </summary>
         public string OwnerAlias { get; internal set; }
         /// <summary>
-        /// Creates a new Delimited Record Column info record, for getting information out of a delimited record
+        /// Creates a new Doc Record Column info record, for getting information out of a Doc record
         /// </summary>
         /// <param name="Column"></param>
         /// <param name="Alias"></param>
@@ -126,6 +130,18 @@ namespace SEIDR.Doc
             ColumnName = Column;
             OwnerAlias = Alias;
             Position = position;
+        }
+        /// <summary>
+        /// Creates a new Doc Record Column Info record, includes specifying type of data.
+        /// </summary>
+        /// <param name="column"></param>
+        /// <param name="Alias"></param>
+        /// <param name="position"></param>
+        /// <param name="type"></param>
+        public DocRecordColumnInfo(string column, string Alias, int position, DocRecordColumnType type)
+            :this(column, Alias, position)
+        {
+            DataType = type;
         }
         /// <summary>
         /// Intended Position of the column in the raw file.

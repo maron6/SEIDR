@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 
 namespace SEIDR.Doc
 {
-
+    /// <summary>
+    /// MetaData for configuring other classes in the Doc namespace (e.g., <see cref="DocReader"/> )
+    /// </summary>
     public class DocMetaData
     {
         /// <summary>
@@ -54,6 +56,30 @@ namespace SEIDR.Doc
             else
                 return false;
             return true;
+        }
+        /// <summary>
+        /// Clones the various settings of this file, but for a second file path. (E.g., to take input from a file and then modify some of the data and output it in a new location, but without changing metadata)
+        /// </summary>
+        /// <param name="NewFilePath"></param>
+        /// <param name="WriteMode"></param>
+        /// <returns></returns>
+        public DocMetaData CloneForNewFile(string NewFilePath, bool? WriteMode = null)
+        {
+            var dm = new DocMetaData(NewFilePath)
+            {
+                CanWrite = WriteMode ?? this.CanWrite,
+                AccessMode = this.AccessMode,
+                HasHeader = this.HasHeader,
+                SkipLines = this.SkipLines,
+                EmptyIsNull = this.EmptyIsNull,
+                MultiLineEndDelimiter = this.MultiLineEndDelimiter.ToArray(),
+                FileEncoding = this.FileEncoding,
+                PageSize = this.PageSize
+            };
+            if (this.Delimiter.HasValue)
+                dm.SetDelimiter(this.Delimiter.Value);
+            dm.CopyDetailedColumnCollection(this);
+            return dm;                
         }
         /// <summary>
         /// File encoding
@@ -293,6 +319,7 @@ namespace SEIDR.Doc
         public DocMetaData SetDelimiter(char delimiter)
         {
             Columns.SetDelimiter(delimiter);
+            
             return this;
         }
         /// <summary>
@@ -388,8 +415,7 @@ namespace SEIDR.Doc
         /// Creates a new <see cref="DocRecordColumnInfo"/> and adds it to the Columns collection
         /// </summary>
         /// <param name="ColumnName"></param>
-        /// <param name="MaxLength">optional limit</param>
-        /// <param name="EarlyTerminator"></param>
+        /// <param name="MaxLength">optional limit</param>        
         /// <returns></returns>
         public DocMetaData AddColumn(string ColumnName, int? MaxLength = null)
         {
@@ -412,6 +438,15 @@ namespace SEIDR.Doc
                     _FileHash = FilePath.GetFileHash();
                 return _FileHash;
             }
+        }
+        /// <summary>
+        /// Removes the cached filehash and returns a fresh evaluation of <see cref="FileHash"/>
+        /// </summary>
+        /// <returns></returns>
+        public string RefreshFileHash()
+        {
+            _FileHash = null;
+            return FileHash;
         }
         /// <summary>
         /// Check if the file exists

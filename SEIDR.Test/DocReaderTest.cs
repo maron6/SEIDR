@@ -3,12 +3,66 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using SEIDR.Doc;
 using System.Collections.Generic;
+using Microsoft.CSharp;
 
 namespace SEIDR.Test
 {
     [TestClass]
     public class DocReaderTest
     {
+        [TestMethod]
+        public void DynamicRecordTest()
+        {
+            FilePrep();
+
+            var output = new DocMetaData(TEST_FOLDER, "WriterMapOutput.txt", "w");
+            using (var reader = new DocReader("F", FilePath))
+            {
+                reader.MetaData.AddDelimitedColumns("Test", "test 2");
+                reader.MetaData.Columns["LineNumber"].DataType = DocRecordColumnType.Int;
+                reader.MetaData.CanWrite = true;
+                reader.MetaData.Columns.AllowMissingColumns = true;
+                output
+                    .AddDetailedColumnCollection(reader.Columns)
+                    .AddDelimitedColumns("Random Output!", "Extra output")
+                    .SetDelimiter('|')
+                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex");
+                using (var writer = new DocWriter(output))
+                {
+                    DocWriterMap dm = new DocWriterMap(writer, reader);
+                    dm.AddMapping(reader.Columns["test 2"], writer.Columns["Random Output!"])
+                        .AddMapping("Test", "Extra output")
+                        .AddMapping("Test", "ZeroIndex");
+                    int i = 0;
+                    foreach (dynamic record in reader)
+                    {
+
+                        record
+                            .SetValue("Test", "Hi")
+                            .SetValue("test 2", i++);
+                        writer.AddRecord(record, dm);
+                        int x = record.LineNumber;
+                        Assert.AreEqual(i, x);
+                    }
+                    /*
+                     * Test -> Extra, test 2 -> Random
+                    LineNumber|Description|ZeroIndex|test 2|Random Output!|Extra output
+                    1|First|Hi|0|0|Hi
+                    2|Second|Hi|1|1|Hi
+                    3|Third|Hi|2|2|Hi
+                    4|Fourth|Hi|3|3|Hi
+                    5|Fifth|Hi|4|4|Hi
+                    6|Sixth|Hi|5|5|Hi
+                    7|Seventh|Hi|6|6|Hi
+                    8|Eighth|Hi|7|7|Hi
+                    9|Ninth|Hi|8|8|Hi
+                    10|Tenth|Hi|9|9|Hi
+                     
+                    */
+                }
+
+            }
+        }
         [TestMethod]
         public void DocWriterMapTest()
         {

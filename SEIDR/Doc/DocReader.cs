@@ -183,10 +183,8 @@ namespace SEIDR.Doc
             int pp = md.SkipLines;
             if (md.HasHeader && md.HeaderConfigured)
                 pp = md.SkipLines + 1;
-            long position = 0;
-            fs.Seek(0, SeekOrigin.Begin);
-            sr.DiscardBufferedData();
-            int throwAway = sr.ReadBlock(buffer, 0, md.PageSize); //Bom issue doesn't show up first pass.
+            sr.Peek(); //BOM issue shows up after initial open, peek allows us to manage during set up
+            long position = 0;     
             while(SetupPageMetaData(ref position, ref pp)) { }
             if (!md.Valid)
             {
@@ -238,6 +236,11 @@ namespace SEIDR.Doc
            
 
         }
+        /// <summary>
+        /// Gets information about page number <paramref name="page"/>
+        /// </summary>
+        /// <param name="page"></param>
+        /// <returns></returns>
         public PageHelper GetPageInfo(int page) => Pages[page];
         bool SetupPageMetaData(ref long startPosition, ref int skipLine)
         {
@@ -308,7 +311,7 @@ namespace SEIDR.Doc
                     int temp = lines.Count - 1;
                     if (temp == 0)
                         throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
-                    removed = lines[temp].Length;
+                    removed = sr.CurrentEncoding.GetByteCount(lines[temp]); //.Length;
                     //lines.RemoveAt(temp);
                     endPosition = startPosition + x - removed; //doesn't include the newline...whatever it may have been.
                     if (md.ReadWithMultiLineEndDelimiter)
@@ -316,15 +319,16 @@ namespace SEIDR.Doc
                         int s = x - removed;
                         foreach(string delim in md.MultiLineEndDelimiter) //first multi line delimiter that would match and cause a split - take its length.
                         {
-                            if(content.Substring(s - delim.Length, delim.Length) == delim)
+                            int delSize = sr.CurrentEncoding.GetByteCount(delim);
+                            if(content.Substring(s - delSize, delSize) == delim)
                             {
-                                lastNLSize = delim.Length;
+                                lastNLSize = delSize;
                                 break;
                             }
                         }
                     }
                     else
-                        lastNLSize = md.LineEndDelimiter.Length;
+                        lastNLSize = sr.CurrentEncoding.GetByteCount(md.LineEndDelimiter);
 
                     endLine = lines.Count - 1;
                 }

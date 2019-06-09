@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ namespace SEIDR.Doc
     /// <summary>
     /// Read/write class for use with DocQueries, DocReader, and DocWriter
     /// </summary>
-    public class DocRecord: IRecord
+    public class DocRecord: DynamicObject, IRecord
     {
         #region hashing
         static ulong GetRollingHash(string content)
@@ -119,6 +120,165 @@ namespace SEIDR.Doc
                 return unchecked((ulong)work.ToString().GetHashCode());
         }
         #endregion
+
+        /// <summary>
+        /// Tries to get an the object associated with the value.
+        /// <para>Data type will match that of the specified column via TryParse. If you just want the string value - use the <see cref="GetBestMatch(string, string, int)"/> instead.</para>
+        /// </summary>
+        /// <param name="ColumnName"></param>
+        /// <param name="result"></param>
+        /// <param name="alias"></param>
+        /// <param name="position"></param>
+        /// <returns></returns>
+        public bool TryGet(string ColumnName, out object result, string alias = null, int position = -1)
+        {
+            DocRecordColumnInfo col;
+            if (position >= 0)
+                col = Columns[position];
+            else
+                col = Columns.GetBestMatch(ColumnName, alias, position);
+            string val = this[col];
+            bool success = false;
+            bool nulVal = false;
+            if (col.NullIfEmpty && string.IsNullOrWhiteSpace(val))
+                nulVal = true;
+            switch (col.DataType)
+            {
+                case DocRecordColumnType.Varchar:
+                case DocRecordColumnType.NVarchar:
+                    result = val;
+                    return true;
+                case DocRecordColumnType.Tinyint:
+                    {
+                        if (nulVal)
+                        {
+                            result = null as byte?;
+                            return true;
+                        }
+                        byte b;
+                        success = Byte.TryParse(val, out b);
+                        result = b;
+                        break;
+                    }
+                case DocRecordColumnType.Smallint:
+                    if (nulVal)
+                    {
+                        result = null as short?;
+                        return true;
+                    }
+                    short s;
+                    success =short.TryParse(val, out s);
+                    result = s;
+                    break;
+                case DocRecordColumnType.Int:
+                    if (nulVal)
+                    {
+                        result = null as int?;
+                        return true;
+                    }
+                    int i;
+                    success = int.TryParse(val, out i);
+                    result = i;
+                    break;                    
+                case DocRecordColumnType.Bigint:
+                    if (nulVal)
+                    {
+                        result = null as long?;
+                        return true;
+                    }
+                    long l;
+                    success = long.TryParse(val, out l);
+                    result = l;
+                    break;
+                case DocRecordColumnType.Decimal:
+                    if (nulVal)
+                    {
+                        result = null as decimal?;
+                        return true;
+                    }
+                    decimal d;
+                    success = decimal.TryParse(val, out d);
+                    result = d;
+                    break;
+                default:
+                    result = val;
+                    return false;
+            }
+            return success;
+        }
+        public override bool TryGetMember(GetMemberBinder binder, out object result)
+        {            
+            return TryGet(binder.Name, out result, null);            
+        }        
+        public override bool TryGetIndex(GetIndexBinder binder, object[] indexes, out object result)
+        {
+            string colName, alias = null;
+            switch (indexes.Length)
+            {
+                case 1:
+                    {
+                        var t = indexes[0];
+                        if (t.GetType() == typeof(int))
+                            return TryGet(null, out result, null, (int)t);
+                        //Column name
+                        return TryGet(indexes[0].ToString(), out result);
+                    }
+                case 2:
+                    {
+                        //column name + position or alias.
+                        var t1 = indexes[0];
+                        var t2 = indexes[1];
+                        int pos = -1;
+                        if (t1.GetType() == typeof(int))
+                        {
+                            pos = (int)t1;
+                            colName = t2.ToString();
+                        }
+                        else if(t2.GetType() == typeof(int))
+                        {
+                            pos = (int)t2;
+                            colName = t1.ToString();
+                        }
+                        else
+                        {
+                            colName = t1.ToString();
+                            alias = t2.ToString();
+                        }
+                        return TryGet(colName, out result, alias, pos);
+                    }
+                case 3:
+                    {
+                        //column name + position or alias.
+                        var t1 = indexes[0];
+                        var t2 = indexes[1];
+                        var t3 = indexes[2];
+                        int pos = -1;
+                        if (t1.GetType() == typeof(int))
+                        {
+                            pos = (int)t1;
+                            colName = t2.ToString();
+                            alias = t3.ToString();
+                        }
+                        else if (t2.GetType() == typeof(int))
+                        {
+                            pos = (int)t2;
+                            colName = t1.ToString();
+                            alias = t3.ToString();
+                        }
+                        else
+                        {
+                            colName = t1.ToString();
+                            alias = t2.ToString();
+                            if (t3.GetType() == typeof(int))
+                                pos = (int)t3;
+                        }
+                        return TryGet(colName, out result, alias: alias, position: pos);
+                    }
+            }
+            result = null;
+            return false;
+        }
+
 
         /// <summary>
         /// Merges <paramref name="left"/> and <paramref name="right"/> into a new DocRecord using the Column meta data from <paramref name="collection"/>.
