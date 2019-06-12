@@ -10,7 +10,7 @@ namespace SEIDR.Doc
     /// <summary>
     /// MetaData for configuring other classes in the Doc namespace (e.g., <see cref="DocReader"/> )
     /// </summary>
-    public class DocMetaData
+    public class DocMetaData: MetaDataBase, ISingleRecordTypeMetaData
     {
         /// <summary>
         /// Treats the MetaData as the underlying ColumnsCollection
@@ -19,24 +19,30 @@ namespace SEIDR.Doc
         public static implicit operator DocRecordColumnCollection(DocMetaData data)
         {
             return data.Columns;
-        }        
-        static bool _TestMode = false;
-        /// <summary>
-        /// Removes minimum on PageSize. Setting pageSize below the min is silently ignored outside of TestMode
-        /// </summary>
-        public static bool TESTMODE
-        {
-            get { return _TestMode; }
-            set
-            {
-#if DEBUG
-                _TestMode = value;
-                return;
-#endif
-                throw new InvalidOperationException("Test Mode can only be set when compiled in Debug mode.");
-            }
-
         }
+        /// <summary>
+        /// The columns from the file
+        /// </summary>
+        public DocRecordColumnCollection Columns { get; private set; }
+        /// <summary>
+        /// Returns <see cref="Columns"/>. 
+        /// </summary>
+        /// <param name="DocLine"></param>
+        /// <returns></returns>
+        public override DocRecordColumnCollection GetRecordColumnInfos(string DocLine)
+        {
+            return Columns;
+        }
+        /// <summary>
+        /// Returns <see cref="Columns"/>. 
+        /// </summary>
+        /// <param name="record"></param>
+        /// <returns></returns>
+        public override DocRecordColumnCollection GetRecordColumnInfos(IRecord record)
+        {
+            return Columns;
+        }
+
         /// <summary>
         /// If true, Columns are fixed width and will use lengths. <para>Otherwise, will use the delimiter.</para>
         /// </summary>
@@ -69,129 +75,123 @@ namespace SEIDR.Doc
             {
                 CanWrite = WriteMode ?? this.CanWrite,
                 AccessMode = this.AccessMode,
-                HasHeader = this.HasHeader,
                 SkipLines = this.SkipLines,
-                EmptyIsNull = this.EmptyIsNull,
-                MultiLineEndDelimiter = this.MultiLineEndDelimiter.ToArray(),
-                FileEncoding = this.FileEncoding,
-                PageSize = this.PageSize
-            };
+                EmptyIsNull = this.EmptyIsNull,                
+                FileEncoding = this.FileEncoding,                
+            };            
+            dm.SetHasHeader(this.HasHeader)
+                .SetPageSize(PageSize)                
+                .SetMultiLineEndDelimiters(MultiLineEndDelimiter);
             if (this.Delimiter.HasValue)
                 dm.SetDelimiter(this.Delimiter.Value);
             dm.CopyDetailedColumnCollection(this);
             return dm;                
         }
-        /// <summary>
-        /// File encoding
-        /// </summary>
-        public Encoding FileEncoding { get; set; } = Encoding.Default;
-        /// <summary>
-        /// Sets the file encoding for reading and writing.
-        /// </summary>
-        /// <param name="fileEncoding"></param>
-        /// <returns></returns>
-        public DocMetaData SetFileEncoding(Encoding fileEncoding)
-        {
-            FileEncoding = fileEncoding;
-            return this;
-        }
-        /// <summary>
-        /// Max number of characters to have in a page when reading from a file
-        /// <para>Will throw an exception if the page is too small to completely parse a line somewhere in the file</para>
-        /// </summary>
-        public int PageSize { get; private set; } = DEFAULT_PAGE_SIZE;
-        /// <summary>
-        /// Default value for <see cref="PageSize"/> 
-        /// </summary>
-        public const int DEFAULT_PAGE_SIZE = 10000000;
-        /// <summary>
-        /// Minimum page size (in characters)
-        /// </summary>
-        public const int MIN_PAGE_SIZE = 1028;
-        /// <summary>
-        /// Sets <see cref="PageSize"/> 
-        /// </summary>
-        /// <param name="pageSize"></param>
-        /// <returns></returns>
-        public DocMetaData SetPageSize(int pageSize)
-        {
-            if (!TESTMODE && pageSize < MIN_PAGE_SIZE)
-            {
-                System.Diagnostics.Debug.WriteLine($"Page Size is below minimum. Setting to {MIN_PAGE_SIZE}.");
-                PageSize = MIN_PAGE_SIZE;
-            }
-            else
-                PageSize = pageSize;
-            return this;
-        }
-        /// <summary>
-        /// The columns from the file
-        /// </summary>
-        public DocRecordColumnCollection Columns { get; private set; }
-        /// <summary>
-        /// Full path of the file being described.
-        /// </summary>
-        public readonly string FilePath;
-        /// <summary>
-        /// Gets the name of the directory for the specified path (<see cref="FilePath"/>)
-        /// </summary>
-        public string Directory => Path.GetDirectoryName(FilePath);
-        /// <summary>
-        /// Returns name of file at specified path. (<see cref="FilePath"/>)
-        /// </summary>
-        public string FileName => Path.GetFileName(FilePath);
-        /// <summary>
-        /// Used for associating column information to an originating file when merging column collections
-        /// </summary>
-        public readonly string Alias;
+      
         /// <summary>
         /// Columns are in a valid state.
         /// </summary>
-        public bool HeaderConfigured => Columns.Valid;
-        public string LineEndDelimiter => Columns.LineEndDelimiter;
-
+        public override bool HeaderConfigured => Columns.Valid;
         /// <summary>
-        /// If there are multiple possible line endings when reading.
+        /// Line End Delimiter based on Column Definitions.
         /// </summary>
-        public string[] MultiLineEndDelimiter { get; private set; } = new string[0];
+        public override string LineEndDelimiter => Columns.LineEndDelimiter;
         /// <summary>
-        /// Clears the multli line end delimiter
-        /// </summary>
-        public void ClearMultiLineEndDelimiter() => MultiLineEndDelimiter = new string[0];
-        /// <summary>
-        /// Use if there may be a mixture of /r/n, /r, /n, etc   
-        /// </summary>
-        /// <param name="endings"></param>
-        public DocMetaData SetMultiLineEndDelimiters(params string[] endings)
+        /// MetaData valid for file usage.
+        /// </summary>       
+        public override bool Valid
         {
-            List<string> l;
-            if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
-                l = new List<string>(endings.Include(Columns.LineEndDelimiter));
-            else
-                l = new List<string>(endings);
+            get
+            {                
+                if (AccessMode == FileAccess.Write && !HeaderConfigured)
+                    return false;
+                return !string.IsNullOrWhiteSpace(FilePath)
+                    .And(File.Exists(FilePath).Or(AccessMode == FileAccess.Write))
+                    .And(HasHeader.Or(HeaderConfigured));                    
+            }
+        }
+        /// <summary>
+        /// Gets the delimiter from <see cref="Columns"/>
+        /// </summary>
+        public override char? Delimiter => Columns.Delimiter;
+       
+        /// <summary>
+        /// Creates meta data for the given file.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="alias"></param>
+        public DocMetaData(string file, string alias = null)
+            :base(file, alias)
+        {           
+            Columns = new DocRecordColumnCollection(Alias);
+        }
+        /// <summary>
+        /// Creates meta Data for the given file
+        /// </summary>
+        /// <param name="DirectoryPath"></param>
+        /// <param name="FileName"></param>
+        /// <param name="alias"></param>
+        public DocMetaData(string DirectoryPath, string FileName, string alias = null)
+            :this(Path.Combine(DirectoryPath, FileName), alias)
+        {
 
-            l.Sort((a, b) =>
-            {
-                if (a.IsSuperSet(b)) //Earlier sort position
-                    return -1;
-                if (a.IsSubset(b))
-                    return 1;
-                return 0;
-            });
-            MultiLineEndDelimiter = l.Where(ln => !string.IsNullOrEmpty(ln)).ToArray();
+        }
+        /// <summary>
+        /// Indicate whether or not the file has a header.
+        /// </summary>
+        public override bool HasHeader => _HasHeader;
+
+        string ISingleRecordTypeMetaData.FilePath => base.FilePath;
+
+        bool _HasHeader = true;
+        /// <summary>
+        /// Sets <see cref="HasHeader"/>
+        /// </summary>
+        /// <param name="headerIncluded"></param>
+        /// <returns></returns>
+        public DocMetaData SetHasHeader(bool headerIncluded)
+        {
+            _HasHeader = headerIncluded;
             return this;
         }
         /// <summary>
-        /// Indicates if the MutliLineEnd Delimiter information should be used by DocReader instances. True if there is more than one line ending in the <see cref="MultiLineEndDelimiter"/> array.
+        /// Get the header line.
         /// </summary>
-        public bool ReadWithMultiLineEndDelimiter => MultiLineEndDelimiter.Length > 1;
+        /// <returns></returns>
+        public override string GetHeader()
+        {
+            return string.Format(Columns.format, Columns.Columns.Select(c => c.ColumnName).ToArray());
+        }        
+      
         /// <summary>
-        /// Adds the strings to <see cref="MultiLineEndDelimiter"/>, and sorts it so that super sets are earlier. 
+        /// Sets the Delimiter.
+        /// </summary>
+        /// <param name="delimiter"></param>
+        /// <returns></returns>
+        public override MetaDataBase SetDelimiter(char delimiter)
+        {
+            Columns.SetDelimiter(delimiter);
+            
+            return this;
+        }
+        /// <summary>
+        /// Sets the string that indicates end of records. Default is <see cref="Environment.NewLine"/>
+        /// <para>If dealing with fixed width and records should be split only by length, set to null</para>
+        /// </summary>
+        /// <param name="endLine"></param>
+        /// <returns></returns>
+        public override MetaDataBase SetLineEndDelimiter(string endLine)
+        {
+            Columns.LineEndDelimiter = endLine;
+            return this;
+        }
+        /// <summary>
+        /// Adds the strings to <see cref="MetaDataBase.MultiLineEndDelimiter"/>, and sorts it so that super sets are earlier. 
         /// <para>E.g., ensures \r\n comes before \r or \n, while the order of \r and \n are arbitrary.</para>
         /// </summary>
         /// <param name="endingToAdd"></param>
         /// <returns></returns>
-        public DocMetaData AddMultiLineEndDelimiter(params string[] endingToAdd)
+        public override MetaDataBase AddMultiLineEndDelimiter(params string[] endingToAdd)
         {
             List<string> l;
             if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
@@ -215,124 +215,29 @@ namespace SEIDR.Doc
             return this;
         }
         /// <summary>
-        /// Access mode for file opening. Indicates whether the DocMetaData will be used for Doc reading or doc writing
+        /// Use if there may be a mixture of /r/n, /r, /n, etc   
         /// </summary>
-        public FileAccess AccessMode { get; set; } = FileAccess.ReadWrite;
-        /// <summary>
-        /// If true, allow writing.
-        /// </summary>
-        public bool CanWrite { get; set; } = false;
-        /// <summary>
-        /// Sets <see cref="AccessMode"/>
-        /// </summary>
-        /// <param name="myAccess">Should match the DocReader or DocWriter.</param>
-        ///// <param name="writeMode">If true, sets to <see cref="FileAccess.Write"/>. Otherwise, sets to <see cref="FileAccess.Read"/></param>
-        /// <returns></returns>
-        public DocMetaData SetFileAccess(FileAccess myAccess /*bool writeMode*/)
+        /// <param name="endings"></param>
+        public override MetaDataBase SetMultiLineEndDelimiters(params string[] endings)
         {
-            //AccessMode = writeMode ? FileAccess.Write : FileAccess.Read;
-            AccessMode = myAccess;
-            if (FileAccess.Write == (AccessMode & FileAccess.Write))
-                CanWrite = true;
-            return this;
-        }
-        /// <summary>
-        /// Meta data can be used for reading or writing to a file.
-        /// <para>Ensures that file path is valid if access mode includes read</para>
-        /// </summary>
-        public bool Valid
-        {
-            get
-            {                
-                if (AccessMode == FileAccess.Write && !HeaderConfigured)
-                    return false;
-                return !string.IsNullOrWhiteSpace(FilePath)
-                    .And(File.Exists(FilePath).Or(AccessMode == FileAccess.Write))
-                    .And(HasHeader.Or(HeaderConfigured));                    
-            }
-        }
-        /// <summary>
-        /// If true, first line of the file after skip lines should be the header. If the header has been configured already, this also means that an additional line will be skipped so that we don't read the header as a normal line.
-        /// </summary>
-        public bool HasHeader { get; set; } = true;
-        /// <summary>
-        /// Gets the delimiter from <see cref="Columns"/>
-        /// </summary>
-        public char? Delimiter => Columns.Delimiter;
-        /// <summary>
-        /// Treat empty records as null when getting values/hashes
-        /// </summary>
-        public bool EmptyIsNull { get; set; } = true;
-        /// <summary>
-        /// Creates meta data for the given file.
-        /// </summary>
-        /// <param name="file"></param>
-        /// <param name="alias"></param>
-        public DocMetaData(string file, string alias = null)
-        {
-            FilePath = file;
-            if (string.IsNullOrWhiteSpace(alias))
-                Alias = Path.GetFileNameWithoutExtension(file);
+            List<string> l;
+            if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
+                l = new List<string>(endings.Include(Columns.LineEndDelimiter));
             else
-                Alias = alias;
-            Columns = new DocRecordColumnCollection(Alias);
-        }
-        /// <summary>
-        /// Creates meta Data for the given file
-        /// </summary>
-        /// <param name="DirectoryPath"></param>
-        /// <param name="FileName"></param>
-        /// <param name="alias"></param>
-        public DocMetaData(string DirectoryPath, string FileName, string alias = null)
-            :this(Path.Combine(DirectoryPath, FileName), alias)
-        {
+                l = new List<string>(endings);
 
-        }
-        /// <summary>
-        /// Sets <see cref="HasHeader"/>
-        /// </summary>
-        /// <param name="headerIncluded"></param>
-        /// <returns></returns>
-        public DocMetaData SetHasHeader(bool headerIncluded)
-        {
-            HasHeader = headerIncluded;
+            l.Sort((a, b) =>
+            {
+                if (a.IsSuperSet(b)) //Earlier sort position
+                    return -1;
+                if (a.IsSubset(b))
+                    return 1;
+                return 0;
+            });
+            MultiLineEndDelimiter = l.Where(ln => !string.IsNullOrEmpty(ln)).ToArray();
             return this;
         }
-        public string GetHeader()
-        {
-            return string.Format(Columns.format, Columns.Columns.Select(c => c.ColumnName).ToArray());
-        }        
-        /// <summary>
-        /// Number of lines to skip at the start of the file when reading. Does not include the header's line
-        /// </summary>
-        public int SkipLines { get; set; } = 0;
-        public DocMetaData SetSkipLines(int linesToSkip)
-        {
-            SkipLines = linesToSkip;
-            return this;
-        }
-        public DocMetaData SetEmptyIsNull(bool nullifyEmpty)
-        {
-            EmptyIsNull = nullifyEmpty;
-            return this;
-        }
-        public DocMetaData SetDelimiter(char delimiter)
-        {
-            Columns.SetDelimiter(delimiter);
-            
-            return this;
-        }
-        /// <summary>
-        /// Sets the string that indicates end of records. Default is <see cref="Environment.NewLine"/>
-        /// <para>If dealing with fixed width and records should be split only by length, set to null</para>
-        /// </summary>
-        /// <param name="endLine"></param>
-        /// <returns></returns>
-        public DocMetaData SetLineEndDelimiter(string endLine)
-        {
-            Columns.LineEndDelimiter = endLine;
-            return this;
-        }    
+
         /// <summary>
         /// Adds basic columns to be delimited by <see cref="Delimiter"/>.
         /// </summary>
@@ -424,38 +329,6 @@ namespace SEIDR.Doc
             Columns.AddColumn(ColumnName, MaxLength);
             return this;
         }
-        string _FileHash = null;
-        /// <summary>
-        /// Returns a hash of the file content, based on <see cref="DocExtensions.GetFileHash(FileInfo)"/>
-        /// </summary>
-        public string FileHash
-        {
-            get
-            {
-                if (!Valid)
-                    return null;
-                if (_FileHash == null)
-                    _FileHash = FilePath.GetFileHash();
-                return _FileHash;
-            }
-        }
-        /// <summary>
-        /// Removes the cached filehash and returns a fresh evaluation of <see cref="FileHash"/>
-        /// </summary>
-        /// <returns></returns>
-        public string RefreshFileHash()
-        {
-            _FileHash = null;
-            return FileHash;
-        }
-        /// <summary>
-        /// Check if the file exists
-        /// </summary>
-        /// <returns></returns>
-        public bool CheckExists()
-        {            
-            return File.Exists(FilePath);
-        }
-
+      
     }   
 }

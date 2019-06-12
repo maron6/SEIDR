@@ -284,7 +284,7 @@ namespace SEIDR.DataBase
         public string SelectListFormat = DEFAULT_SELECT_LIST;
         #endregion
         #region basic methods, minimal parameters
-        public void Save<RT>(RT toSave, params string[] ignoreProperties) where RT: class, new()
+        public void Save<RT>(RT toSave, params string[] ignoreProperties)
         {
             Save<RT>(toSave, Schema:null, ignore:ignoreProperties);
         }
@@ -450,6 +450,7 @@ namespace SEIDR.DataBase
         /// </summary>
         /// <param name="QualifiedProcedureName"></param>
         /// <param name="mapObj">Object to use for populating parameters from properties</param>
+        /// <param name="updateMap"></param>
         /// <returns></returns>
         public DataSet Execute (string QualifiedProcedureName, object mapObj = null, bool updateMap = true)
         {
@@ -848,8 +849,10 @@ namespace SEIDR.DataBase
         /// <param name="RequireSingleResult">If true, will return null when the the procedure returns more than one result</param>
         /// <param name="CommitSuccess">If true, commitsa if the transaction is open</param>
         /// <returns></returns>        
-        public RT SelectSingle<RT>(DatabaseManagerHelperModel i, bool RequireSingleResult = true, bool CommitSuccess = false) where RT: class, new()
-        {            
+        public RT SelectSingle<RT>(DatabaseManagerHelperModel i, bool RequireSingleResult = true, bool CommitSuccess = false) where RT:class, new()
+        {
+            if (i.Procedure == null)
+                i.Procedure = string.Format(SelectRowFormat, typeof(RT).Name);
             DataSet ds = Execute(i, CommitSuccess: CommitSuccess);
             if (ds.Tables.Count == 0 || ds.Tables[0].Rows.Count == 0)
                 return null;
@@ -863,11 +866,9 @@ namespace SEIDR.DataBase
             return ex;
         }
 
-        public RT SelectSingle<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null, bool RequireSingle = true) where RT : class, new()
+        public RT SelectSingle<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null, bool RequireSingle = true)where RT: class, new()
         {
-            RT ex = new RT();
-            Type t = ex.GetType();
-            string proc = (Schema ?? _Schema) + "." + CheckSuffix(string.Format(SelectRowFormat, t.Name), suffix);
+            string proc = (Schema ?? _Schema) + "." + CheckSuffix(string.Format(SelectRowFormat, typeof(RT).Name), suffix);
             using (var h = GetBasicHelper())
             {
                 h.QualifiedProcedure = proc;
@@ -877,15 +878,13 @@ namespace SEIDR.DataBase
                 return SelectSingle<RT>(h, RequireSingle, true);
             }
         }
-        public List<RT> SelectList<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null) where RT : class, new()
+        public List<RT> SelectList<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null)
         {
-            RT ex = new RT();
-            Type t = ex.GetType();
             var m = new DatabaseManagerHelperModel
             {
                 ParameterMap = paramObj,
                 Schema = Schema,
-                Procedure = CheckSuffix(string.Format(SelectListFormat, t.Name), suffix)
+                Procedure = CheckSuffix(string.Format(SelectListFormat, typeof(RT).Name), suffix)
             };
             m.SetPropertyIgnore(ignore);
             return SelectList<RT>(m);
@@ -898,6 +897,10 @@ namespace SEIDR.DataBase
         /// <returns></returns>
         public List<RT> SelectList<RT>(DatabaseManagerHelperModel i) where RT : class, new()
         {
+            if (i.Procedure == null)
+            {
+                i.Procedure = string.Format(SelectListFormat, typeof(RT).Name);                
+            }
             DataSet ds = Execute(i);
             if (ds.Tables.Count == 0)
                 return null;
@@ -918,9 +921,10 @@ namespace SEIDR.DataBase
         /// </summary>
         /// <typeparam name="RT"></typeparam>
         /// <param name="paramObj">Object with properties corresponding to the parameters used for updating a Database Object</param>
+        /// <param name="suffix"></param>
         /// <param name="Schema">Allow overriding the Manager's main schema</param>
         /// <param name="ignore">Ignore properties from object - if exists as a parameter, will try to use default parameter value</param>
-        public void Update<RT>(RT paramObj, string suffix = null, string Schema = null, string[] ignore = null) where RT:class, new()
+        public void Update<RT>(RT paramObj, string suffix = null, string Schema = null, string[] ignore = null)
         {
             var m = new DatabaseManagerHelperModel
             {
@@ -931,7 +935,7 @@ namespace SEIDR.DataBase
             m.SetPropertyIgnore(ignore);
             Execute(m);            
         }
-        public void Save<RT>(RT paramObj, string suffix = null, string Schema = null, string[] ignore = null) where RT: class, new()
+        public void Save<RT>(RT paramObj, string suffix = null, string Schema = null, string[] ignore = null) 
         {
 
             var m = new DatabaseManagerHelperModel
@@ -951,7 +955,7 @@ namespace SEIDR.DataBase
         /// <param name="suffix">Suffix to tack onto the end of the procedure name (E.g. '_Register' for RT=Batch to get usp_Batch_i_Register)</param>
         /// <param name="Schema"></param>
         /// <param name="ignore"></param>
-        public void Insert<RT>(RT paramObj, string suffix = null, string Schema = null, string[] ignore = null) where RT: class, new()
+        public void Insert<RT>(RT paramObj, string suffix = null, string Schema = null, string[] ignore = null)
         {
             var m = new DatabaseManagerHelperModel
             {
@@ -1006,7 +1010,7 @@ namespace SEIDR.DataBase
             Key = Key.Replace("[", "").Replace("]", "");
             if (Key.StartsWith("@"))
                 Key = Key.Substring(1);
-            const string SELECTOR = "SELECT * FROM {0} WHERE [{1}] = '@KEY'";
+            const string SELECTOR = "SELECT * FROM {0} WHERE [{1}] = @KEY";
             const string PAGER = "  ORDER BY [{1}] OFFSET ({2} * {3}) ROWS FETCH NEXT {3} ROWS";
             if (TableOrView.IndexOf('.') < 0)
                 TableOrView = $"[{_Schema}].[{TableOrView.Replace("[", "").Replace("]", "")}]";
@@ -1096,9 +1100,9 @@ namespace SEIDR.DataBase
                             continue; //Skip parameters that are output only
                         string k = p.ParameterName.Substring(1);
                         if (!e.ContainsKey(k))
-                            p.Value = null;
+                            p.Value = null; //Not in dictionary - default parameter value
                         else
-                            p.Value = e[k];
+                            p.Value = e[k] ?? DBNull.Value;
                     }
                 });
                 Methods[MKey] = m;
@@ -1130,9 +1134,9 @@ namespace SEIDR.DataBase
                     if (!ignore.Contains(Key) && propDict.TryGetValue(Key, out mi))
                         param.Value = mi.Invoke(paramObj, null) ?? DBNull.Value;
                     else if (extraKeys.ContainsKey(Key))
-                        param.Value = extraKeys[Key];
+                        param.Value = extraKeys[Key] ?? DBNull.Value;
                     else
-                        param.Value = null;
+                        param.Value = null; //Default
                 }
             }
         }

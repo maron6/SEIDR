@@ -18,15 +18,16 @@ namespace SEIDR.Test
             var output = new DocMetaData(TEST_FOLDER, "WriterMapOutput.txt", "w");
             using (var reader = new DocReader("F", FilePath))
             {
-                reader.MetaData.AddDelimitedColumns("Test", "test 2");
-                reader.MetaData.Columns["LineNumber"].DataType = DocRecordColumnType.Int;
                 reader.MetaData.CanWrite = true;
-                reader.MetaData.Columns.AllowMissingColumns = true;
+                ((DocMetaData)reader.MetaData).AddDelimitedColumns("Test", "test 2");
+                ((DocMetaData)reader.MetaData).Columns["LineNumber"].DataType = DocRecordColumnType.Int;                
+                ((DocMetaData)reader.MetaData).Columns.AllowMissingColumns = true;
                 output
                     .AddDetailedColumnCollection(reader.Columns)
                     .AddDelimitedColumns("Random Output!", "Extra output")
+                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex")
                     .SetDelimiter('|')
-                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex");
+                    ;
                 using (var writer = new DocWriter(output))
                 {
                     DocWriterMap dm = new DocWriterMap(writer, reader);
@@ -71,14 +72,14 @@ namespace SEIDR.Test
             var output = new DocMetaData(TEST_FOLDER, "WriterMapOutput.txt", "w");
             using (var reader = new DocReader("F", FilePath))
             {
-                reader.MetaData.AddDelimitedColumns("Test", "test 2");
+                ((DocMetaData)reader.MetaData).AddDelimitedColumns("Test", "test 2");
                 reader.MetaData.CanWrite = true;
-                reader.MetaData.Columns.AllowMissingColumns = true;
+                ((DocMetaData)reader.MetaData).Columns.AllowMissingColumns = true;
                 output
                     .AddDetailedColumnCollection(reader.Columns)
                     .AddDelimitedColumns("Random Output!", "Extra output")
-                    .SetDelimiter('|')
-                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex");
+                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex")
+                    .SetDelimiter('|');
                 using (var writer = new DocWriter(output))
                 {
                     DocWriterMap dm = new DocWriterMap(writer, reader);
@@ -148,7 +149,7 @@ namespace SEIDR.Test
             using (DocReader r1 = new DocReader("r1", FilePath))
             using (DocReader r2 = new DocReader("r2", FilePath))
             {
-                DocMetaData dm = new DocMetaData(TEST_FOLDER + "multiWrit.txt", "w")
+                DocMetaData dm = (DocMetaData) new DocMetaData(TEST_FOLDER + "multiWrit.txt", "w")
                     .CopyDetailedColumnCollection(DocRecordColumnCollection.Merge("w", r1.Columns, r2.Columns))
                     .RemoveColumn("LineNumber", "r2")
                     .SetDelimiter('|');
@@ -161,7 +162,7 @@ namespace SEIDR.Test
                             var dwr = DocRecord.Merge(dw.Columns, r1r, r2r, checkExist: true);
                             dwr["r1", "Description"] = "R1  - " + dwr["r1", "Description"];
                             dwr["r2", "Description"] = "R2  - " + dwr["r2", "Description"];
-                            dw.AddRecord(dwr);
+                            dw.AddTypedRecord(dwr);
                         }
                     }
                     foreach (var r2r in r2)
@@ -171,7 +172,7 @@ namespace SEIDR.Test
                             var dwr = DocRecord.Merge(dw.Columns, r2r, r1r, checkExist: true);//removed a column above, so need  checkExist set to true.
                             dwr["r1", "Description"] = "R1  SECOND - " + dwr["r1", "Description"];
                             dwr["r2", "Description"] = "R2  SECOND - " + dwr["r2", "Description"];
-                            dw.AddRecord(dwr);
+                            dw.AddTypedRecord(dwr);
                         }
                     }
                 }
@@ -183,7 +184,7 @@ namespace SEIDR.Test
             DocMetaData.TESTMODE = true;
             FilePrep();
             DocReader r = new DocReader("lines", FilePath);
-            DocMetaData mixed = new DocMetaData(MultiLineEndFilePath, "Multi")
+            var mixed = (DocMetaData)new DocMetaData(MultiLineEndFilePath, "Multi")
                 .SetHasHeader(true)
                 .AddMultiLineEndDelimiter("\r", "\n"); //The normal LineEnd Delimiter is also going to be included when actually reading.
             mixed.CanWrite = true;
@@ -201,13 +202,16 @@ namespace SEIDR.Test
             m.ReConfigure();
             var record = m[0, 0];
             Assert.AreEqual(normal[2][0], record[0]);    //2 - zero based indexes, this gives the third record in the normal file.
-            DocMetaData doc = new DocMetaData(MultiLineEndWriteFilePath, "w").AddDetailedColumnCollection(mixed.Columns).SetHasHeader(true).SetDelimiter('\t');
+            DocMetaData doc = (DocMetaData)new DocMetaData(MultiLineEndWriteFilePath, "w")
+                .AddDetailedColumnCollection(mixed.Columns)
+                .SetHasHeader(true)
+                .SetDelimiter('\t');
             using(DocWriter dw = new DocWriter(doc))
             {
                 foreach (var rec in m)
                 {
                     rec["Description"] += "\t Test";
-                    dw.AddRecord(rec);
+                    dw.AddTypedRecord(rec);
             	}
             }
             m.Dispose();
@@ -217,7 +221,7 @@ namespace SEIDR.Test
         public void ToFixWidthFile()
         {
             FilePrep();
-            DocMetaData mixed = new DocMetaData(MultiLineEndFilePath, "Multi")
+            DocMetaData mixed = (DocMetaData)new DocMetaData(MultiLineEndFilePath, "Multi")
                  .SetHasHeader(true)
                  .AddMultiLineEndDelimiter("\r", "\n"); //The normal LineEnd Delimiter is also going to be included when actually reading.
             mixed.CanWrite = true;
@@ -236,7 +240,7 @@ namespace SEIDR.Test
                 {
                     foreach(var record in m)
                     {
-                        w.AddRecord(record);
+                        w.AddTypedRecord(record);
                     }
                 }
             }
@@ -421,11 +425,11 @@ namespace SEIDR.Test
             FilePrep();
             using (var reader = new DocReader("F", FilePath))                
             {                
-                reader.MetaData.AddDelimitedColumns("Test", "test 2");
+                ((DocMetaData)reader.MetaData).AddDelimitedColumns("Test", "test 2");
                 reader.MetaData.CanWrite = true;
-                reader.MetaData.Columns.AllowMissingColumns = true;
+                ((DocMetaData)reader.MetaData).Columns.AllowMissingColumns = true;
 
-                var output = new DocMetaData(TEST_FOLDER, "ExtraColumnsOut.txt", "w")
+                var output = (DocMetaData)new DocMetaData(TEST_FOLDER, "ExtraColumnsOut.txt", "w")
                     .AddDetailedColumnCollection(reader.Columns)
                     .SetDelimiter('|');
                 using (var writer = new DocWriter(output))
@@ -434,7 +438,7 @@ namespace SEIDR.Test
                     {
                         record["Test"] = "hi";
                         record["test 2"] = "5";
-                        writer.AddRecord(record);
+                        writer.AddTypedRecord(record);
                     }
                 }
 
@@ -459,9 +463,9 @@ namespace SEIDR.Test
             Assert.AreEqual("Second", l[1]["Description"]);
             DocMetaData md = new DocMetaData(FilePath, "F");
             md.AddDelimitedColumns("LineNumber", "Description")
+                .SetHasHeader(true)
                 .SetDelimiter('|')
-                .SetSkipLines(2)
-                .SetHasHeader(true);
+                .SetSkipLines(2);
             r.Dispose();
             r = new DocReader(md);
             Assert.AreEqual(2, r.Columns.Count);
@@ -493,17 +497,23 @@ LineNumber|Description
             r = new DocReader(md2);
             Assert.AreEqual(',', r.Columns.Delimiter);
 
-            md= new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.txt", "F").AddDelimitedColumns("LineNumber", "Empty", "Description", "Empty", "Test").SetDelimiter('\t').SetHasHeader(true);
+            md= (DocMetaData)new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.txt", "F")
+                .SetHasHeader(true)
+                .AddDelimitedColumns("LineNumber", "Empty", "Description", "Empty", "Test")
+                .SetDelimiter('\t');
             var w = new DocWriter(md);
             w.SetTextQualify(true, "Description", "Test");
             Dictionary<int, DocRecordColumnInfo> map = new Dictionary<int, DocRecordColumnInfo>();
             map[md.Columns["Test"].Position] = md2.Columns["LineNumber"]; //Position = 4 should be the
             foreach(var record in r)
             {
-                w.AddRecord(record, map);
+                w.AddTypedRecord(record, map);
             }
             w.Dispose();
-            md = new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.csv", "C").AddDelimitedColumns("Description", "LineNumber").SetDelimiter(',').SetHasHeader(true);
+            md = (DocMetaData)new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.csv", "C")
+                .SetHasHeader(true)
+                .AddDelimitedColumns("Description", "LineNumber")
+                .SetDelimiter(',');
             w = new DocWriter(md);
             for(int p = 0; p < r.PageCount; p++)
             {
@@ -525,10 +535,10 @@ LineNumber|Description
         {
             const int LOOP_LIMIT = nineNineHT;
             FilePrep();
-            var md = new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
+            var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
+                .SetHasHeader(true)
                 .AddDelimitedColumns("LineNumber", "Description", "IsMod183")
-                .SetDelimiter('|')
-                .SetHasHeader(true);
+                .SetDelimiter('|');
             using (var w = new DocWriter(md))
             {
                 for (int i = 1; i <= LOOP_LIMIT; i++)
@@ -537,7 +547,7 @@ LineNumber|Description
                     var ti = new TestRecordInheritance(w.Columns, i, "Line # " + i, b); //initialize with constructor originall, will be a bit faster.
                     if (b)
                         ti.Description += " - Mod 183 = 0";
-                    w.AddRecord(ti);
+                    w.AddTypedRecord(ti);
                 }
             }
             using (var dr = new DocReader(md))
@@ -550,10 +560,10 @@ LineNumber|Description
         {
             const int LOOP_LIMIT = nineNineHT;
             FilePrep();
-            var md = new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
+            var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "Inheritor.txt", "i")
+                .SetHasHeader(false)
                 .AddDelimitedColumns("LineNumber", "Description")
-                .SetDelimiter('|')
-                .SetHasHeader(false);
+                .SetDelimiter('|');
             using (var w = new DocWriter(md))
             {
                 for (int i = 1; i <= LOOP_LIMIT; i++)
@@ -565,7 +575,7 @@ LineNumber|Description
                     };
                     if (i % 183 == 0)
                         ti.Description += " - Mod 183 = 0";
-                    w.AddRecord(ti);
+                    w.AddTypedRecord(ti);
                 }
             }
             using (var dr = new DocReader(md))
@@ -597,7 +607,7 @@ LineNumber|Description
             using (var reader = new DocReader("i", TEST_FOLDER + "Inheritor.txt"))
             using (var sorter = new DocSorter(reader, 11, true, false, DuplicateHandling.Ignore, reader.Columns[1]))                
             {                
-                var md = new DocMetaData(reader.FilePath + "_Sorted")
+                var md = (DocMetaData)new DocMetaData(reader.FilePath + "_Sorted")
                     .AddDetailedColumnCollection(reader.Columns)
                     .SetFileAccess(FileAccess.Write)
                     .SetDelimiter('|');
@@ -638,7 +648,7 @@ LineNumber|Description
         {
             FilePrep();
             DocMetaData.TESTMODE = true;
-            var md = new DocMetaData(TEST_FOLDER, "SortedFile.txt", "w")
+            var md = (DocMetaData)new DocMetaData(TEST_FOLDER, "SortedFile.txt", "w")
                 .AddDelimitedColumns("LineNumber", "Description")
                 .SetDelimiter('|');
             using (var r = new DocReader("r", FilePath, pageSize: 30))
@@ -647,7 +657,7 @@ LineNumber|Description
             {
                 foreach(var record in s)
                 {
-                    w.AddRecord(record);
+                    w.AddTypedRecord(record);
                 }
             }
         }
@@ -656,7 +666,7 @@ LineNumber|Description
         {
             FilePrep(); 
             DocMetaData.TESTMODE = true;
-            var md = new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
+            var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
                 .AddDelimitedColumns("LineNumber", "Description")
                 .SetDelimiter('|');
             using (var r = new DocReader("r", BiggerFilePath, pageSize: 50))
@@ -665,7 +675,7 @@ LineNumber|Description
             {
                 foreach (var record in s)
                 {
-                    w.AddRecord(record);
+                    w.AddTypedRecord(record);
                 }
             }
         }
@@ -701,7 +711,7 @@ LineNumber|Description
         public void BOM_ReadTest()
         {
             DocMetaData.TESTMODE = true;
-            var md = new DocMetaData(TEST_FOLDER + "bomCheck.txt", "bc").SetDelimiter('|').SetPageSize(80);
+            var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "bomCheck.txt", "bc").SetDelimiter('|').SetPageSize(80);
             //md.SetFileEncoding(System.Text.Encoding.UTF8);
             md.SetFileEncoding(null); 
             using (var r = new DocReader(md))

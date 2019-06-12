@@ -200,6 +200,31 @@ namespace SEIDR.Doc
                     success = decimal.TryParse(val, out d);
                     result = d;
                     break;
+                case DocRecordColumnType.Date:
+                case DocRecordColumnType.DateTime:
+                    if (nulVal)
+                    {
+                        result = null as DateTime?;
+                        return true;
+                    }
+                    DateTime dt = default;
+                    string format = col.Format;
+                    if (string.IsNullOrWhiteSpace(format))
+                    {
+                        if (!DateConverter.GuessFormatDateTime(val, out format))
+                        {
+                            format = null;
+                            success = DateTime.TryParse(val, out dt);
+                        }
+                        else
+                            col.Format = format;
+                    }
+                    if(format != null)
+                    {
+                        success = DateTime.TryParseExact(val, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AllowInnerWhite, out dt);
+                    }
+                    result = dt;
+                    return success;
                 default:
                     result = val;
                     return false;

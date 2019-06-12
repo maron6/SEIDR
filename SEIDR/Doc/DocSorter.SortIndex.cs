@@ -95,7 +95,7 @@ namespace SEIDR.Doc
                 {
                     StringBuilder data = new StringBuilder($"{page}{DELIM}0");
                     sortColumns.ForEach(c => { data.AppendFormat("{0}{1}", DELIM, p[0][c.Position]); });
-                    w.AddRecord(data.ToString());                    
+                    w.AddRecord(data);                    
                     return;
                 }
                 List<IList<int>> orders = new List<IList<int>>();
@@ -129,12 +129,13 @@ namespace SEIDR.Doc
                         {
                             sb.Append(DELIM);
                         }
-                        w.AddRecord(sb.ToString());
+                        
+                        ((DocWriter<DocMetaData>)w).AddRecord(sb);
                         continue;
                     }
                     StringBuilder data = new StringBuilder($"{page}{DELIM}{o}");
                     sortColumns.ForEach(c => { data.AppendFormat("{0}{1}", DELIM, p[o][c.Position]); });
-                    w.AddRecord(data.ToString());
+                    w.AddRecord(data);
                 }
             }
         }
@@ -176,7 +177,7 @@ namespace SEIDR.Doc
                         using (var w = new DocWriter(w2))
                         {
                             foreach (var si in SortPositions(fold, r, handling))
-                                w.AddRecord(si);
+                                w.AddTypedRecord(si);
                         }
                         try
                         {
@@ -217,7 +218,7 @@ namespace SEIDR.Doc
                         using (var w = new DocWriter(w1))
                         {
                             foreach (var si in SortPositions(fold, r, handling))
-                                w.AddRecord(si);
+                                w.AddTypedRecord(si);
                         }
                         try
                         {
@@ -257,7 +258,7 @@ namespace SEIDR.Doc
                 using (var w = new DocWriter(useW1 ? w2 : w1))
                 {
                     foreach (var si in SortPositions(fold, r, handling))
-                        w.AddRecord(si);
+                        w.AddTypedRecord(si);
                 }
                 useW1 = !useW1;
                 try
@@ -572,12 +573,12 @@ namespace SEIDR.Doc
         void addSortCols(DocMetaData addto)
         {
             addto
+                .SetHasHeader(false)
                 .AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
                 .SetFileAccess(FileAccess.Read)
                 .SetPageSize(index.PageSize)
                 .SetDelimiter(DELIM)
-                .SetLineEndDelimiter(LINE_END)
-                .SetHasHeader(false);
+                .SetLineEndDelimiter(LINE_END);
             foreach (var col in sortColumns)
             {
                 addto.AddColumn("DATA" + col.Position);
@@ -625,11 +626,14 @@ namespace SEIDR.Doc
         {
             if (filePath == null)
                 throw new ArgumentNullException(nameof(filePath));
-            DocMetaData destination = new DocMetaData(filePath)            
-                .SetHasHeader(_source.MetaData.HasHeader)                
+            DocMetaData destination = (DocMetaData) new DocMetaData(filePath)            
+                .SetHasHeader(_source.MetaData.HasHeader)              
                 .SetFileEncoding(_source.MetaData.FileEncoding)                
-                .SetLineEndDelimiter(_source.MetaData.LineEndDelimiter)
-                .AddDetailedColumnCollection( _source.MetaData.Columns);
+                .SetLineEndDelimiter(_source.MetaData.LineEndDelimiter);
+            if(_source.MetaData is DocMetaData)
+            {
+                destination.AddDetailedColumnCollection(((DocMetaData)_source.MetaData).Columns);
+            }
             if (_source.MetaData.Delimiter.HasValue)
                 destination.SetDelimiter(_source.MetaData.Delimiter.Value); //doesn't really matter...writing lines without modifying or parsing.
 

@@ -289,7 +289,7 @@ namespace SEIDR.Doc
                         x = record.Length - position; //Number of characters to read                                        
                     split[i] = record.Substring(position, x);
                     position += x;
-                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length) //Extends beyond the last column
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
                 else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
@@ -534,11 +534,19 @@ namespace SEIDR.Doc
                 return Columns.Count > 0 
                     && LastPosition >= 0
                     && ( 
-                        (fixedWidthMode && CanUseAsFixedWidth)
+                        (
+                            fixedWidthMode 
+                            && CanUseAsFixedWidth 
+                            && (!RaggedRight || !string.IsNullOrEmpty(LineEndDelimiter)) //Ragged right requires line end delimiter. Even if we use multiLineEnd Delimiter in DocReader
+                        )
                         .Or(!fixedWidthMode && _Delimiter != null && _Delimiter.ToString() != LineEndDelimiter)
                     );
             }
-        }        
+        }
+        /// <summary>
+        /// For use with Fix-width mode. Requires a line end delimiter.
+        /// </summary>
+        public bool RaggedRight { get; set; } = false;
         /// <summary>
         /// Default alias for new columns
         /// </summary>

@@ -31,6 +31,10 @@ namespace SEIDR.Doc
         /// </summary>
         public DocRecordColumnType DataType { get; set; } = DocRecordColumnType.Varchar;
         /// <summary>
+        /// Optional formatting for certain data types.
+        /// </summary>
+        public string Format { get; set; } = null;
+        /// <summary>
         /// Treats the column as an int by position.
         /// </summary>
         /// <param name="column"></param>

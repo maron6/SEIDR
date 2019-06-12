@@ -128,13 +128,13 @@ namespace SEIDR.Doc
             
             sortColumns = new List<IRecordColumnInfo>(mainSort);
             INDEX_PATH = f.FullName + "." + INDEX_EXTENSION;
-            index = new DocMetaData(INDEX_PATH, INDEX_EXTENSION)
+            index = (DocMetaData)new DocMetaData(INDEX_PATH, INDEX_EXTENSION)
+                .SetHasHeader(false)
                 //.AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
                 .SetFileAccess(FileAccess.ReadWrite)
                 .SetDelimiter(DELIM)
                 .SetPageSize(indexPageSize)
-                .SetLineEndDelimiter(LINE_END)
-                .SetHasHeader(false);
+                .SetLineEndDelimiter(LINE_END);
             FileInfo idx = new FileInfo(INDEX_PATH);
             CleanIndexFile = disposeCleansIndex;
             if (idx.Exists)
