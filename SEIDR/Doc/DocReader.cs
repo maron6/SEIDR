@@ -60,7 +60,7 @@ namespace SEIDR.Doc
         /// Sets up a doc reader for DocRecord enumeration.
         /// </summary>
         /// <param name="info"></param>
-        public DocReader(DocMetaData info) : base(info) { }
+        public DocReader(MetaDataBase info) : base(info) { }
         /// <summary>
         ///
         /// </summary>
@@ -165,7 +165,7 @@ namespace SEIDR.Doc
         /// Sets up a doc reader for DocRecord enumeration.
         /// </summary>
         /// <param name="info"></param>
-        public DocReader(DocMetaData info)
+        public DocReader(MetaDataBase info)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
@@ -174,6 +174,7 @@ namespace SEIDR.Doc
             _MetaData = info;
             SetupStream();
         }
+
         /// <summary>
         /// Total number of records in the file after set up.
         /// <para>If the file cannot be parsed, or has not yet been parsed, the value will be -1.</para>

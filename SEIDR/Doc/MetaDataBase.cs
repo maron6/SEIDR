@@ -109,7 +109,7 @@ namespace SEIDR.Doc
 
 
         /// <summary>
-        /// Default value for <see cref="DocRecordColumnCollection.NullIfEmpty"/> for underlying column collections.
+        /// Default value for <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/> for underlying column collections.
         /// </summary>
         public bool EmptyIsNull { get; set; } = true;
         /// <summary>
@@ -159,6 +159,9 @@ namespace SEIDR.Doc
             SkipLines = linesToSkip;
             return this;
         }
+        /// <summary>
+        /// Delimiter for columns
+        /// </summary>
         public abstract char? Delimiter { get; }
         /// <summary>
         /// Line Ending delimiter, unless <see cref="ReadWithMultiLineEndDelimiter"/> is true.

@@ -44,7 +44,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// Default value for new columns' <see cref="DocRecordColumnInfo.NullIfEmpty"/>. Default is true. Ignored when writing.
         /// </summary>
-        public bool NullIfEmpty { get; set; } = true;
+        public bool DefaultNullIfEmpty { get; set; } = true;
         /// <summary>
         /// Merges the two column collections
         /// </summary>
@@ -625,19 +625,21 @@ namespace SEIDR.Doc
         /// Adds a new column and returns its index
         /// </summary>
         /// <param name="ColumnName"></param>
-        /// <param name="MaxSize"></param>
-        /// <param name="EarlyTerminator">For use with fixed width. Allows ending the column early. E.g. NewLine</param>
+        /// <param name="MaxSize"></param>        
         /// <param name="leftJustify">Indicates if column should be left justified in fix width mode</param>
         /// <param name="textQualify">Indicates whether the column should be text qualified when writing.</param>
+        /// <param name="DataType"></param>
         /// <returns></returns>
-        public DocRecordColumnInfo AddColumn(string ColumnName, int? MaxSize = null, bool leftJustify = true, bool textQualify = false)
+        public DocRecordColumnInfo AddColumn(string ColumnName, int? MaxSize = null, bool leftJustify = true, bool textQualify = false, 
+            DocRecordColumnType dataType = DocRecordColumnType.Varchar)
         {
             var col = new DocRecordColumnInfo(ColumnName, Alias, LastPosition + 1)
             {
                 MaxLength = MaxSize,                
-                NullIfEmpty = NullIfEmpty,
+                NullIfEmpty = DefaultNullIfEmpty,
                 LeftJustify = leftJustify,
-                TextQualify = textQualify
+                TextQualify = textQualify,
+                DataType = dataType
             };
             Columns.Add(col);
             if (MaxSize == null)            
@@ -689,7 +691,8 @@ namespace SEIDR.Doc
                 MaxLength = toCopy.MaxLength,                
                 NullIfEmpty = toCopy.NullIfEmpty,
                 LeftJustify = toCopy.LeftJustify,
-                TextQualify = toCopy.TextQualify,                
+                TextQualify = toCopy.TextQualify,         
+                DataType = toCopy.DataType
             };
             Columns.Add(col);
 
@@ -707,7 +710,7 @@ namespace SEIDR.Doc
         /// <param name="MaxSize"></param>        
         /// <param name="nullIfEmpty">If set, overrides the column value. If null, leaves the column's value alone</param>
         public void UpdateColumn(string ColumnName, string newName, int? MaxSize, bool? nullIfEmpty = null)
-            => UpdateColumn(Alias, ColumnName, newName, MaxSize, NullIfEmpty);
+            => UpdateColumn(Alias, ColumnName, newName, MaxSize, DefaultNullIfEmpty);
         /// <summary>
         /// Updates the column information specified by the Alias/column Name
         /// </summary>
@@ -716,12 +719,13 @@ namespace SEIDR.Doc
         /// <param name="newName"></param>
         /// <param name="MaxSize"></param>        
         /// <param name="NullIfEmpty">If set, overrides the column value. If null, leaves the column's value alone</param>
-        public void UpdateColumn(string Alias, string ColumnName, string newName, int? MaxSize, bool? NullIfEmpty = null)
+        public void UpdateColumn(string Alias, string ColumnName, string newName, int? MaxSize, bool? NullIfEmpty = null, DocRecordColumnType? dataType = null)
         {
             var col = this[Alias, ColumnName];
             col.ColumnName = newName;
             col.MaxLength = MaxSize;
             col.NullIfEmpty = NullIfEmpty ?? col.NullIfEmpty;
+            col.DataType = dataType ?? col.DataType;
             if (MaxSize != null)
                 CheckForFixedWidthValid();
             else

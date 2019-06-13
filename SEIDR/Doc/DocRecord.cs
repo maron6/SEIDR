@@ -121,6 +121,7 @@ namespace SEIDR.Doc
         }
         #endregion
 
+
         /// <summary>
         /// Tries to get an the object associated with the value.
         /// <para>Data type will match that of the specified column via TryParse. If you just want the string value - use the <see cref="GetBestMatch(string, string, int)"/> instead.</para>
@@ -140,8 +141,17 @@ namespace SEIDR.Doc
             string val = this[col];
             bool success = false;
             bool nulVal = false;
+            if(Columns.TextQualifier != null && val.Contains(Columns.TextQualifier))
+            {
+                val = val.Replace(Columns.TextQualifier, string.Empty);
+            }
+            if (!col.DataType.In(DocRecordColumnType.Varchar, DocRecordColumnType.NVarchar))
+            {
+                val = val.Trim();
+            }
             if (col.NullIfEmpty && string.IsNullOrWhiteSpace(val))
                 nulVal = true;
+            
             switch (col.DataType)
             {
                 case DocRecordColumnType.Varchar:
@@ -214,7 +224,7 @@ namespace SEIDR.Doc
                         if (!DateConverter.GuessFormatDateTime(val, out format))
                         {
                             format = null;
-                            success = DateTime.TryParse(val, out dt);
+                            success = DateTime.TryParse(val, out dt); //Try parse with base DateTime method to be safe.
                         }
                         else
                             col.Format = format;
@@ -562,7 +572,7 @@ namespace SEIDR.Doc
                 if (col == null)
                     throw new ArgumentException("Column not found");
                 x = Content[col.Position];
-                if (Columns.NullIfEmpty && x == string.Empty)
+                if (Columns.DefaultNullIfEmpty && x == string.Empty)
                     return null;
                 return x;
             }
@@ -721,7 +731,10 @@ namespace SEIDR.Doc
                 var col = Columns[columnIndex];
                 if (col == null)
                     throw new ArgumentException("No Column specified for position " + columnIndex);
-                return Content[columnIndex];                
+                var x = Content[columnIndex];
+                if (col.NullIfEmpty && x == string.Empty)
+                    return null;
+                return x;
             }
             set
             {

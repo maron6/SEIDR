@@ -21,7 +21,8 @@ namespace SEIDR.Test
                 {"19-05-19", "yy-MM-dd" },
                 {"19-05-19 04:20", "yy-MM-dd HH:mm" },
                 { "2019/06/04 04:21 AM", "yyyy/MM/dd hh:mm tt" },
-                { "09/04/23 08:26:01 PM", "yy/MM/dd hh:mm:ss tt" } //Single h would really need to be explicit
+                { "09/04/23 08:26:01 PM", "yy/MM/dd hh:mm:ss tt" },
+                { "09/04/23 8:26:01 AM", "yy/MM/dd h:mm:ss tt" }
             };
             foreach(var testCase in Tests)
             {

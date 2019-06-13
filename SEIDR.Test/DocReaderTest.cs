@@ -8,7 +8,7 @@ using Microsoft.CSharp;
 namespace SEIDR.Test
 {
     [TestClass]
-    public class DocReaderTest
+    public class DocReaderTest: TestBase
     {
         [TestMethod]
         public void DynamicRecordTest()
@@ -664,8 +664,8 @@ LineNumber|Description
         [TestMethod]
         public void BigSortedReadTest()
         {
-            FilePrep(); 
-            DocMetaData.TESTMODE = true;
+            FilePrep();
+            MetaDataBase.TESTMODE = true;
             var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
                 .AddDelimitedColumns("LineNumber", "Description")
                 .SetDelimiter('|');
@@ -722,6 +722,38 @@ LineNumber|Description
                 }
             }
         }
+        [TestMethod]
+        public void MultiRecordTest()
+        {
+            PrepDirectory(true);
+            var input = GetFile("TestFiles", "MultiRecordIn.txt");
+            var mrmd = new MultiRecordDocMetaData(input.FullName, "mrm");
+            mrmd.SetDelimiter(',').SetMultiLineEndDelimiters("\r", "\n", "\r\n");
+            var c0 = mrmd.CreateCollection("0"); //Key Column already included by default            
+            c0.AddColumn("Desc");
+            c0.AddColumn("WorkDate", dataType: DocRecordColumnType.Date);
+            var c1 = mrmd.CreateCollection("1", true, "Role", "Secondary Role", "Quote");
+            //c1.AddColumn("Key");
+            /*
+            c1.AddColumn("Role");
+            c1.AddColumn("SecondaryRole");
+            c1.AddColumn("Quote");*/
+            mrmd.CreateCollection("3", true, "DESC");
+            //c3.AddColumn("Key");
+            using (var r = new DocReader(mrmd))
+            {
+                var p = r.GetPage(0);
+                Assert.IsTrue(p[0].HasColumn("Desc"));
+
+                Assert.IsTrue(p[0].TryGet("WorkDate", out object dt));
+                Assert.AreEqual(new DateTime(2019, 06, 12), (DateTime)dt);
+                Assert.IsFalse(p[0].HasColumn("Role"));
+                Assert.IsTrue(p[1].HasColumn("Role"));
+                Assert.AreEqual("END", p[4]["DESC"].Trim());
+                Assert.AreEqual("3", p[4][MultiRecordDocMetaData.DEFAULT_KEY_NAME]);
+            }
+        }
+
     }
 
     public class TestRecordInheritance: DocRecord

@@ -9,7 +9,7 @@ namespace SEIDR.Doc
 {
     public class DocWriter : DocWriter<DocMetaData>
     {
-        readonly DocMetaData md;
+        private DocMetaData Dmd => md as DocMetaData;
         #region operators   
         /// <summary>
         /// Allow treating the doc writer as a DocMetaData to help keep code more succinct. Returns null if the MetaData type is not a DocMetaData.
@@ -32,12 +32,12 @@ namespace SEIDR.Doc
             :base(metaData, AppendIfExists, bufferSize)
         {
             if (!metaData.Columns.Valid)
-                throw new InvalidOperationException("Column state Invalid");
+                throw new InvalidOperationException("Column state Invalid");            
         }
         /// <summary>
         /// True if the file being written to is being written with columns having fixed widths and positions.
         /// </summary>
-        public bool FixedWidthMode => md.FixedWidthMode;
+        public bool FixedWidthMode => Dmd.FixedWidthMode;
         /// <summary>
         /// Sets the textQualifier. Default is null
         /// </summary>
@@ -122,7 +122,7 @@ namespace SEIDR.Doc
         public void AddTypedRecord<RecordType>(RecordType record, IDictionary<int, DocRecordColumnInfo> columnMapping = null)
             where RecordType : DocRecord
         {
-            if (!md.Columns.Valid)
+            if (!Dmd.Columns.Valid)
                 throw new InvalidOperationException("Column state Invalid");
             if (record == null)
                 throw new ArgumentNullException(nameof(record));
@@ -174,9 +174,14 @@ namespace SEIDR.Doc
     /// </summary>
     public class DocWriter<MD>: IDisposable where MD: MetaDataBase
     {
-        
+        /// <summary>
+        /// Underlying stream.
+        /// </summary>
         protected StreamWriter sw { get; private set; }
-        MD md;        
+        /// <summary>
+        /// Underlying MetaData
+        /// </summary>
+        protected MD md;        
         /// <summary>
         /// 
         /// </summary>
@@ -267,13 +272,18 @@ namespace SEIDR.Doc
         /// <param name="record"></param>
         public void AddRecord(string record)
         {
-            AddRecord(md.ParseRecord(false, record).ToString());
+            if (string.IsNullOrEmpty(record))
+                return;
+            sw.Write(md.ParseRecord(false, record).ToString());
         }
         /// <summary>
         /// Adds a StringBuilder to the output Document
         /// </summary>
         /// <param name="sbRecord"></param>
-        public void AddRecord(StringBuilder sbRecord) => AddRecord(sbRecord.ToString());
+        public void AddRecord(StringBuilder sbRecord)
+        {
+            AddRecord(sbRecord.ToString());
+        }
         /// <summary>
         /// Parses the strings and maps them using this collection's MetaData. Will add the LineEndDelimiter of this metaData if specified, though.
         /// </summary>
