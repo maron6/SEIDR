@@ -55,8 +55,10 @@
     <Compile Include="DataBase\ParamStore.cs" />
     <Compile Include="DataBase\Schema.cs" />
     <Compile Include="DateFormatter.cs" />
+    <Compile Include="Doc\BSONHelper.cs" />
     <Compile Include="Doc\DateConverter.cs" />
     <Compile Include="Doc\DocRecordColumnType.cs" />
+    <Compile Include="Doc\DocRecordFormat.cs" />
     <Compile Include="Doc\DocSorter.Cache.cs" />
     <Compile Include="Doc\DocSorter.cs" />
     <Compile Include="Doc\DocSorter.SortIndex.cs" />
@@ -66,6 +68,7 @@
     <Compile Include="Doc\ISingleRecordTypeMetaData.cs" />
     <Compile Include="Doc\MetaDataBase.cs" />
     <Compile Include="Doc\MultiRecordDocMetaData.cs" />
+    <Compile Include="Doc\RecordChangedEvent.cs" />
     <Compile Include="Doc\SortColumn.cs" />
     <Compile Include="NumExtensions.cs" />
     <Compile Include="Doc\ColumnDateFormatter.cs" />

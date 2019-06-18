@@ -9,7 +9,7 @@ namespace SEIDR.Doc
     public interface ISingleRecordTypeMetaData
     {
         DocRecordColumnCollection Columns { get; }
-        bool FixedWidthMode { get; }
+        bool FixWidthMode { get; }
         bool HasHeader { get; }
         int SkipLines { get; }
         bool Valid { get; }

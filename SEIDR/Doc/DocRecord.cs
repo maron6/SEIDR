@@ -40,7 +40,7 @@ namespace SEIDR.Doc
             //get { return unchecked((ulong)ToString().GetHashCode()); }
             get
             {
-                return GetPartialHash(true, true, true, Columns.Columns.ToArray()) ?? 0;
+                return GetPartialHash(true, true, Columns.Columns.ToArray()) ?? 0;
             }
         }
         /// <summary>
@@ -92,11 +92,10 @@ namespace SEIDR.Doc
         /// Returns an unsigned long hash code, using either a rolling hash method or string's GetHashCode.
         /// </summary>
         /// <param name="RollingHash"></param>
-        /// <param name="ExcludeEmpty">If true, will treat empty strings the same as null</param>
         /// <param name="includeNull">If true, will not return null if the column value is null</param>
         /// <param name="columnsToHash"></param>
         /// <returns></returns>
-        public ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, bool includeNull, params DocRecordColumnInfo[] columnsToHash)
+        public ulong? GetPartialHash(bool RollingHash,  bool includeNull, params DocRecordColumnInfo[] columnsToHash)
         {
             if (Columns == null || Columns.Count == 0)
                 return null;
@@ -108,7 +107,7 @@ namespace SEIDR.Doc
                 foreach (var col in columnsToHash)
                 {
                     string x = this[col];
-                    if (ExcludeEmpty && x == string.Empty) x = null;
+                    if (col.NullIfEmpty && x == string.Empty) x = null;
                     if (x == null && !includeNull)
                         return null;                    
                     work.Append((x ?? "\0") + _hash_boundary);
@@ -121,39 +120,134 @@ namespace SEIDR.Doc
         }
         #endregion
 
+        #region dynamic methods
+        /// <summary>
+        /// Use <see cref="TryGet(string, out object, string, int)"/> to return an object of Type <typeparamref name="T"/>.
+        /// <para>If object is not the correct type, or fails to parse, then the default for the type will be returned instead (Unless <paramref name="ErrorNoSuccess"/> is true)</para>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="Position"></param>
+        /// <param name="ErrorNoSuccess"></param>
+        /// <returns></returns>
+        public T Evalaute<T>(int Position, bool ErrorNoSuccess = false)
+        {
+            object o;
+            if(TryGet(null, out o, null, Position))
+            {
+                if(o is T)
+                    return (T)o;
+                if (o == null)
+                {
+                    if (default(T) != null && ErrorNoSuccess)
+                        throw new Exception("Value is null but variable does not allow null.");
+                    return default;
+                }
+                if (Nullable.GetUnderlyingType(typeof(T)) == o.GetType())
+                    return (T)Convert.ChangeType(o, typeof(T));
+                if (Nullable.GetUnderlyingType(o.GetType()) == typeof(T))
+                {
+                    if (o == null)
+                        return default;
+                    return (T)o;
+                }
+            }
+            if (ErrorNoSuccess)
+                throw new Exception("Unable to get value");
+            return default;
+        }
+   
+        /// <summary>
+        /// Use <see cref="TryGet(string, out object, string, int)"/> to return an object of Type <typeparamref name="T"/>.
+        /// <para>If object is not the correct type, or fails to parse, then the default for the type will be returned instead (Unless <paramref name="ErrorNoSuccess"/> is true)</para>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="ColumnName"></param>
+        /// <param name="Alias"></param>
+        /// <param name="ErrorNoSuccess"></param>
+        /// <returns></returns>
+        public T Evaluate<T>(string ColumnName, string Alias = null, bool ErrorNoSuccess = false)
+        {
+            var column = Columns.GetBestMatch(ColumnName, Alias);
+            return Evalaute<T>(column, ErrorNoSuccess);            
+        }
+        /// <summary>
+        /// Tries to get the value of the field as a variable of type <typeparamref name="T"/>. 
+        /// <para>Return value indicates whether the record value was successfully parsed.</para>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="Position"></param>
+        /// <param name="Result"></param>
+        /// <returns></returns>
+        public bool TryEvaluate<T>(int Position, out T Result)
+        {
+            object o;
+            if (TryGet(null, out o, null, Position))
+            {
+                if (o is T)
+                {                    
+                    Result = (T)o;
+                    return true;
+                }
+                if (o == null)
+                {
+                    Result = default;
+                    if (default(T) != null)
+                        return false;
+                    return true;
+                }
+                if (Nullable.GetUnderlyingType(typeof(T)) == o.GetType())
+                {
+                    Result = (T)Convert.ChangeType(o, typeof(T));
+                    return true;
+                }
+                if (Nullable.GetUnderlyingType(o.GetType()) == typeof(T))
+                {
+                    if (o == null)
+                        Result = default;
+                    else
+                        Result = (T)o;
+                    return true;
+                }
+            }
+            Result = default;
+            return false;
+        }
+        /// <summary>
+        /// Tries to get the value of the field as a variable of type <typeparamref name="T"/>. 
+        /// <para>Return value indicates whether the record value was successfully parsed.</para>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="ColumnName"></param>      
+        /// <param name="Result"></param>
+        /// <param name="Alias"></param>
+        /// <returns></returns>
+        public bool TryEvaluate<T>(string ColumnName, out T Result, string Alias = null)
+        {
+            var column = Columns.GetBestMatch(ColumnName, Alias);
+            return TryEvaluate<T>(column, out Result);
+        }
 
         /// <summary>
-        /// Tries to get an the object associated with the value.
-        /// <para>Data type will match that of the specified column via TryParse. If you just want the string value - use the <see cref="GetBestMatch(string, string, int)"/> instead.</para>
+        /// Tries to get data associated with the column for this record, data type depending on Column's data type.
         /// </summary>
-        /// <param name="ColumnName"></param>
+        /// <param name="col"></param>
         /// <param name="result"></param>
-        /// <param name="alias"></param>
-        /// <param name="position"></param>
         /// <returns></returns>
-        public bool TryGet(string ColumnName, out object result, string alias = null, int position = -1)
+        public bool TryGet(DocRecordColumnInfo col, out object result)
         {
-            DocRecordColumnInfo col;
-            if (position >= 0)
-                col = Columns[position];
-            else
-                col = Columns.GetBestMatch(ColumnName, alias, position);
             string val = this[col];
             bool success = false;
             bool nulVal = false;
-            if(Columns.TextQualifier != null && val.Contains(Columns.TextQualifier))
-            {
-                val = val.Replace(Columns.TextQualifier, string.Empty);
-            }
-            if (!col.DataType.In(DocRecordColumnType.Varchar, DocRecordColumnType.NVarchar))
+            if (!col.DataType.In(DocRecordColumnType.Varchar, DocRecordColumnType.NVarchar, DocRecordColumnType.Unknown))
             {
                 val = val.Trim();
             }
             if (col.NullIfEmpty && string.IsNullOrWhiteSpace(val))
                 nulVal = true;
-            
+
             switch (col.DataType)
             {
+                case DocRecordColumnType.Unknown:
                 case DocRecordColumnType.Varchar:
                 case DocRecordColumnType.NVarchar:
                     result = val;
@@ -166,7 +260,7 @@ namespace SEIDR.Doc
                             return true;
                         }
                         byte b;
-                        success = Byte.TryParse(val, out b);
+                        success = byte.TryParse(val, out b);
                         result = b;
                         break;
                     }
@@ -177,8 +271,32 @@ namespace SEIDR.Doc
                         return true;
                     }
                     short s;
-                    success =short.TryParse(val, out s);
+                    success = short.TryParse(val, out s);
                     result = s;
+                    break;
+                case DocRecordColumnType.Bool:
+                    if (nulVal)
+                    {
+                        result = null as bool?;
+                        return true;
+                    }
+                    bool br;
+                    success = bool.TryParse(val, out br);
+                    if (!success)
+                    {
+                        if (val.ToUpper().In("YES", "Y"))
+                        {
+                            result = true;
+                            return true;
+                        }
+                        if (val.ToUpper().In("NO", "N"))
+                        {
+                            result = false;
+                            return true;
+                        }
+                    }
+
+                    result = br;
                     break;
                 case DocRecordColumnType.Int:
                     if (nulVal)
@@ -189,7 +307,7 @@ namespace SEIDR.Doc
                     int i;
                     success = int.TryParse(val, out i);
                     result = i;
-                    break;                    
+                    break;
                 case DocRecordColumnType.Bigint:
                     if (nulVal)
                     {
@@ -199,6 +317,39 @@ namespace SEIDR.Doc
                     long l;
                     success = long.TryParse(val, out l);
                     result = l;
+                    break;
+                case DocRecordColumnType.Double:
+                    if (nulVal)
+                    {
+                        result = null as double?;
+                        return true;
+                    }
+                    double dbl;
+                    success = double.TryParse(val, out dbl);
+                    result = dbl;
+                    break;
+                case DocRecordColumnType.Money:
+                    if (nulVal)
+                    {
+                        result = null as decimal?;
+                        return true;
+                    }
+
+                    var cInfo = System.Globalization.CultureInfo.CurrentCulture;
+                    bool neg = val.Contains(cInfo.NumberFormat.NegativeSign);
+                    var regex = new System.Text.RegularExpressions.Regex("[^0-9" + cInfo.NumberFormat.NumberDecimalSeparator + "]+");
+                    string parse = regex.Replace(val, string.Empty);
+                    decimal m;
+                    success = decimal.TryParse(parse, out m);
+                    if (success)
+                    {
+                        if (neg)
+                            result = -1 * m;
+                        else
+                            result = m;
+                    }
+                    else
+                        result = 0M;
                     break;
                 case DocRecordColumnType.Decimal:
                     if (nulVal)
@@ -229,7 +380,7 @@ namespace SEIDR.Doc
                         else
                             col.Format = format;
                     }
-                    if(format != null)
+                    if (format != null)
                     {
                         success = DateTime.TryParseExact(val, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AllowInnerWhite, out dt);
                     }
@@ -240,6 +391,24 @@ namespace SEIDR.Doc
                     return false;
             }
             return success;
+        }
+        /// <summary>
+        /// Tries to get an the object associated with the value.
+        /// <para>Data type will match that of the specified column via TryParse. If you just want the string value - use the <see cref="GetBestMatch(string, string, int)"/> instead.</para>
+        /// </summary>
+        /// <param name="ColumnName"></param>
+        /// <param name="result"></param>
+        /// <param name="alias"></param>
+        /// <param name="position"></param>
+        /// <returns></returns>
+        public bool TryGet(string ColumnName, out object result, string alias = null, int position = -1)
+        {
+            DocRecordColumnInfo col;
+            if (position >= 0)
+                col = Columns[position];
+            else
+                col = Columns.GetBestMatch(ColumnName, alias, position);
+            return TryGet(col, out result);
         }
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {            
@@ -314,6 +483,99 @@ namespace SEIDR.Doc
             return false;
         }
 
+        #endregion
+
+        #region static class map helpers
+        public static DocRecord MapObject<T>(T toMap, DocRecordColumnCollection columnSet)
+        {
+            DocRecord r = new DocRecord(columnSet);
+            var props = typeof(T)
+                .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                .Where(p => p.CanRead);
+            foreach(var prop in props)
+            {
+                var col = columnSet.FirstOrDefault(c => c.ColumnName == prop.Name);
+                if (col == null)
+                    continue;
+                object nValue = prop.GetValue(toMap);
+                Type underType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                if (underType.IsEnum)
+                {
+                    nValue = Enum.Parse(underType, nValue.ToString(), true);
+                }
+                else if (underType.IsArray)
+                    continue; //Skip arrays...doesn't really make sense for coming from a dataRow, although it might be possible to do dynamically..
+                else if (underType == typeof(char))
+                {
+                    var svalue = nValue.ToString();
+                    if (svalue.Length > 1)
+                        throw new InvalidCastException($"{prop.Name} tried to set a value of {svalue}, but needs to be a single char.");
+                    nValue = svalue[0];
+                }
+                r.SetValue(col.Position, nValue);
+            }
+            return r;
+        }
+        /// <summary>
+        /// Attempt to map DocRecord to an instance of Type T, where T is any type that has a parameterless constructor and setter properties.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        public bool TryMapRecord<T>(out T result) where T:new()
+        {
+            result = new T();
+            var props = typeof(T)
+                .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                .Where(p => p.CanWrite);
+            foreach(var prop in props)
+            {
+                var col = Columns.GetBestMatch(prop.Name);
+                if (col == null)
+                    continue;
+                object nValue;
+                if (TryGet(col, out nValue))
+                {
+
+                    Type underType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                    if (underType.IsEnum)
+                    {
+                        nValue = Enum.Parse(underType, nValue.ToString(), true);
+                    }
+                    else if (underType.IsArray)
+                        continue; //Skip arrays...doesn't really make sense for coming from a DocRecord, although it might be possible to do dynamically..
+                    else if (underType == typeof(char))
+                    {
+                        var svalue = nValue.ToString();
+                        if (svalue.Length > 1)
+                            throw new InvalidCastException($"{prop.Name} tried to set a value of {svalue}, but needs to be a single char.");
+                        nValue = svalue[0];
+                    }
+                    prop.SetValue(result, nValue);
+                }
+                else
+                    return false;
+            }
+
+            return true;
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Raise event for record data being changed
+        /// </summary>
+        /// <param name="e"></param>
+        protected virtual void OnRecordDataChanged(RecordChangedEventArgs e)
+        {
+            RecordDataChanged?.Invoke(this, e);
+        }
+        /// <summary>
+        /// A DocRecord has been modified - raise event to listeners
+        /// </summary>
+        public event EventHandler<RecordChangedEventArgs> RecordDataChanged;    
+
+
 
         /// <summary>
         /// Merges <paramref name="left"/> and <paramref name="right"/> into a new DocRecord using the Column meta data from <paramref name="collection"/>.
@@ -387,10 +649,12 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public override string ToString()
         {
+            /*
             if (!Columns.Valid)
-                throw new InvalidOperationException("Column state is not valid.");
+                throw new InvalidOperationException("Column state is not valid.");*/
 
-            return string.Format(Columns.format, Content.ToArray());
+            //return string.Format(Columns.format, Content.ToArray());
+            return string.Join("|", Content.ToArray()); //Move delimiter logic to MetaData only instead.
             /*
             StringBuilder output = new StringBuilder();
             Columns.ForEachIndex((col, idx) =>             
@@ -411,75 +675,40 @@ namespace SEIDR.Doc
             */
         }
         /// <summary>
-        /// To string with option to include the end line delimiter or not.
+        /// Formats the DocRecord using the passed MetaData
         /// </summary>
+        /// <param name="metaData"></param>
         /// <param name="includeLineEndDelimiter"></param>
         /// <returns></returns>
-        public string ToString(bool includeLineEndDelimiter)
+        public string ToString(MetaDataBase metaData, bool includeLineEndDelimiter = true)
         {
-            if (includeLineEndDelimiter)
-                return ToString();
-            if (!Columns.Valid)
-                throw new InvalidOperationException("Column state is not valid.");
-                            
-            
             StringBuilder output = new StringBuilder();
             int idx = 0;
-            foreach(var col in Columns)
-            {                
-                for(; idx < col.Position; idx++)
+            foreach (var col in Columns)
+            {
+                for (; idx < col.Position; idx++)
                 {
-                    if (!Columns.FixedWidthMode)
-                        output.Append(Columns.Delimiter);
+                    if (metaData.Delimiter.HasValue)
+                        output.Append(metaData.Delimiter.Value);
                 }
                 string colContent = Content[col.Position]; //Note: null/empty equivalent for purposes here.
-                
+
                 if (col.MaxLength != null)
                     output.Append(colContent.Substring(0, col.MaxLength.Value).PadRight(col.MaxLength.Value));
                 else
                 {
                     output.Append(colContent);
                 }
-                if (!Columns.FixedWidthMode && col.Position == Columns.Count -1)
-                    output.Append(Columns.Delimiter);
+                if (metaData.Delimiter.HasValue && col.Position == Columns.Count - 1)
+                    output.Append(metaData.Delimiter.Value);
                 idx++;
             }
+            if (includeLineEndDelimiter)
+                output.Append(metaData.LineEndDelimiter ?? Environment.NewLine);
             return output.ToString();
-            
         }
-        /// <summary>
-        /// Adds the record and the LineDelimiter to the stringbuilder
-        /// </summary>
-        /// <param name="sb"></param>
-        /// <returns></returns>
-        public StringBuilder AddToStringBuilder(StringBuilder sb)
-        {
-            if (sb == null)
-                throw new ArgumentNullException(nameof(sb));
-            sb.AppendFormat(Columns.format, Content);/*
-            Columns.ForEachIndex((col, idx) =>
-            {
-                string colContent;
-                colContent = Content[col.Position] ?? string.Empty;
-                //if (!Content.TryGetValue(col, out colContent))
-                //    colContent = string.Empty;
-                if (col.MaxLength != null)
-                    sb.Append(colContent.Substring(0, col.MaxLength.Value).PadRight(col.MaxLength.Value));
-                else
-                {
-                    sb.Append(colContent);
-                }
-                if(idx == Columns.Count)
-                {
-                    if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))                        
-                        sb.Append(Columns.LineEndDelimiter);
-                }
-                else if (!Columns.FixedWidthMode)
-                    sb.Append(Columns.Delimiter);
-                
-            });*/
-            return sb;
-        }
+  
+  
 
         #region constructors
         /// <summary>
@@ -583,11 +812,24 @@ namespace SEIDR.Doc
                     var col = Columns.GetBestMatch(ColumnName);
                     if (col == null)
                         throw new ArgumentException("Column not found");
+
+                    string x;
+                    if (col.Position > Content.Count)
+                        x = null;
+                    else
+                        x = Content[col.Position];
+                    if (col.NullIfEmpty && x == string.Empty)
+                        x = null;
                     Content.SetWithExpansion(col.Position, value);
-                    if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    //if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    //{
+                    //    col.TextQualify = true;
+                    //    //Columns.SetFormat();
+                    //}
+                    if (x != value)
                     {
-                        col.TextQualify = true;
-                        Columns.SetFormat();
+                        RecordChangedEventArgs e = new RecordChangedEventArgs(col, x, value, this);
+                        OnRecordDataChanged(e);
                     }
                 }
                 else
@@ -617,11 +859,24 @@ namespace SEIDR.Doc
                 {
 
                     var col = Columns[alias, ColumnName];
+
+                    string x;
+                    if (col.Position > Content.Count)
+                        x = null;
+                    else
+                        x = Content[col.Position];
+                    if (col.NullIfEmpty && x == string.Empty)
+                        x = null;
                     Content.SetWithExpansion(col.Position, value);
-                    if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    //if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    //{
+                    //    col.TextQualify = true;
+                    //    Columns.SetFormat();
+                    //}
+                    if (x != value)
                     {
-                        col.TextQualify = true;
-                        Columns.SetFormat();
+                        RecordChangedEventArgs e = new RecordChangedEventArgs(col, x, value, this);
+                        OnRecordDataChanged(e);
                     }
                 }
                 else
@@ -640,9 +895,16 @@ namespace SEIDR.Doc
             var col = Columns.GetBestMatch(ColumnName, alias, position);
             if (col == null)
                 return null;
-            string x = Content[col.Position];            
-            if (col.NullIfEmpty.And(x == string.Empty))
+
+            string x;
+            if (col.Position >= Content.Count)
                 x = null;
+            else
+            {
+                x = Content[col.Position];
+                if (col.NullIfEmpty && x == string.Empty)
+                    x = null;
+            }
             return x;
         }
         /// <summary>
@@ -660,7 +922,7 @@ namespace SEIDR.Doc
                 return false;            
             if (col.NullIfEmpty.And(value == string.Empty))
                 value = null;
-            Content.SetWithExpansion(col.Position, value);
+            this[col] = value;         //Event logic.   
             return true;
         }
         /// <summary>
@@ -674,6 +936,8 @@ namespace SEIDR.Doc
             {
                 if (!Columns.HasColumn(column))
                     throw new ArgumentException("Column is not a member of the ColumnCollection associated with this record.");
+                if (column.Position >= Content.Count)
+                    return null;
                 string x = Content[column.Position];
                 if (column.NullIfEmpty && x == string.Empty)
                     return null;                
@@ -685,11 +949,26 @@ namespace SEIDR.Doc
                 {
                     if(!Columns.HasColumn(column))
                         throw new ArgumentException("Column is not a member of the ColumnCollection associated with this record.");
-                    Content.SetWithExpansion(column.Position, value);
-                    if (!column.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    string x;
+                    if (column.Position >= Content.Count)
+                        x = null;
+                    else
                     {
-                        column.TextQualify = true;
-                        Columns.SetFormat();
+                        x = Content[column.Position];
+                        if (column.NullIfEmpty && x == string.Empty)
+                            x = null;
+                    }
+                    Content.SetWithExpansion(column.Position, value);
+                    //if (!column.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                    //{
+                    //    column.TextQualify = true;
+                    //    Columns.SetFormat();
+                    //}
+
+                    if (x != value)
+                    {
+                        RecordChangedEventArgs e = new RecordChangedEventArgs(column, x, value, this);
+                        OnRecordDataChanged(e);
                     }
                 }
                 else
@@ -731,6 +1010,8 @@ namespace SEIDR.Doc
                 var col = Columns[columnIndex];
                 if (col == null)
                     throw new ArgumentException("No Column specified for position " + columnIndex);
+                if (columnIndex >= Content.Count)
+                    return null;
                 var x = Content[columnIndex];
                 if (col.NullIfEmpty && x == string.Empty)
                     return null;
@@ -743,11 +1024,27 @@ namespace SEIDR.Doc
                 var col = Columns[columnIndex];
                 if (col == null)
                     throw new ArgumentException("No Column specified for position " + columnIndex);
-                Content.SetWithExpansion(columnIndex, value);
-                if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+
+                string x;
+                if (col.Position >= Content.Count)
+                    x = null;
+                else
                 {
-                    col.TextQualify = true;
-                    Columns.SetFormat();
+                    x = Content[col.Position];
+                    if (col.NullIfEmpty && x == string.Empty)
+                        x = null;
+                }
+                Content.SetWithExpansion(columnIndex, value);
+                //if (!col.TextQualify && Columns.Delimiter.HasValue && value.Contains(Columns.Delimiter.Value))
+                //{
+                //    col.TextQualify = true;
+                //    Columns.SetFormat();
+                //}
+
+                if (x != value)
+                {
+                    var arg = new RecordChangedEventArgs(col, x, value, this);
+                    OnRecordDataChanged(arg);
                 }
             }
         }

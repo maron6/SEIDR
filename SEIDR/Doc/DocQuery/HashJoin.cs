@@ -29,7 +29,7 @@ namespace SEIDR.Doc.DocQuery
                 var Counter = 0ul;
                 foreach(var record in dr)
                 {
-                    var h = record.GetPartialHash(true, File.EmptyIsNull, false, rightColumns.ToArray());
+                    var h = record.GetPartialHash(true, false, rightColumns.ToArray());
                     if (h.HasValue)
                     {
                         BigValueFlag bvf; //use big value flag to avoid needing a ulong for every single line that needs to be stored
@@ -60,7 +60,7 @@ namespace SEIDR.Doc.DocQuery
         /// <returns></returns>
         public IEnumerable<DelimitedRecord> DoJoin(DelimitedRecord left)
         {
-            var h = left.GetPartialHash(true, File.EmptyIsNull, false, LeftColumns);
+            var h = left.GetPartialHash(true, false, LeftColumns);
             
             if (!h.HasValue)
                 yield break;

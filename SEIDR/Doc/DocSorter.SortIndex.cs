@@ -83,8 +83,8 @@ namespace SEIDR.Doc
         void sortPage(int page, DuplicateHandling handling)
         {
             DocMetaData pidx = new DocMetaData(INDEX_PATH + page, INDEX_EXTENSION + page);
-            addSortCols(pidx);            
-
+            addSortCols(pidx);
+            pidx.SetFileAccess(FileAccess.Write);
             using (var w = new DocWriter(pidx))
             {
                 var p = _source.GetPage(page);
@@ -158,7 +158,7 @@ namespace SEIDR.Doc
                        //.SetDelimiter(DELIM)
                        //.SetLineEndDelimiter(LINE_END)
                        //.SetHasHeader(false);
-                    addSortCols(even);
+                    addSortCols(even);                    
 
                     DocMetaData odd = new DocMetaData(INDEX_PATH + (page + 1) + sfx, INDEX_EXTENSION + page);
                     addSortCols(odd);
@@ -177,7 +177,7 @@ namespace SEIDR.Doc
                         using (var w = new DocWriter(w2))
                         {
                             foreach (var si in SortPositions(fold, r, handling))
-                                w.AddTypedRecord(si);
+                                w.AddDocRecord(si);
                         }
                         try
                         {
@@ -218,7 +218,7 @@ namespace SEIDR.Doc
                         using (var w = new DocWriter(w1))
                         {
                             foreach (var si in SortPositions(fold, r, handling))
-                                w.AddTypedRecord(si);
+                                w.AddDocRecord(si);
                         }
                         try
                         {
@@ -258,7 +258,7 @@ namespace SEIDR.Doc
                 using (var w = new DocWriter(useW1 ? w2 : w1))
                 {
                     foreach (var si in SortPositions(fold, r, handling))
-                        w.AddTypedRecord(si);
+                        w.AddDocRecord(si);
                 }
                 useW1 = !useW1;
                 try
@@ -575,7 +575,7 @@ namespace SEIDR.Doc
             addto
                 .SetHasHeader(false)
                 .AddDelimitedColumns(nameof(sortInfo.Page), nameof(sortInfo.Line))
-                .SetFileAccess(FileAccess.Read)
+                .SetFileAccess(FileAccess.ReadWrite)
                 .SetPageSize(index.PageSize)
                 .SetDelimiter(DELIM)
                 .SetLineEndDelimiter(LINE_END);

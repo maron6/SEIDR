@@ -28,7 +28,7 @@ namespace SEIDR.Test
             {
                 string fmt;
                 DateTime dt;
-                bool b = SEIDR.Doc.DateConverter.GuessFormatDateTime(testCase.Key, out fmt);
+                bool b = Doc.DateConverter.GuessFormatDateTime(testCase.Key, out fmt);
                 Assert.IsTrue(b);
                 Assert.AreEqual(testCase.Value, fmt);
                 Assert.IsTrue(
@@ -38,6 +38,7 @@ namespace SEIDR.Test
                                             System.Globalization.DateTimeStyles.None, 
                                             out dt));
                 Assert.AreNotEqual(default, dt);
+                Assert.AreEqual(testCase.Key, dt.ToString(fmt)); //Can convert back to test case.
             }
         }
 

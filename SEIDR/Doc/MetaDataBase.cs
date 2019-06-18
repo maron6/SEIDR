@@ -11,10 +11,58 @@ namespace SEIDR.Doc
     /// Base class for meta data when reading/writing files. 
     /// <para>Implementations should be internal only.</para>
     /// </summary>
-    public abstract class MetaDataBase 
+    public abstract class MetaDataBase
     {
         /// <summary>
+        /// Perform basic checks to make sure meta Data is valid.
+        /// </summary>
+        /// <param name="mode"></param>
+        /// <returns></returns>
+        public bool CheckFormatValid(FileAccess mode)
+        {
+            if(mode == FileAccess.Read)
+            {
+                if (string.IsNullOrWhiteSpace(FilePath))
+                    return false;
+                if (!File.Exists(FilePath))
+                    return false;
+                if (HasHeader && !HeaderConfigured)
+                    return false;
+                if(Format != DocRecordFormat.FIX_WIDTH)
+                {
+                    if (LineEndDelimiter == null && !ReadWithMultiLineEndDelimiter)
+                        return false;
+                }
+            }            
+            switch (Format)
+            {
+                case DocRecordFormat.FIX_WIDTH:
+                case DocRecordFormat.RAGGED_RIGHT:
+                    {
+                        return true;
+                    }                                    
+                case DocRecordFormat.DELIMITED:
+                case DocRecordFormat.VARIABLE_WIDTH:
+                    {
+                        if (Delimiter == null)
+                            return false;
+                        if (string.IsNullOrEmpty(LineEndDelimiter))
+                        {
+                            if (!ReadWithMultiLineEndDelimiter)
+                                return false;
+                        }
+                        else if (LineEndDelimiter == Delimiter.Value.ToString())
+                            return false;
+                        return true;
+                    }
+                case DocRecordFormat.BitCON:
+                default:
+                    return true;
+            }
+        }
+        /// <summary>
         /// Gets the Column collection to associate with a line of the file.
+        /// <para>Note: the parameter is called <paramref name="DocumentLine"/>, but it should also be okay to pass just the key column's value.</para>
         /// </summary>
         /// <param name="DocumentLine"></param>
         /// <returns></returns>
@@ -33,38 +81,9 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public DocRecord Parse(string DocumentLine)
         {
-            var col = GetRecordColumnInfos(DocumentLine);
-            if (col != null)
-                return col.ParseRecord(this.CanWrite, DocumentLine);
-            return null;
+            return ParseRecord(CanWrite, DocumentLine);
         }
-        /// <summary>
-        /// Parses a line from a Document and returns a DocRecord derived class instance.
-        /// </summary>
-        /// <typeparam name="ReadType"></typeparam>
-        /// <param name="DocumentLine"></param>
-        /// <returns></returns>
-        public ReadType Parse<ReadType>(string DocumentLine) where ReadType: DocRecord, new()
-        {
-            var col = GetRecordColumnInfos(DocumentLine);
-            if (col != null)
-                return col.ParseRecord<ReadType>(CanWrite, DocumentLine);
-            return null;
-        }
-        public IList<string> ParseRecord(string record)
-        {
-            var col = GetRecordColumnInfos(record);
-            if (col != null)
-                return col.ParseRecord(record);
-            return null;
-        }
-        public DocRecord ParseRecord(bool writeMode, string record)
-        {
-            var col = GetRecordColumnInfos(record);
-            if (col != null)
-                return col.ParseRecord(writeMode, record);
-            return null;
-        }
+
         /// <summary>
         /// Full path of the file being described.
         /// </summary>
@@ -106,22 +125,21 @@ namespace SEIDR.Doc
 
         #endregion
 
-
-
         /// <summary>
-        /// Default value for <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/> for underlying column collections.
-        /// </summary>
-        public bool EmptyIsNull { get; set; } = true;
-        /// <summary>
-        /// Sets <see cref="EmptyIsNull"/>
+        /// Sets <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/> and <see cref="DocRecordColumnInfo.NullIfEmpty"/> for any columns associated with underlying collections.
         /// </summary>
         /// <param name="nullifyEmpty"></param>
+        /// <param name="SetDefault">If false, just sets the values on individual columns, not the collection's default.</param>
         /// <returns></returns>
-        public MetaDataBase SetEmptyIsNull(bool nullifyEmpty)
-        {
-            EmptyIsNull = nullifyEmpty;
-            return this;
-        }
+        public abstract MetaDataBase SetEmptyIsNull(bool nullifyEmpty, bool SetDefault = true);
+        /// <summary>
+        /// Sets <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/>, and conditionally sets <see cref="DocRecordColumnInfo.NullIfEmpty"/> for any columns that match the predicate.
+        /// </summary>
+        /// <param name="NullifyEmpty"></param>
+        /// <param name="columnPredicate"></param>
+        /// <param name="SetDefault">If false, just sets the values on individual columns, not the collection's default.</param>
+        /// <returns></returns>
+        public abstract MetaDataBase SetEmptyIsNull(bool NullifyEmpty, Predicate<DocRecordColumnInfo> columnPredicate, bool SetDefault = true);
 
         static bool _TestMode = false;
         /// <summary>
@@ -162,23 +180,33 @@ namespace SEIDR.Doc
         /// <summary>
         /// Delimiter for columns
         /// </summary>
-        public abstract char? Delimiter { get; }
+        public char? Delimiter { get; set; }
         /// <summary>
         /// Line Ending delimiter, unless <see cref="ReadWithMultiLineEndDelimiter"/> is true.
+        /// <para>When writing to a file, this is always used, though.</para>
+        /// <para>Set to <see cref="Environment.NewLine"/> by default.</para>
         /// </summary>
-        public abstract string LineEndDelimiter { get; }
+        public string LineEndDelimiter { get; set; } = Environment.NewLine;
         /// <summary>
         /// Set delimiter.
         /// </summary>
         /// <param name="delimiter"></param>
         /// <returns></returns>
-        public abstract MetaDataBase SetDelimiter(char delimiter);
+        public MetaDataBase SetDelimiter(char delimiter)
+        {
+            Delimiter = delimiter;
+            return this;
+        }
         /// <summary>
         /// Sets the string that indicates end of records.
         /// </summary>
         /// <param name="endLine"></param>
         /// <returns></returns>
-        public abstract MetaDataBase SetLineEndDelimiter(string endLine);
+        public MetaDataBase SetLineEndDelimiter(string endLine)
+        {
+            LineEndDelimiter = endLine;
+            return this;
+        }
 
         #region Encoding + Page Size
         /// <summary>
@@ -235,6 +263,16 @@ namespace SEIDR.Doc
         /// </summary>
         public bool CanWrite { get; set; } = false;
         /// <summary>
+        /// Sets whether or not to allow Modifying DocRecords that are parsed using this metaData
+        /// </summary>
+        /// <param name="CanWrite"></param>
+        /// <returns></returns>
+        public MetaDataBase SetCanWrite(bool CanWrite)
+        {
+            this.CanWrite = CanWrite;
+            return this;
+        }
+        /// <summary>
         /// Sets <see cref="AccessMode"/>
         /// </summary>
         /// <param name="myAccess">Should match the DocReader or DocWriter.</param>
@@ -263,14 +301,18 @@ namespace SEIDR.Doc
         /// <summary>
         /// Clears the multli line end delimiter
         /// </summary>
-        public void ClearMultiLineEndDelimiter() => MultiLineEndDelimiter = new string[0];
+        public MetaDataBase ClearMultiLineEndDelimiter()
+        {
+            MultiLineEndDelimiter = new string[0];
+            return this;
+        }
         /// <summary>
         /// Use if there may be a mixture of /r/n, /r, /n, etc   
         /// </summary>
         /// <param name="endings"></param>
         public virtual MetaDataBase SetMultiLineEndDelimiters(params string[] endings)
         {
-            List<string> l  = new List<string>(endings);
+            List<string> l = new List<string>(endings);
 
             l.Sort((a, b) =>
             {
@@ -295,7 +337,7 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public virtual MetaDataBase AddMultiLineEndDelimiter(params string[] endingToAdd)
         {
-            List<string> l  = new List<string>(endingToAdd);
+            List<string> l = new List<string>(endingToAdd);
 
             if (MultiLineEndDelimiter != null)
                 l.AddRange(MultiLineEndDelimiter);
@@ -316,7 +358,20 @@ namespace SEIDR.Doc
         #endregion
 
         #region File MetaData
+        long _Length = -1;
         string _FileHash = null;
+        /// <summary>
+        /// Gets the length of the file, cached.
+        /// </summary>
+        public long FileLength
+        {
+            get
+            {
+                if (_Length < 0)
+                    _Length = new FileInfo(FilePath).Length;
+                return _Length;                
+            }
+        }
         /// <summary>
         /// Returns a hash of the file content, based on <see cref="DocExtensions.GetFileHash(FileInfo)"/>
         /// </summary>
@@ -341,6 +396,15 @@ namespace SEIDR.Doc
             return FileHash;
         }
         /// <summary>
+        /// Removes the cached file length.
+        /// </summary>
+        /// <returns></returns>
+        public long RefreshFileSize()
+        {
+            _Length = -1;
+            return FileLength;
+        }
+        /// <summary>
         /// Check if the file exists
         /// </summary>
         /// <returns></returns>
@@ -351,5 +415,625 @@ namespace SEIDR.Doc
 
 
         #endregion
+
+
+        #region Record Parse
+
+        /// <summary>
+        /// Format for reading/writing from a file.
+        /// </summary>
+        public virtual DocRecordFormat Format { get; protected set; } = DocRecordFormat.DELIMITED;
+        /// <summary>
+        /// Sets the <see cref="Format"/>. Implementations of MetaDataBase may perform validations when setting.
+        /// </summary>
+        /// <param name="NewFormat"></param>
+        /// <returns></returns>
+        public virtual MetaDataBase SetFormat(DocRecordFormat NewFormat)
+        {
+            Format = NewFormat;
+            if (NewFormat == DocRecordFormat.BitCON)
+                SetLineEndDelimiter(DEFAULT_BSON_LINE_END);
+            return this;
+        }
+        public readonly string DEFAULT_BSON_LINE_END = ((char)0).ToString() + Environment.NewLine + ((char)0).ToString();
+        /// <summary>
+        /// Indicates whether or not the file should be treated as FixedWidth
+        /// </summary>
+        public bool FixWidthMode => Format == DocRecordFormat.FIX_WIDTH;
+        /// <summary>
+        /// Variable width - FixWidth limit but allow using delimiters to end a column early.
+        /// </summary>
+        public bool VariableWidthMode => Format == DocRecordFormat.VARIABLE_WIDTH;
+        /// <summary>
+        /// Fix width, but the last column does not need to be full length.
+        /// </summary>
+        public bool RaggedRightMode => Format == DocRecordFormat.RAGGED_RIGHT;
+        /// <summary>
+        /// Use when individual column metadata indicates to use text qualifiers to surround column content inside a delimited setting. Not used with FixWidth/Ragged Right
+        /// <para>Note: Cannot be null - will default to " if not provided.</para>
+        /// </summary>
+        public string TextQualifier { get; private set; } = "\"";
+        /// <summary>
+        /// Sets the Text Qualifier for writing, or formatting a DocRecord as a string.
+        /// </summary>
+        /// <param name="TextQual"></param>
+        /// <returns></returns>
+        public MetaDataBase SetTextQualifier(string TextQual)
+        {
+            if(string.IsNullOrEmpty(TextQual))
+                throw new ArgumentException("Text Qualifier cannot be empty.", nameof(TextQual));
+            TextQualifier = TextQual;
+            return this;
+        }        
+        /// <summary>
+        /// Doesn't throw <see cref="MissingColumnException"/> when the number of columns is lower than expected.
+        /// </summary>
+        public bool AllowMissingColumns { get; set; } = false;
+        /// <summary>
+        /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
+        /// </summary>
+        /// <param name="writeMode"></param>
+        /// <param name="record"></param>
+        /// <returns></returns>
+        public DocRecord ParseRecord(bool writeMode, string record)
+        {
+            if (string.IsNullOrEmpty(record))
+                return null;
+            if (!Valid)
+                throw new InvalidOperationException("Collection state is not valid.");
+            var colSet = GetRecordColumnInfos(record);
+            if (colSet == null)
+                return null;
+            if(Format == DocRecordFormat.BitCON)
+            {
+                return ParseBSON<DocRecord>(writeMode, record);
+            }
+            var Columns = colSet.Columns;
+            string[] split = new string[colSet.LastPosition];
+            int position = 0;
+            for (int i = 0; i < colSet.Columns.Count; i++)
+            {
+                if (position >= record.Length)
+                {
+                    //have gone beyond length of record
+                    if (ThrowExceptionColumnCountMismatch)
+                        throw new MissingColumnException(i, colSet.Columns.Count - 1);
+                    break;
+                }
+                if (FixWidthMode || RaggedRightMode)
+                {
+                    int x = colSet.Columns[i].MaxLength.Value;
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                        
+                    split[i] = record.Substring(position, x);
+                    position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == colSet.Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, colSet.Columns.Count, record.Length);
+                }
+                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
+                {
+                    int x = record.IndexOf(Delimiter.Value, position) - position;
+                    int y = Columns[i].MaxLength ?? x;
+                    if (y < x || x < 0)
+                    {
+                        x = y;
+                        y = 0;
+                    }
+                    else
+                        y = 1; //Skip delimiter          
+                    if (y < 0)
+                    {
+                        if (i == Columns.Count - 1)
+                        {
+                            split[i] = record.Substring(position);
+                            break;
+                        }
+                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, Delimiter.Value);
+                    }
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                                                
+                    split[i] = record.Substring(position, x);
+                    position += x + y;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else
+                {
+                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    if (ThrowExceptionColumnCountMismatch)
+                    {
+                        if (split.Length < Columns.Count)
+                        {
+                            if (!AllowMissingColumns)
+                                throw new MissingColumnException(split.Length, Columns.Count);
+                        }
+                        else if (split.Length > Columns.Count)
+                            throw new ColumnOverflowException(split.Length, Columns.Count);
+                    }
+                    break;
+                }
+
+            }
+            DocRecord r = new DocRecord(colSet, writeMode, split);
+            return r;
+        }
+
+        /// <summary>
+        /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
+        /// </summary>
+        /// <param name="record"></param>
+        /// <returns></returns>
+        public ReadType ParseRecord<ReadType>(string record) where ReadType : DocRecord, new()
+        {
+            return ParseRecord<ReadType>(CanWrite, record);
+        }
+        /// <summary>
+        /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
+        /// </summary>
+        /// <param name="writeMode"></param>
+        /// <param name="record"></param>
+        /// <returns></returns>
+        public ReadType ParseRecord<ReadType>(bool writeMode, string record) where ReadType : DocRecord, new()
+        {
+            if (string.IsNullOrEmpty(record))
+                return null;
+            if (!Valid)
+                throw new InvalidOperationException("Collection state is not valid.");
+            if(Format == DocRecordFormat.BitCON)
+            {
+                return ParseBSON<ReadType>(writeMode, record);
+            }
+            var colSet = GetRecordColumnInfos(record);
+            var Columns = colSet.Columns;
+            string[] split = new string[colSet.LastPosition];
+            int position = 0;
+            for (int i = 0; i < colSet.Columns.Count; i++)
+            {
+                if (position >= record.Length)
+                {
+                    //have gone beyond length of record
+                    if (ThrowExceptionColumnCountMismatch)
+                        throw new MissingColumnException(i, colSet.Columns.Count - 1);
+                    break;
+                }
+                if (FixWidthMode || RaggedRightMode)
+                {
+                    int x = Columns[i].MaxLength.Value;
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                        
+                    split[i] = record.Substring(position, x);
+                    position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length) //Extends beyond the last column
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
+                {
+                    int x = record.IndexOf(Delimiter.Value, position) - position;
+                    int y = Columns[i].MaxLength ?? x;
+                    if (y < x || x < 0)
+                    {
+                        x = y;
+                        y = 0;
+                    }
+                    else
+                        y = 1; //Skip delimiter          
+                    if (y < 0)
+                    {
+                        if (i == Columns.Count - 1)
+                        {
+                            split[i] = record.Substring(position);
+                            break;
+                        }
+                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, Delimiter.Value);
+                    }
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                                                
+                    split[i] = record.Substring(position, x);
+                    position += x + y;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else
+                {
+                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    if (ThrowExceptionColumnCountMismatch)
+                    {
+                        if (split.Length < Columns.Count)
+                        {
+                            if (!AllowMissingColumns)
+                                throw new MissingColumnException(split.Length, Columns.Count);
+                        }
+                        else if (split.Length > Columns.Count)
+                            throw new ColumnOverflowException(split.Length, Columns.Count);
+                    }
+                    break;
+                }
+
+            }
+            ReadType r = new ReadType();
+            r.Configure(colSet, writeMode, split);
+            return r;
+        }
+
+        /// <summary>
+        /// Parses the record into a list of strings, for use with one of the DocRecord constructors (mainly, when using a class that inherits from DocRecord) 
+        /// </summary>
+        /// <param name="record"></param>
+        /// <returns>IList of strings separated by delimiter. Or based on column sizes in fixed width mode.</returns>
+        public IList<string> ParseRecord(string record)
+        {
+            if (string.IsNullOrEmpty(record))
+                return null;
+            if (!Valid)
+                throw new InvalidOperationException("Collection state is not valid.");
+            var colSet = GetRecordColumnInfos(record);
+            var byteSet = FileEncoding.GetBytes(record);
+            var Columns = colSet.Columns;
+            string[] split = new string[colSet.LastPosition];
+            int position = 0;
+            for (int i = 0; i < Columns.Count; i++)
+            {
+                if (position >= record.Length)
+                {
+                    //have gone beyond length of record
+                    if (ThrowExceptionColumnCountMismatch)
+                        throw new MissingColumnException(i, Columns.Count - 1);
+                    break;
+                }
+                if (FixWidthMode || RaggedRightMode)
+                {
+                    int x = Columns[i].MaxLength.Value;
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                        
+                    split[i] = record.Substring(position, x);
+                    position += x;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }                
+                else if(Format == DocRecordFormat.BitCON)
+                {                    
+                    DocRecordColumnType dataType;
+                    string colResult = BitCONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
+                    if (dataType == DocRecordColumnType.Unknown)
+                    {
+                        split[i] = colResult;
+                    }
+                    else
+                    {
+                        var expected = colSet.Columns[i].DataType;
+                        if (expected == DocRecordColumnType.Unknown || expected == dataType)
+                            split[i] = colResult;
+                        else
+                            System.Diagnostics.Debug.WriteLine("Data Type Mismatch ({2}): Expected {0}, Found {1}", expected, dataType, colSet.Columns[i].ColumnName);
+                    }
+                }
+                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
+                {
+                    int x = record.IndexOf(Delimiter.Value, position) - position;
+                    int y = Columns[i].MaxLength ?? x;
+                    if (y < x || x < 0)
+                    {
+                        x = y;
+                        y = 0;
+                    }
+                    else
+                        y = 1; //Skip delimiter          
+                    if (y < 0)
+                    {
+                        if (i == Columns.Count - 1)
+                        {
+                            split[i] = record.Substring(position);
+                            break;
+                        }
+                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, Delimiter.Value);
+                    }
+                    if (x + position > record.Length)
+                        x = record.Length - position; //Number of characters to read                                                                
+                    split[i] = record.Substring(position, x);
+                    position += x + y;
+                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
+                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
+                }
+                else
+                {
+                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    if (ThrowExceptionColumnCountMismatch)
+                    {
+                        if (split.Length < Columns.Count)
+                        {
+                            if (!AllowMissingColumns)
+                                throw new MissingColumnException(split.Length, Columns.Count);
+                        }
+                        else if (split.Length > Columns.Count)
+                            throw new ColumnOverflowException(split.Length, Columns.Count);
+                    }
+                    break;
+                }
+            }
+            return split;
+        }
+        
+  
+
+        /// <summary>
+        /// If true, throws an exception if the size of a record is too big or too small, based on number of records.
+        /// <para>If false, ignores extra columns, and missing columns are treated as null</para>
+        /// </summary>
+        public bool ThrowExceptionColumnCountMismatch { get; set; } = true;
+        /// <summary>
+        /// Set whether or not to throw exceptions if the column count doesn't match expected.
+        /// </summary>
+        /// <param name="throwMismatch"></param>
+        /// <returns></returns>
+        public MetaDataBase SetThrowExceptionOnColumnCountMismatch(bool throwMismatch)
+        {
+            ThrowExceptionColumnCountMismatch = throwMismatch;
+            return this;
+        }
+        #endregion
+        /// <summary>
+        /// Maps DocRecord to a string for writing out into a file.
+        /// </summary>
+        /// <param name="record"></param>
+        /// <param name="IncludeLineEndDelimiter"></param>
+        /// <param name="columnMapping"></param>
+        /// <returns></returns>
+        public string FormatRecord(DocRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
+        {
+            if (Format == DocRecordFormat.BitCON)
+                return FormatBSON(record, IncludeLineEndDelimiter, columnMapping);
+            if(columnMapping == null || columnMapping.Count == 0)
+            {
+                return FormatRecord(record, IncludeLineEndDelimiter);
+            }
+            StringBuilder sb = new StringBuilder();
+            var Columns = record.Columns;
+            int Last = Columns.LastPosition.MaxOfComparison(columnMapping.Max(k => k.Key));
+            for(int idx = 0; idx <= Last; idx++)             
+            {
+                DocRecordColumnInfo col;
+                if (columnMapping != null && columnMapping.ContainsKey(idx))
+                    col = columnMapping[idx];
+                else
+                    col = Columns[idx];
+
+                string s = record.GetBestMatch(col.ColumnName, col.OwnerAlias) ?? string.Empty;
+                if (FixWidthMode || RaggedRightMode)
+                {
+                    if (RaggedRightMode && idx == Columns.LastPosition)
+                        sb.Append(s);
+                    else if (col.LeftJustify)
+                        sb.Append(s.PadRight(col.MaxLength.Value));
+                    else
+                        sb.Append(s.PadLeft(col.MaxLength.Value));
+                }
+                else if (VariableWidthMode)
+                {
+                    if (!col.MaxLength.HasValue || s.Length < col.MaxLength.Value || idx == Columns.LastPosition)
+                    {
+                        if (col.TextQualify)
+                            sb.Append(TextQualifier);
+                        else if (s.Contains(Delimiter.Value))
+                        {
+                            sb.Append(TextQualifier);
+                            col.TextQualify = true; //force text qualify in the column going forward.
+                        }
+                        sb.Append(s);
+                        if (col.TextQualify)
+                            sb.Append(TextQualifier);
+                        if (idx < Last)
+                            sb.Append(Delimiter.Value);
+                    }
+                    else
+                    {
+                        sb.Append(s.Substring(0, col.MaxLength.Value));
+                    }
+                }
+                else
+                {
+                    if (col.TextQualify)
+                        sb.Append(TextQualifier);
+                    else if (s.Contains(Delimiter.Value))
+                    {
+                        sb.Append(TextQualifier);
+                        col.TextQualify = true; //force text qualify in the column going forward.
+                    }
+
+                    sb.Append(s);
+                    if (col.TextQualify)
+                        sb.Append(TextQualifier);
+                    if (idx < Last)
+                        sb.Append(Delimiter.Value);
+                }
+            }
+            if (IncludeLineEndDelimiter)
+            {
+                CheckAddLineDelimiter(sb);
+            }
+            return sb.ToString();
+        }
+        /// <summary>
+        /// Conditionally adds a LineEnd delimiter.
+        /// <para>If <see cref="LineEndDelimiter"/> is not null, then that will be added.</para>
+        /// <para>Else, will add <see cref="Environment.NewLine"/>, unless the <see cref="Format"/> is either <see cref="DocRecordFormat.FIX_WIDTH"/> or <see cref="DocRecordFormat.BitCON"/></para>
+        /// </summary>
+        /// <param name="sb"></param>
+        public void CheckAddLineDelimiter(StringBuilder sb)
+        {
+            string le = LineEndDelimiter;
+            if (le != null)
+            {
+                sb.Append(le);
+                return;
+            }
+            if (FixWidthMode || Format == DocRecordFormat.BitCON)
+                return;
+            sb.Append(Environment.NewLine);
+        }
+        /// <summary>
+        /// Gets a basic DocRecord to that can be used (e.g. for adding new content to a DocWriter)
+        /// </summary>
+        /// <returns></returns>
+        public virtual DocRecord GetBasicRecord() 
+        {
+            var colSet = GetRecordColumnInfos((string) null);
+            return new DocRecord(colSet) { CanWrite = CanWrite };
+        }
+        protected ReadType ParseBSON<ReadType>(bool WriteMode, string Record) where ReadType : DocRecord, new()
+        {
+            var colSet = GetRecordColumnInfos(Record);
+            var result = new ReadType();
+            var byteSet = FileEncoding.GetBytes(Record);
+            string[] content = new string[colSet.Columns.Count];
+            int position = 0;
+            for (int i = 0; i < colSet.Columns.Count; i++)
+            {
+                if(position > byteSet.Length)
+                {
+                    if(AllowMissingColumns)
+                        break;
+                    throw new MissingColumnException(i, colSet.Columns.Count - 1);
+                }
+                DocRecordColumnType dataType;
+                string colResult = BitCONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
+                if(dataType == DocRecordColumnType.Unknown)
+                {
+                    content[i] = colResult;
+                }
+                else if(dataType == DocRecordColumnType.NUL)
+                {
+                    content[i] = null;
+                }
+                else
+                {                    
+                    var expected = colSet.Columns[i].DataType;
+                    if (expected == DocRecordColumnType.Unknown)
+                    {
+                        content[i] = colResult;
+                        colSet.Columns[i].DataType = dataType;
+                    }
+                    else if (expected == dataType)
+                        content[i] = colResult;
+                    else
+                        System.Diagnostics.Debug.WriteLine("Data Type Mismatch ({2}): Expected {0}, Found {1}", expected, dataType, colSet.Columns[i].ColumnName);
+                }
+                
+            }
+            result.Configure(colSet, WriteMode, content);
+            //result.SetParsedContent(content);
+            return result;
+        }
+        protected string FormatBSON(DocRecord record, bool IncludeLineEndDelimiter)
+        {
+            StringBuilder sb = new StringBuilder();
+            var Columns = record.Columns;
+            Columns.ForEachIndex((col, idx) =>
+            {
+                object o;
+                if (record.TryGet(col, out o))
+                {
+                    sb.Append(BitCONHelper.SetResult(col, o, FileEncoding));
+                }
+                else
+                    sb.Append(BitCONHelper.SetResult(col, null, FileEncoding));                
+            });
+            if (IncludeLineEndDelimiter)
+                CheckAddLineDelimiter(sb);
+            return sb.ToString();
+        }
+        protected string FormatBSON(DocRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
+        {
+            if (columnMapping == null || columnMapping.Count == 0)
+                return FormatBSON(record, IncludeLineEndDelimiter);
+            StringBuilder sb = new StringBuilder();
+            var Columns = record.Columns;
+            int Last = Columns.LastPosition.MaxOfComparison(columnMapping.Max(k => k.Key));
+            for (int idx = 0; idx <= Last; idx++)
+            {
+                DocRecordColumnInfo col;
+                if (columnMapping != null && columnMapping.ContainsKey(idx))
+                    col = columnMapping[idx];
+                else
+                    col = Columns[idx];
+                object o;
+                if (record.TryGet(col, out o))
+                {
+                    sb.Append(BitCONHelper.SetResult(col, o, FileEncoding));
+                }
+                else
+                    sb.Append(BitCONHelper.SetResult(col, null, FileEncoding));                                
+            }
+            if (IncludeLineEndDelimiter)
+                CheckAddLineDelimiter(sb);
+            return sb.ToString();
+        }
+        /// <summary>
+        /// Formats a record for writing to output.
+        /// </summary>
+        /// <param name="record"></param>
+        /// <param name="IncludeLineEndDelimiter"></param>
+        /// <returns></returns>
+        public string FormatRecord(DocRecord record, bool IncludeLineEndDelimiter)
+        {
+            if (Format == DocRecordFormat.BitCON)
+                return FormatBSON(record, IncludeLineEndDelimiter);
+            StringBuilder sb = new StringBuilder();
+            var Columns = record.Columns;
+            Columns.ForEachIndex((col, idx) =>
+            {                
+                string s = record[col] ?? string.Empty;
+                if (FixWidthMode || RaggedRightMode)
+                {
+                    if (RaggedRightMode && idx == Columns.LastPosition)
+                        sb.Append(s);
+                    else if (col.LeftJustify)
+                        sb.Append(s.PadRight(col.MaxLength.Value));
+                    else
+                        sb.Append(s.PadLeft(col.MaxLength.Value));
+                }
+                else if (VariableWidthMode)
+                {
+                    if(!col.MaxLength.HasValue || s.Length < col.MaxLength.Value || idx == Columns.LastPosition)
+                    {
+                        if (col.TextQualify)
+                            sb.Append(TextQualifier);
+                        else if (s.Contains(Delimiter.Value))
+                        {
+                            sb.Append(TextQualifier);
+                            col.TextQualify = true; //force text qualify in the column going forward.
+                        }
+                        sb.Append(s);
+                        if (col.TextQualify)
+                            sb.Append(TextQualifier);
+                        if (idx < Columns.LastPosition)
+                            sb.Append(Delimiter.Value);
+                    }
+                    else
+                    {                        
+                        sb.Append(s.Substring(0, col.MaxLength.Value));
+                    }
+                }
+                else
+                {
+                    if (col.TextQualify)
+                        sb.Append(TextQualifier);
+                    else if (s.Contains(Delimiter.Value))
+                    {
+                        sb.Append(TextQualifier);
+                        col.TextQualify = true; //force text qualify in the column going forward.
+                    }
+
+                    sb.Append(s);
+                    if (col.TextQualify)
+                        sb.Append(TextQualifier);
+                    if (idx < Columns.LastPosition)
+                        sb.Append(Delimiter.Value);
+                }
+
+            });
+            if (IncludeLineEndDelimiter)
+                CheckAddLineDelimiter(sb);
+            return sb.ToString();
+        }
     }
 }

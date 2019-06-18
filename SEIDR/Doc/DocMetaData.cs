@@ -10,7 +10,7 @@ namespace SEIDR.Doc
     /// <summary>
     /// MetaData for configuring other classes in the Doc namespace (e.g., <see cref="DocReader"/> )
     /// </summary>
-    public class DocMetaData: MetaDataBase, ISingleRecordTypeMetaData
+    public sealed class DocMetaData : MetaDataBase, ISingleRecordTypeMetaData
     {
         /// <summary>
         /// Treats the MetaData as the underlying ColumnsCollection
@@ -44,10 +44,6 @@ namespace SEIDR.Doc
         }
 
         /// <summary>
-        /// If true, Columns are fixed width and will use lengths. <para>Otherwise, will use the delimiter.</para>
-        /// </summary>
-        public bool FixedWidthMode => Columns.FixedWidthMode;
-        /// <summary>
         /// Tries to set the doc to fixed width mode. Returns true if value is updated.
         /// </summary>
         /// <param name="useFixedWidth"></param>
@@ -56,11 +52,17 @@ namespace SEIDR.Doc
         {
             Columns.CheckForFixedWidthValid();
             if (Columns.CanUseAsFixedWidth)
-                Columns.FixedWidthMode = useFixedWidth;
+            {
+                if (useFixedWidth)
+                    Format = DocRecordFormat.FIX_WIDTH;
+                else
+                    Format = DocRecordFormat.DELIMITED;
+            }
             else if (!useFixedWidth)
-                Columns.FixedWidthMode = false;
+                Format = DocRecordFormat.DELIMITED;
             else
                 return false;
+            
             return true;
         }
         /// <summary>
@@ -75,8 +77,7 @@ namespace SEIDR.Doc
             {
                 CanWrite = WriteMode ?? this.CanWrite,
                 AccessMode = this.AccessMode,
-                SkipLines = this.SkipLines,
-                EmptyIsNull = this.EmptyIsNull,                
+                SkipLines = this.SkipLines,         
                 FileEncoding = this.FileEncoding,                
             };            
             dm.SetHasHeader(this.HasHeader)
@@ -93,27 +94,24 @@ namespace SEIDR.Doc
         /// </summary>
         public override bool HeaderConfigured => Columns.Valid;
         /// <summary>
-        /// Line End Delimiter based on Column Definitions.
-        /// </summary>
-        public override string LineEndDelimiter => Columns.LineEndDelimiter;
-        /// <summary>
         /// MetaData valid for file usage.
         /// </summary>       
         public override bool Valid
         {
             get
-            {                
-                if (AccessMode == FileAccess.Write && !HeaderConfigured)
+            {
+                if (!CheckFormatValid(AccessMode))
                     return false;
-                return !string.IsNullOrWhiteSpace(FilePath)
-                    .And(File.Exists(FilePath).Or(AccessMode == FileAccess.Write))
-                    .And(HasHeader.Or(HeaderConfigured));                    
+                if (Columns.Count == 0 || !Columns.Valid)
+                    return false;
+                if(Format == DocRecordFormat.FIX_WIDTH || Format == DocRecordFormat.RAGGED_RIGHT)
+                {
+                    Columns.CheckForFixedWidthValid();
+                    return Columns.CanUseAsFixedWidth;
+                }
+                return true;
             }
         }
-        /// <summary>
-        /// Gets the delimiter from <see cref="Columns"/>
-        /// </summary>
-        public override char? Delimiter => Columns.Delimiter;
        
         /// <summary>
         /// Creates meta data for the given file.
@@ -160,31 +158,45 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public override string GetHeader()
         {
-            return string.Format(Columns.format, Columns.Columns.Select(c => c.ColumnName).ToArray());
+            Columns.CheckSort();
+            StringBuilder fmt = new StringBuilder();
+            for (int i = 0; i <= Columns.LastPosition; i++)
+            {
+                var col = Columns.Columns[i];
+                if (col == null && Delimiter.HasValue)
+                {
+                    fmt.Append(Delimiter);
+                    continue;
+                }
+                if (FixWidthMode)
+                {
+                    int justify = col.LeftJustify ? -col.MaxLength.Value : col.MaxLength.Value;
+                    fmt.Append("{" + i + "," + justify + "}");
+                }
+                else
+                {
+                    bool textQual = false;
+                    if (col.ColumnName.Contains(Delimiter.Value))
+                        textQual = true;
+                    if (textQual)
+                        fmt.Append(TextQualifier);
+
+                    fmt.Append("{" + i + "}");
+
+                    if (textQual)
+                        fmt.Append(TextQualifier);
+                    if (i < Columns.LastPosition)
+                        fmt.Append(Delimiter);
+                }
+            }
+            if (LineEndDelimiter != null)
+                fmt.Append(LineEndDelimiter);
+            else
+                fmt.Append(Environment.NewLine);
+            return string.Format(fmt.ToString(), Columns.Columns.Select(c => c.ColumnName).ToArray());
         }        
       
-        /// <summary>
-        /// Sets the Delimiter.
-        /// </summary>
-        /// <param name="delimiter"></param>
-        /// <returns></returns>
-        public override MetaDataBase SetDelimiter(char delimiter)
-        {
-            Columns.SetDelimiter(delimiter);
-            
-            return this;
-        }
-        /// <summary>
-        /// Sets the string that indicates end of records. Default is <see cref="Environment.NewLine"/>
-        /// <para>If dealing with fixed width and records should be split only by length, set to null</para>
-        /// </summary>
-        /// <param name="endLine"></param>
-        /// <returns></returns>
-        public override MetaDataBase SetLineEndDelimiter(string endLine)
-        {
-            Columns.LineEndDelimiter = endLine;
-            return this;
-        }
+
         /// <summary>
         /// Adds the strings to <see cref="MetaDataBase.MultiLineEndDelimiter"/>, and sorts it so that super sets are earlier. 
         /// <para>E.g., ensures \r\n comes before \r or \n, while the order of \r and \n are arbitrary.</para>
@@ -194,8 +206,8 @@ namespace SEIDR.Doc
         public override MetaDataBase AddMultiLineEndDelimiter(params string[] endingToAdd)
         {
             List<string> l;
-            if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
-                l = new List<string>(endingToAdd.Include(Columns.LineEndDelimiter));
+            if (!string.IsNullOrEmpty(LineEndDelimiter))
+                l = new List<string>(endingToAdd.Include(LineEndDelimiter));
             else
                 l = new List<string>(endingToAdd);
 
@@ -221,8 +233,8 @@ namespace SEIDR.Doc
         public override MetaDataBase SetMultiLineEndDelimiters(params string[] endings)
         {
             List<string> l;
-            if (!string.IsNullOrEmpty(Columns.LineEndDelimiter))
-                l = new List<string>(endings.Include(Columns.LineEndDelimiter));
+            if (!string.IsNullOrEmpty(LineEndDelimiter))
+                l = new List<string>(endings.Include(LineEndDelimiter));
             else
                 l = new List<string>(endings);
 
@@ -235,6 +247,36 @@ namespace SEIDR.Doc
                 return 0;
             });
             MultiLineEndDelimiter = l.Where(ln => !string.IsNullOrEmpty(ln)).ToArray();
+            return this;
+        }
+        /// <summary>
+        /// Sets <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/>,
+        /// and also sets the <see cref="DocRecordColumnInfo.NullIfEmpty"/> for each column associated with the ColumnCollection
+        /// </summary>
+        /// <param name="nullifyEmpty"></param>
+        /// <param name="SetDefault">If false, just sets the values on individual columns, not the collection's default.</param>
+        /// <returns></returns>
+        public override MetaDataBase SetEmptyIsNull(bool nullifyEmpty, bool SetDefault = true)
+        {
+            if(SetDefault)
+                Columns.DefaultNullIfEmpty = nullifyEmpty;
+            Columns.Columns.ForEach(c => c.NullIfEmpty = nullifyEmpty);
+            return this;
+        }
+        /// <summary>
+        /// Sets <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/>,
+        /// and also (conditionally) sets the <see cref="DocRecordColumnInfo.NullIfEmpty"/> for each column associated with the ColumnCollection that matches <paramref name="columnPredicate"/>.
+        /// 
+        /// </summary>
+        /// <param name="NullifyEmpty"></param>
+        /// <param name="columnPredicate"></param>
+        /// <param name="SetDefault">If false, just sets the values on individual columns, not the collection's default.</param>
+        /// <returns></returns>
+        public override MetaDataBase SetEmptyIsNull(bool NullifyEmpty, Predicate<DocRecordColumnInfo> columnPredicate, bool SetDefault = true)
+        {
+            if(SetDefault)
+                Columns.DefaultNullIfEmpty = NullifyEmpty;
+            Columns.Columns.Where(c => columnPredicate(c)).ForEach(c => c.NullIfEmpty = NullifyEmpty);
             return this;
         }
 
@@ -320,15 +362,18 @@ namespace SEIDR.Doc
         /// Creates a new <see cref="DocRecordColumnInfo"/> and adds it to the Columns collection
         /// </summary>
         /// <param name="ColumnName"></param>
-        /// <param name="MaxLength">optional limit</param>        
+        /// <param name="MaxLength">optional limit</param>
+        /// <param name="TextQual"></param>
+        /// <param name="DataType"></param>        
         /// <returns></returns>
-        public DocMetaData AddColumn(string ColumnName, int? MaxLength = null)
+        public DocMetaData AddColumn(string ColumnName, int? MaxLength = null, bool TextQual = false, DocRecordColumnType DataType = DocRecordColumnType.Unknown)
         {
-            if (this.FixedWidthMode && MaxLength == null)
+            if (FixWidthMode && MaxLength == null)
                 throw new ArgumentNullException(nameof(MaxLength), $"MetaData indicates fixed width mode, but a length was not provided for new column '{ColumnName}'");
-            Columns.AddColumn(ColumnName, MaxLength);
+            Columns.AddColumn(ColumnName, MaxLength, textQualify: TextQual, dataType: DataType);
             return this;
         }
+
       
     }   
 }

@@ -34,18 +34,7 @@ namespace SEIDR.Doc
             if (!metaData.Columns.Valid)
                 throw new InvalidOperationException("Column state Invalid");            
         }
-        /// <summary>
-        /// True if the file being written to is being written with columns having fixed widths and positions.
-        /// </summary>
-        public bool FixedWidthMode => Dmd.FixedWidthMode;
-        /// <summary>
-        /// Sets the textQualifier. Default is null
-        /// </summary>
-        public string TextQualifier
-        {
-            get { return Columns.TextQualifier; }
-            set { Columns.TextQualifier = value; }
-        }
+        
         /// <summary>
         /// Sets whether or not qualify listed columns as text when writing. Default is false.<para>Note: Ignored in FixedWidth</para>
         /// </summary>
@@ -99,16 +88,15 @@ namespace SEIDR.Doc
         /// </summary>
         public DocRecordColumnCollection Columns => md.Columns;
 
+        
         /// <summary>
-        /// Calls <see cref="AddTypedRecord{RecordType}(RecordType, IDictionary{int, DocRecordColumnInfo})"/> using the DocWriter's underlying dictionary.
+        /// Calls <see cref="AddTypedRecord(RecordType, IDictionary{int, DocRecordColumnInfo})"/> using the DocWriter's underlying dictionary.
         /// </summary>
-        /// <typeparam name="RecordType"></typeparam>
         /// <param name="record"></param>
         /// <param name="columnMapping"></param>
-        public void AddRecord<RecordType>(RecordType record, DocWriterMap columnMapping)
-            where RecordType : DocRecord
+        public void AddDocRecord(DocRecord record, DocWriterMap columnMapping)           
         {
-            AddTypedRecord(record, columnMapping.MapData);
+            AddDocRecord(record, columnMapping.MapData);
         }
         //Note: for some reason, naming this method as 'AddRecord' messes up with name resolution for function, and calls to base class AddRecord doesn't work in DocSorter
         /// <summary>
@@ -119,54 +107,10 @@ namespace SEIDR.Doc
         /// <para>Key should be the target position in the output file, value should be the column information from the source.
         /// </para>
         /// </param>
-        public void AddTypedRecord<RecordType>(RecordType record, IDictionary<int, DocRecordColumnInfo> columnMapping = null)
-            where RecordType : DocRecord
+        public void AddDocRecord(DocRecord record, IDictionary<int, DocRecordColumnInfo> columnMapping = null)
         {
-            if (!Dmd.Columns.Valid)
-                throw new InvalidOperationException("Column state Invalid");
-            if (record == null)
-                throw new ArgumentNullException(nameof(record));
-            if (record.Columns == md.Columns
-                && (columnMapping == null || columnMapping.Count == 0))
-            {
-                sw.Write(record.ToString()); //same column collection, no mapping override, just write the toString
-                return;
-            }
-            StringBuilder sb = new StringBuilder();
-            Columns.ForEachIndex((col, idx) =>
-            {
-                if (!md.FixedWidthMode && col.TextQualify)
-                    sb.Append(Columns.TextQualifier);
-                DocRecordColumnInfo map = col;
-                if (columnMapping != null && columnMapping.ContainsKey(idx))
-                    map = columnMapping[idx];
-                string s = record.GetBestMatch(map.ColumnName, map.OwnerAlias) ?? string.Empty;
-                if (FixedWidthMode)
-                {
-                    if (col.LeftJustify)
-                        sb.Append(s.PadRight(col.MaxLength.Value));
-                    else
-                        sb.Append(s.PadLeft(col.MaxLength.Value));
-                }
-                else
-                {
-                    if (s.Contains(Columns.Delimiter.Value) && !col.TextQualify)
-                    {
-                        sb.Append(Columns.TextQualifier);
-                        col.TextQualify = true; //force text qualify in the column going forward.
-                    }
-
-                    sb.Append(s);
-                    if (col.TextQualify)
-                        sb.Append(Columns.TextQualifier);
-                    if (idx < Columns.Count - 1)
-                        sb.Append(md.Delimiter.Value);
-                }
-
-            });
-            if (!string.IsNullOrEmpty(md.LineEndDelimiter))
-                sb.Append(md.LineEndDelimiter);
-            sw.Write(sb);
+            sw.Write(md.FormatRecord(record, true, columnMapping));
+            
         }
     }
     /// <summary>
@@ -174,6 +118,26 @@ namespace SEIDR.Doc
     /// </summary>
     public class DocWriter<MD>: IDisposable where MD: MetaDataBase
     {
+        /// <summary>
+        /// Adds record to output.
+        /// </summary>
+        /// <param name="record"></param>
+        public void AddRecord(DocRecord record)
+        {
+            sw.Write(md.FormatRecord(record, true));
+        }
+        /// <summary>
+        /// True if the file being written to is being written with columns having fixed widths and positions.
+        /// </summary>
+        public bool FixedWidthMode => md.FixWidthMode;
+        /// <summary>
+        /// Sets the textQualifier. Default is null
+        /// </summary>
+        public string TextQualifier
+        {
+            get { return md.TextQualifier; }
+            set { md.SetTextQualifier(value); }
+        }
         /// <summary>
         /// Underlying stream.
         /// </summary>
@@ -193,10 +157,14 @@ namespace SEIDR.Doc
         /// <para>May also need to consider whether you're writing locally or on a network.</para></param>
         public DocWriter(MD metaData, bool AppendIfExists = false, int bufferSize = 5000)
         {
+            if (metaData.AccessMode == FileAccess.Read)
+                throw new ArgumentException("MetaData Access Mode is set to READ when passing to DocWriter.", nameof(metaData));
             if (!metaData.Valid)
                 throw new InvalidOperationException("MetaData is not in a valid state");
             md = metaData;
             bool AddHeader = md.HasHeader && (!File.Exists(metaData.FilePath) || !AppendIfExists);
+            if (md.FileEncoding == null)
+                md.FileEncoding = Encoding.Default;
             sw = new StreamWriter(metaData.FilePath, AppendIfExists, metaData.FileEncoding, bufferSize);
             if (AddHeader)
             {
@@ -206,8 +174,7 @@ namespace SEIDR.Doc
                     sb.Append(md.LineEndDelimiter);
                 }
                 sb.Append(md.GetHeader());
-                if (!string.IsNullOrEmpty(md.LineEndDelimiter))
-                    sb.Append(md.LineEndDelimiter);
+                md.CheckAddLineDelimiter(sb);                
                 sw.Write(sb);
             }
             
@@ -218,7 +185,6 @@ namespace SEIDR.Doc
         /// <summary>
         /// Writes the records out using ToString without validating that they match the column meta data of the writer.
         /// <para>Null records will be ignored.</para>
-        /// <para>NOTE: THIS IGNORES METADATA.</para>
         /// </summary>
         /// <param name="toWrite"></param>
         public void BulkWrite(IEnumerable<DocRecord> toWrite)
@@ -227,12 +193,11 @@ namespace SEIDR.Doc
             {
                 if (rec == null)
                     continue;
-                sw.Write(rec.ToString());
+                sw.Write(md.FormatRecord(rec, true));
             }
         }
         /// <summary>
         /// Writes the records out using ToString without validating that they match the column meta data of the writer.
-        /// <para>NOTE: THIS IGNORES METADATA.</para>
         /// </summary>
         /// <param name="toWrite"></param>
         public void BulkWrite(params DocRecord[] toWrite) => BulkWrite((IEnumerable<DocRecord>)toWrite);
@@ -240,6 +205,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// Writes the strings out without validating that they match the column meta data of the writer. Will add the LineEndDelimiter of this metaData if specified, though.
         /// <para>NOTE: THIS IGNORES METADATA EXCEPT FOR LINE END DELIMITER.</para>
+        /// <para>If meta Data does not have a line end delimiter, then it will *NOT* add one.</para>
         /// </summary>
         /// <param name="Lines"></param>
         public void BulkWrite(IEnumerable<string> Lines)
@@ -274,7 +240,8 @@ namespace SEIDR.Doc
         {
             if (string.IsNullOrEmpty(record))
                 return;
-            sw.Write(md.ParseRecord(false, record).ToString());
+            var rc = md.ParseRecord(false, record);
+            sw.Write(md.FormatRecord(rc, true));
         }
         /// <summary>
         /// Adds a StringBuilder to the output Document
@@ -291,7 +258,7 @@ namespace SEIDR.Doc
         public void BulkAdd(IEnumerable<string> Lines)
         {
             foreach (var line in Lines)
-                sw.Write(md.ParseRecord(false, line));
+                sw.Write(md.FormatRecord(md.ParseRecord(false, line), true));
         }
 
         /// <summary>

@@ -41,12 +41,12 @@ namespace SEIDR.Doc.DocQuery
         //    join = toJoin;
         //}
         public void SetJoinRecord (DelimitedRecord toJoin)
-        {
+        {            
             join = toJoin;
             if (LeftSideColumns == null)
                 LeftSideColumns = toJoin.HeaderList;
             if (doHashJoin)
-                jh = toJoin.GetPartialHash(true, myContent.EmptyIsNull, false, JoinConditions.LeftHashColumns);
+                jh = toJoin.GetPartialHash(true, false, JoinConditions.LeftHashColumns);
             else jh = null;
         }
         bool CheckHash(DelimitedRecord check)
@@ -54,7 +54,7 @@ namespace SEIDR.Doc.DocQuery
             //Do HashJoin will only  be true if the root of the condition tree is able to do a hash join after optimization.
             if (!doHashJoin || jh == null)
                 return false;
-            var rh = check.GetPartialHash(true, myContent.EmptyIsNull, false, JoinConditions.RightHashColumns);
+            var rh = check.GetPartialHash(true, false, JoinConditions.RightHashColumns);
             return jh == rh;
         }
         /// <summary>
@@ -89,7 +89,7 @@ namespace SEIDR.Doc.DocQuery
                     if (DelimitedJoinType == JoinType.NOT_A_JOIN //Always yield return
                                                                  //|| JoinConditions.CheckConditions(join.Content)
                         || CheckHash(r) //Returns false right away if not doing a hash join (needs to be optimized up to root. Otherwise, leave up to condition nodes to get hash)
-                        || JoinConditions.CheckConditions(join, r, myContent.EmptyIsNull)
+                        || JoinConditions.CheckConditions(join, r)
                         //|| JoinConditions.CheckJoinedConditions(work)
                         )
                     {

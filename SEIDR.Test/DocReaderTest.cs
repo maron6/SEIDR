@@ -11,6 +11,101 @@ namespace SEIDR.Test
     public class DocReaderTest: TestBase
     {
         [TestMethod]
+        public void BSONtest()
+        {
+            const int RECORDCOUNT = 30;
+            DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
+            write
+                .SetHasHeader(false)
+                .SetFormat(DocRecordFormat.BitCON)
+                //.SetLineEndDelimiter(Environment.NewLine + Environment.NewLine)
+                .SetFileAccess(FileAccess.ReadWrite);
+            write.AddColumn("LineNumber", DataType: DocRecordColumnType.Int);
+            write.AddColumn("TimeStamp", DataType: DocRecordColumnType.DateTime);
+            write.AddColumn("NOTE"); //ToDo: 
+            using (DocWriter w = new DocWriter(write))
+            {
+                for (int i = 0; i < RECORDCOUNT; i++)
+                {
+                    DocRecord r = write.GetBasicRecord();
+                    r.SetValue("LineNumber", i);
+                    r.SetValue("TimeStamp", DateTime.Now.ToString("yyyyMMddHHmmss"));
+                    if (i % 2 == 0)
+                        r.SetValue("NOTE", "Bla bla Note # " + i);
+                    w.AddRecord(r);
+                }
+            }
+            using (var read = new DocReader(write))
+            {
+                Assert.AreEqual(RECORDCOUNT, read.RecordCount);
+                read.ForEachIndex((r, idx) =>
+                {
+                    Assert.AreEqual(idx, r.Evaluate<int>("LineNumber"));
+                    DateTime dt = default;
+                    Assert.IsTrue(r.TryEvaluate("TimeStamp", out dt));                    
+                    Assert.AreNotEqual(default, dt);
+                    if (idx % 2 == 0)
+                        Assert.IsNotNull(r["NOTE"]);
+                    else
+                        Assert.IsNull(r["NOTE"]);
+                });
+            }
+            
+        }
+        [TestMethod]
+        public void GetterTest()
+        {
+            FilePrep();
+
+            
+            using (var reader = new DocReader("F", FilePath))
+            {
+                reader.MetaData.CanWrite = true;
+                ((DocMetaData)reader.MetaData).AddDelimitedColumns("Test", "test 2", "Test3");
+                ((DocMetaData)reader.MetaData).Columns["LineNumber"].DataType = DocRecordColumnType.Int;
+                ((DocMetaData)reader.MetaData).Columns["Test3"].DataType = DocRecordColumnType.Money;
+                reader.MetaData.AllowMissingColumns = true;
+
+                reader.GuessColumnDataTypes();
+                int i = 0;
+                foreach (var record in reader)
+                {
+
+                    record
+                        .SetValue("Test", "Hi")
+                        .SetValue("Test3", (i % 2 == 0 ? "+" : "-") + "$" + i + ",000.54")
+                        .SetValue("test 2", i++);
+                    //writer.AddRecord(record, dm);
+                    int x = record.Evaluate<int>("LineNumber");
+
+                    int? x2 = record.Evaluate<int?>("LineNumber");
+                    Assert.AreEqual(i, x);
+                    Assert.AreEqual(i, x2.Value);
+                    decimal d = record.Evaluate<decimal>("Test3");
+                    Assert.IsTrue(record.TryEvaluate("LineNumber", out x2));
+                    Assert.AreEqual(i, x2.Value);
+                    Assert.AreNotEqual(0, d);
+                }
+                    /*
+                     * Test -> Extra, test 2 -> Random
+                    LineNumber|Description|ZeroIndex|test 2|Random Output!|Extra output
+                    1|First|Hi|0|0|Hi
+                    2|Second|Hi|1|1|Hi
+                    3|Third|Hi|2|2|Hi
+                    4|Fourth|Hi|3|3|Hi
+                    5|Fifth|Hi|4|4|Hi
+                    6|Sixth|Hi|5|5|Hi
+                    7|Seventh|Hi|6|6|Hi
+                    8|Eighth|Hi|7|7|Hi
+                    9|Ninth|Hi|8|8|Hi
+                    10|Tenth|Hi|9|9|Hi
+                     
+                    */
+                
+
+            }
+        }
+        [TestMethod]
         public void DynamicRecordTest()
         {
             FilePrep();
@@ -21,12 +116,12 @@ namespace SEIDR.Test
                 reader.MetaData.CanWrite = true;
                 ((DocMetaData)reader.MetaData).AddDelimitedColumns("Test", "test 2");
                 ((DocMetaData)reader.MetaData).Columns["LineNumber"].DataType = DocRecordColumnType.Int;                
-                ((DocMetaData)reader.MetaData).Columns.AllowMissingColumns = true;
+                reader.MetaData.AllowMissingColumns = true;
+                output.SetDelimiter('|');
                 output
                     .AddDetailedColumnCollection(reader.Columns)
                     .AddDelimitedColumns("Random Output!", "Extra output")
-                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex")
-                    .SetDelimiter('|')
+                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex")                    
                     ;
                 using (var writer = new DocWriter(output))
                 {
@@ -41,7 +136,7 @@ namespace SEIDR.Test
                         record
                             .SetValue("Test", "Hi")
                             .SetValue("test 2", i++);
-                        writer.AddRecord(record, dm);
+                        writer.AddDocRecord(record, dm);
                         int x = record.LineNumber;
                         Assert.AreEqual(i, x);
                     }
@@ -74,12 +169,13 @@ namespace SEIDR.Test
             {
                 ((DocMetaData)reader.MetaData).AddDelimitedColumns("Test", "test 2");
                 reader.MetaData.CanWrite = true;
-                ((DocMetaData)reader.MetaData).Columns.AllowMissingColumns = true;
+                reader.MetaData.AllowMissingColumns = true;
+                reader.GuessColumnDataTypes();
                 output
                     .AddDetailedColumnCollection(reader.Columns)
                     .AddDelimitedColumns("Random Output!", "Extra output")
-                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex")
-                    .SetDelimiter('|');
+                    .Columns.RenameColumn(output.Columns["Test"], "ZeroIndex");
+                output.SetDelimiter('|');
                 using (var writer = new DocWriter(output))
                 {
                     DocWriterMap dm = new DocWriterMap(writer, reader);
@@ -93,7 +189,7 @@ namespace SEIDR.Test
                             .SetValue("Test", "Hi")
                             .SetValue("test 2", i++);
 
-                        writer.AddRecord(record, dm);
+                        writer.AddDocRecord(record, dm);
                     }
                     /*
                      * Test -> Extra, test 2 -> Random
@@ -162,7 +258,7 @@ namespace SEIDR.Test
                             var dwr = DocRecord.Merge(dw.Columns, r1r, r2r, checkExist: true);
                             dwr["r1", "Description"] = "R1  - " + dwr["r1", "Description"];
                             dwr["r2", "Description"] = "R2  - " + dwr["r2", "Description"];
-                            dw.AddTypedRecord(dwr);
+                            dw.AddDocRecord(dwr);
                         }
                     }
                     foreach (var r2r in r2)
@@ -172,7 +268,7 @@ namespace SEIDR.Test
                             var dwr = DocRecord.Merge(dw.Columns, r2r, r1r, checkExist: true);//removed a column above, so need  checkExist set to true.
                             dwr["r1", "Description"] = "R1  SECOND - " + dwr["r1", "Description"];
                             dwr["r2", "Description"] = "R2  SECOND - " + dwr["r2", "Description"];
-                            dw.AddTypedRecord(dwr);
+                            dw.AddDocRecord(dwr);
                         }
                     }
                 }
@@ -211,7 +307,7 @@ namespace SEIDR.Test
                 foreach (var rec in m)
                 {
                     rec["Description"] += "\t Test";
-                    dw.AddTypedRecord(rec);
+                    dw.AddDocRecord(rec);
             	}
             }
             m.Dispose();
@@ -240,7 +336,7 @@ namespace SEIDR.Test
                 {
                     foreach(var record in m)
                     {
-                        w.AddTypedRecord(record);
+                        w.AddDocRecord(record);
                     }
                 }
             }
@@ -427,7 +523,7 @@ namespace SEIDR.Test
             {                
                 ((DocMetaData)reader.MetaData).AddDelimitedColumns("Test", "test 2");
                 reader.MetaData.CanWrite = true;
-                ((DocMetaData)reader.MetaData).Columns.AllowMissingColumns = true;
+                ((DocMetaData)reader.MetaData).AllowMissingColumns = true;
 
                 var output = (DocMetaData)new DocMetaData(TEST_FOLDER, "ExtraColumnsOut.txt", "w")
                     .AddDetailedColumnCollection(reader.Columns)
@@ -438,7 +534,7 @@ namespace SEIDR.Test
                     {
                         record["Test"] = "hi";
                         record["test 2"] = "5";
-                        writer.AddTypedRecord(record);
+                        writer.AddDocRecord(record);
                     }
                 }
 
@@ -454,7 +550,7 @@ namespace SEIDR.Test
 
             DocReader r = new DocReader("F", FilePath);
             Assert.AreEqual(2, r.Columns.Count);
-            Assert.AreEqual('|', r.Columns.Delimiter);
+            Assert.AreEqual('|', r.MetaData.Delimiter);
             var l = r.GetPage(0);
             Assert.AreEqual(10, l.Count);
             Assert.AreEqual(10, r.RecordCount);
@@ -495,7 +591,7 @@ LineNumber|Description
             var md2 = new DocMetaData(CommaFile, "C");
             md2.SetHasHeader(true);
             r = new DocReader(md2);
-            Assert.AreEqual(',', r.Columns.Delimiter);
+            Assert.AreEqual(',', r.MetaData.Delimiter);
 
             md= (DocMetaData)new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.txt", "F")
                 .SetHasHeader(true)
@@ -507,7 +603,7 @@ LineNumber|Description
             map[md.Columns["Test"].Position] = md2.Columns["LineNumber"]; //Position = 4 should be the
             foreach(var record in r)
             {
-                w.AddTypedRecord(record, map);
+                w.AddDocRecord(record, map);
             }
             w.Dispose();
             md = (DocMetaData)new DocMetaData(@"C:\DocReaderTest\ReaderFromCSV.csv", "C")
@@ -547,7 +643,7 @@ LineNumber|Description
                     var ti = new TestRecordInheritance(w.Columns, i, "Line # " + i, b); //initialize with constructor originall, will be a bit faster.
                     if (b)
                         ti.Description += " - Mod 183 = 0";
-                    w.AddTypedRecord(ti);
+                    w.AddDocRecord(ti);
                 }
             }
             using (var dr = new DocReader(md))
@@ -575,7 +671,7 @@ LineNumber|Description
                     };
                     if (i % 183 == 0)
                         ti.Description += " - Mod 183 = 0";
-                    w.AddTypedRecord(ti);
+                    w.AddDocRecord(ti);
                 }
             }
             using (var dr = new DocReader(md))
@@ -657,7 +753,7 @@ LineNumber|Description
             {
                 foreach(var record in s)
                 {
-                    w.AddTypedRecord(record);
+                    w.AddDocRecord(record);
                 }
             }
         }
@@ -669,13 +765,14 @@ LineNumber|Description
             var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "BiggerSortedFile.txt", "w")
                 .AddDelimitedColumns("LineNumber", "Description")
                 .SetDelimiter('|');
-            using (var r = new DocReader("r", BiggerFilePath, pageSize: 50))
+            //using (var r = new DocReader("r", BiggerFilePath, pageSize: 50))
+            using (var r = new DocReader("r", BiggerFilePath, pageSize: 90))
             using (var s = new DocSorter(r, 5, true, false, r.Columns["Description"], r.Columns["LineNumber"]))
             using (var w = new DocWriter(md))
             {
                 foreach (var record in s)
                 {
-                    w.AddTypedRecord(record);
+                    w.AddDocRecord(record);
                 }
             }
         }

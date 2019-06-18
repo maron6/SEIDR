@@ -12,8 +12,60 @@ namespace SEIDR.Doc
     /// </summary>
     public class DocRecordColumnCollection : IEnumerable<DocRecordColumnInfo>
     {
-
+        #region static Class mapping utility methods
+        /// <summary>
+        /// Creates a column collection from a class's properties.
+        /// </summary>
+        /// <param name="toParse"></param>
+        /// <returns></returns>
+        public static DocRecordColumnCollection ParseFromType(Type toParse)
+        {            
+            DocRecordColumnCollection ret = new DocRecordColumnCollection(toParse.Name);
+            foreach(var prop in toParse.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            {
+                DocRecordColumnType t = DocRecordColumnType.Unknown;
+                Type propType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                switch (propType.Name.ToUpper())
+                {
+                    case "STRING":
+                        t = DocRecordColumnType.Varchar;
+                        break;
+                    case "DATETIME":
+                        t = DocRecordColumnType.DateTime;
+                        break;
+                    case "LONG":
+                    case "INT64":
+                        t = DocRecordColumnType.Bigint;
+                        break;
+                    case "INT":
+                    case "INT32":
+                        t = DocRecordColumnType.Int;
+                        break;
+                    case "SHORT":
+                    case "INT16":
+                        t = DocRecordColumnType.Smallint;
+                        break;
+                    case "BYTE":
+                        t = DocRecordColumnType.Tinyint;
+                        break;
+                    case "BOOL":
+                    case "BOOLEAN":
+                        t = DocRecordColumnType.Bool;
+                        break;
+                    case "DECIMAL":
+                        t = DocRecordColumnType.Decimal;
+                        break;
+                    default:
+                        t = DocRecordColumnType.Unknown;
+                        break;
+                }                
+                ret.AddColumn(prop.Name, dataType:t);
+            }
+            return ret;
+        }
+        #endregion
         string textQualifier = null;
+        [Obsolete("Use TextQualifier in MetaDataBase", true)]
         /// <summary>
         /// Text qualifier
         /// </summary>
@@ -53,11 +105,11 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public static DocRecordColumnCollection Merge(DocRecordColumnCollection left, DocRecordColumnCollection right)
         {
-            var ret = new DocRecordColumnCollection
+            var ret = new DocRecordColumnCollection();/*
             {
                 fixedWidthMode = left.FixedWidthMode,
                 _Delimiter = left._Delimiter
-            };
+            };*/
             var rCols = (from col in left.Columns
                          select col
                          ).OrderBy(c => c.Position);
@@ -87,7 +139,7 @@ namespace SEIDR.Doc
             get
             {
                 CheckForFixedWidthValid();
-                if (!fixedWidthMode || !Valid)
+                if (!CanUseAsFixedWidth || !Valid) //CanuseAsFixWidth -> All columns need a length.
                     return -1;
                 int x = 0;
                 foreach (var col in Columns)
@@ -98,99 +150,29 @@ namespace SEIDR.Doc
             }
         }
         #region Parsing
+      
         /// <summary>
-        /// Parses the record into a list of strings, for use with one of the DocRecord constructors (mainly, when using a class that inherits from DocRecord) 
-        /// </summary>
-        /// <param name="record"></param>
-        /// <returns>IList of strings separated by delimiter. Or based on column sizes in fixed width mode.</returns>
-        public IList<string> ParseRecord(string record)
-        {
-            if (string.IsNullOrEmpty(record))
-                return null;
-            if (!Valid)
-                throw new InvalidOperationException("Collection state is not valid.");
-            string[] split = new string[LastPosition];
-            int position = 0;
-            for (int i = 0; i < Columns.Count; i++)
-            {
-                if (position >= record.Length)
-                {
-                    //have gone beyond length of record
-                    if (ThrowExceptionColumnCountMismatch)
-                        throw new MissingColumnException(i, Columns.Count - 1);
-                    break;
-                }
-                if (fixedWidthMode)
-                {
-                    int x = Columns[i].MaxLength.Value;
-                    if (x + position > record.Length)
-                        x = record.Length - position; //Number of characters to read                                        
-                    split[i] = record.Substring(position, x);
-                    position += x;
-                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
-                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
-                }
-                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
-                {
-                    int x = record.IndexOf(_Delimiter.Value, position) - position;
-                    int y = Columns[i].MaxLength ?? x;
-                    if (y < x || x < 0)
-                    {
-                        x = y;
-                        y = 0;
-                    }
-                    else
-                        y = 1; //Skip delimiter          
-                    if (y < 0)
-                    {
-                        if(i == Columns.Count - 1)
-                        {
-                            split[i] = record.Substring(position);
-                            break;
-                        }
-                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, _Delimiter.Value);
-                    }
-                    if (x + position > record.Length)
-                        x = record.Length - position; //Number of characters to read                                                                
-                    split[i] = record.Substring(position, x);
-                    position += x + y; 
-                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
-                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
-                }
-                else
-                {
-                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
-                    if (ThrowExceptionColumnCountMismatch)
-                    {
-                        if (split.Length < Columns.Count)
-                        {
-                            if(!AllowMissingColumns)
-                                throw new MissingColumnException(split.Length, Columns.Count);
-                        }
-                        else if (split.Length > Columns.Count)
-                            throw new ColumnOverflowException(split.Length, Columns.Count);
-                    }
-                    break;
-                }
-            }
-            return split;
-        }
-        /// <summary>
-        /// Doesn't throw <see cref="MissingColumnException"/> when the number of columns is lower than expected.
-        /// </summary>
-        public bool AllowMissingColumns { get; set; } = false;
-        /// <summary>
-        /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
+        /// Parses a DocRecord out of the string. Assumes that the string does not contain a line ending delimiter(E.g., \r)
         /// </summary>
         /// <param name="writeMode"></param>
         /// <param name="record"></param>
+        /// <param name="FixWidth"></param>
+        /// <param name="VariableWidth"></param>
+        /// <param name="Delimiter"></param>
+        /// <param name="TextQualifier"></param>
+        /// <param name="AllowMissingColumns"></param>
+        /// <param name="ThrowExceptionColumnCountMismatch"></param>
         /// <returns></returns>
-        public DocRecord ParseRecord(bool writeMode, string record)
+        public DocRecord ParseRecord(bool writeMode, string record, 
+            bool FixWidth = false, bool VariableWidth = false, char? Delimiter = '|', string TextQualifier = "\"",
+            bool AllowMissingColumns = false, bool ThrowExceptionColumnCountMismatch = true)
         {
             if (string.IsNullOrEmpty(record))
                 return null;
             if (!Valid)
                 throw new InvalidOperationException("Collection state is not valid.");
+            if (!FixWidth && Delimiter.HasValue == false)
+                throw new ArgumentNullException(nameof(Delimiter), "Delimiter must be populated if not using FixWidth");
             string[] split = new string[LastPosition];
             int position = 0;
             for (int i = 0; i < Columns.Count; i++)
@@ -202,7 +184,7 @@ namespace SEIDR.Doc
                         throw new MissingColumnException(i, Columns.Count - 1);
                     break;
                 }
-                if (fixedWidthMode)
+                if (FixWidth)
                 {
                     int x = Columns[i].MaxLength.Value;
                     if (x + position > record.Length)
@@ -212,9 +194,9 @@ namespace SEIDR.Doc
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
-                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
+                else if (VariableWidth) //Almost like delimited mode, but columns have a max length..
                 {
-                    int x = record.IndexOf(_Delimiter.Value, position) - position;
+                    int x = record.IndexOf(Delimiter.Value, position) - position;
                     int y = Columns[i].MaxLength ?? x;
                     if (y < x || x < 0)
                     {
@@ -230,7 +212,7 @@ namespace SEIDR.Doc
                             split[i] = record.Substring(position);
                             break;
                         }
-                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, _Delimiter.Value);
+                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, Delimiter.Value);
                     }
                     if (x + position > record.Length)
                         x = record.Length - position; //Number of characters to read                                                                
@@ -259,92 +241,7 @@ namespace SEIDR.Doc
             DocRecord r = new DocRecord(this, writeMode, split);
             return r;
         }
-        /// <summary>
-        /// Parses a DocRecord out of the string. The string should end at <see cref="LineEndDelimiter"/>, but not include it.
-        /// </summary>
-        /// <param name="writeMode"></param>
-        /// <param name="record"></param>
-        /// <returns></returns>
-        public ReadType ParseRecord<ReadType>(bool writeMode, string record) where ReadType:DocRecord, new()
-        {            
-            if (string.IsNullOrEmpty(record))
-                return null;
-            if (!Valid)
-                throw new InvalidOperationException("Collection state is not valid.");
-            string[] split = new string[LastPosition];
-            int position = 0;
-            for (int i = 0; i < Columns.Count; i++)
-            {
-                if (position >= record.Length)
-                {
-                    //have gone beyond length of record
-                    if (ThrowExceptionColumnCountMismatch)
-                        throw new MissingColumnException(i, Columns.Count - 1);
-                    break;
-                }
-                if (fixedWidthMode)
-                {
-                    int x = Columns[i].MaxLength.Value;
-                    if (x + position > record.Length)
-                        x = record.Length - position; //Number of characters to read                                        
-                    split[i] = record.Substring(position, x);
-                    position += x;
-                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length) //Extends beyond the last column
-                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
-                }
-                else if (VariableWidthMode) //Almost like delimited mode, but columns have a max length..
-                {
-                    int x = record.IndexOf(_Delimiter.Value, position) - position;
-                    int y = Columns[i].MaxLength ?? x;
-                    if (y < x || x < 0)
-                    {
-                        x = y;
-                        y = 0;
-                    }
-                    else
-                        y = 1; //Skip delimiter          
-                    if (y < 0)
-                    {
-                        if (i == Columns.Count - 1)
-                        {
-                            split[i] = record.Substring(position);
-                            break;
-                        }
-                        throw new VariableColumnNotFoundException(record.Length - position, i, Columns.Count, record.Length, _Delimiter.Value);
-                    }
-                    if (x + position > record.Length)
-                        x = record.Length - position; //Number of characters to read                                                                
-                    split[i] = record.Substring(position, x);
-                    position += x + y;
-                    if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
-                        throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
-                }
-                else
-                {
-                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
-                    if (ThrowExceptionColumnCountMismatch)
-                    {
-                        if (split.Length < Columns.Count)
-                        {
-                            if (!AllowMissingColumns)
-                                throw new MissingColumnException(split.Length, Columns.Count);
-                        }
-                        else if (split.Length > Columns.Count)
-                            throw new ColumnOverflowException(split.Length, Columns.Count);
-                    }
-                    break;
-                }
-
-            }
-            ReadType r = new ReadType();
-            r.Configure(this, writeMode, split);
-            return r;
-        }        
-        /// <summary>
-        /// If true, throws an exception if the size of a record is too big or too small, based on number of records.
-        /// <para>If false, ignores extra columns, and missing columns are treated as null</para>
-        /// </summary>
-        public bool ThrowExceptionColumnCountMismatch { get; set; } = true;
+       
         #endregion
         /// <summary>
         /// Changes the <see cref="DocRecordColumnInfo.ColumnName"/> of the associated column.
@@ -365,7 +262,7 @@ namespace SEIDR.Doc
         {
             Columns = new List<DocRecordColumnInfo>();
             //_Delimiter = '|';
-            fixedWidthMode = false;
+            //fixedWidthMode = false;
             this.Alias = Alias;
         }
         /// <summary>
@@ -376,19 +273,7 @@ namespace SEIDR.Doc
         public int IndexOf(DocRecordColumnInfo column)
             => Columns.IndexOf(column);
 
-        /// <summary>
-        /// Sets up for specified delimiter and pre-populated column list
-        /// </summary>
-        /// <param name="Delimiter"></param>
-        /// <param name="columns"></param>
-        public DocRecordColumnCollection(char Delimiter, List<DocRecordColumnInfo> columns)
-        {
-            Columns = columns;
-            CheckForFixedWidthValid();
-            _Delimiter = Delimiter;
-            fixedWidthMode = false;
-            SetFormat();
-        }
+
         /// <summary>
         /// Attempts to set up for fixed width columns with prepopulated list
         /// </summary>
@@ -397,40 +282,24 @@ namespace SEIDR.Doc
         {
             Columns = new List<DocRecordColumnInfo>(columns);
             CheckForFixedWidthValid();
-            if (canFixedWidth)
-                fixedWidthMode = true;
             //LastPosition = columns.Max(c => c.Position);
-            SetFormat();
+            //SetFormat();
         }
+        /// <summary>
+        /// Create Collection from list of columns
+        /// </summary>
+        /// <param name="cols"></param>
         public DocRecordColumnCollection(params DocRecordColumnInfo[] cols) : this(new List<DocRecordColumnInfo>(cols)) { }
-        public DocRecordColumnCollection(char Delim, params DocRecordColumnInfo[] cols)
-            : this(Delim, new List<DocRecordColumnInfo>(cols)) { }
-        bool canFixedWidth = true;
+
         /// <summary>
         /// True if the collection is valid for use as FixedWidth
         /// </summary>
-        public bool CanUseAsFixedWidth
-            => canFixedWidth;
+        public bool CanUseAsFixedWidth { get; private set; } = true;
         internal List<DocRecordColumnInfo> Columns { get; private set; }
-        char? _Delimiter = null;
-        /// <summary>
-        /// Always used in delimited mode. If not set, uses Environment.NewLine. 
-        /// <para>Last column in fixed width will not end early on reaching the value.</para>
-        /// <para>Note: Ignored if MultiLineEndDelimiter is set, when reading.</para>
-        /// </summary>
-        public string LineEndDelimiter
-        {
-            get { return _LineEnd; }
-            set
-            {
-                _LineEnd = value;
-                SetFormat();
-            }
-        }
-        string _LineEnd = Environment.NewLine;
-        bool fixedWidthMode = false;
-        bool VariableWidthMode = false;
+   
+        [Obsolete("Formatting to MetaData", true)]
         internal string format;
+        [Obsolete("Move Formatting to MetaData that will be used for reading or writing instead of column collection.", true)]
         internal void SetFormat()
         {
             if (!Valid)
@@ -447,10 +316,10 @@ namespace SEIDR.Doc
                 var col = this[i];
                 if (col == null)
                 {
-                    fmt.Append(_Delimiter);
+                    //fmt.Append(_Delimiter);
                     continue;
                 }
-                if (fixedWidthMode)
+                if (false)// fixedWidthMode)
                 {
                     int justify = col.LeftJustify ? -col.MaxLength.Value : col.MaxLength.Value;
                     fmt.Append("{" + i + "," + justify + "}");
@@ -464,66 +333,22 @@ namespace SEIDR.Doc
 
                     if (col.TextQualify)
                         fmt.Append(TextQualifier);
-                    if (i < last)
-                        fmt.Append(_Delimiter);
+                    //if (i < last)
+                    //    fmt.Append(_Delimiter);
                 }
             }
-            fmt.Append(LineEndDelimiter);
+            //fmt.Append(LineEndDelimiter);
             format = fmt.ToString();
         }
-        /// <summary>
-        /// Sets whether the columns should be used for fixed width or delimited
-        /// </summary>
-        public bool FixedWidthMode
+        internal void CheckSort()
         {
-            get
+            Columns.Sort((a, b) =>
             {
-                return fixedWidthMode;
-            }
-            set
-            {
-                CheckForFixedWidthValid();
-                if (value)
-                {
-                    if (canFixedWidth)
-                        fixedWidthMode = value;
-                    else
-                        throw new InvalidOperationException("Collection set up is not valid for fixed width. Make sure all columns have a max size");
-                }
-                else
-                {
-                    if (string.IsNullOrEmpty(LineEndDelimiter))
-                        throw new InvalidOperationException(nameof(LineEndDelimiter) + " must have a value in Delimited mode.");
-                    if (_Delimiter == null)
-                        throw new InvalidOperationException("Collection set up is not valid for Delimited. Make sure to set the delimiter");
-                    if (LineEndDelimiter == _Delimiter.ToString())
-                        throw new InvalidOperationException("Column delimiter cannot match the line end delimiter");
-                    fixedWidthMode = false;
-                }
-                SetFormat();
-            }
+                return a.Position.CompareTo(b.Position);
+            });
         }
-        /// <summary>
-        /// Sets the delimiter to thenew character
-        /// </summary>
-        /// <param name="Delimiter"></param>
-        public void SetDelimiter(char Delimiter)
-        {
-            _Delimiter = Delimiter;
-            SetFormat();
-        }
-        /// <summary>
-        /// Removes the delimiter. Will not allow collection to be used for delimited
-        /// </summary>
-        public void RemoveDelimiter()
-        {
-            _Delimiter = null;
-            //SetFormat(); //Delimiter is used only for delimited mode. This makes the format invalid for delimited mode, though.
-        }
-        /// <summary>
-        /// Specifies the character that should separate characters
-        /// </summary>
-        public char? Delimiter => _Delimiter;
+   
+    
         /// <summary>
         /// Usable for doc writing/reading
         /// </summary>
@@ -531,16 +356,8 @@ namespace SEIDR.Doc
         {
             get
             {
-                return Columns.Count > 0 
-                    && LastPosition >= 0
-                    && ( 
-                        (
-                            fixedWidthMode 
-                            && CanUseAsFixedWidth 
-                            && (!RaggedRight || !string.IsNullOrEmpty(LineEndDelimiter)) //Ragged right requires line end delimiter. Even if we use multiLineEnd Delimiter in DocReader
-                        )
-                        .Or(!fixedWidthMode && _Delimiter != null && _Delimiter.ToString() != LineEndDelimiter)
-                    );
+                return Columns.Count > 0
+                    && LastPosition >= 0;
             }
         }
         /// <summary>
@@ -628,10 +445,10 @@ namespace SEIDR.Doc
         /// <param name="MaxSize"></param>        
         /// <param name="leftJustify">Indicates if column should be left justified in fix width mode</param>
         /// <param name="textQualify">Indicates whether the column should be text qualified when writing.</param>
-        /// <param name="DataType"></param>
+        /// <param name="dataType"></param>
         /// <returns></returns>
         public DocRecordColumnInfo AddColumn(string ColumnName, int? MaxSize = null, bool leftJustify = true, bool textQualify = false, 
-            DocRecordColumnType dataType = DocRecordColumnType.Varchar)
+            DocRecordColumnType dataType = DocRecordColumnType.Unknown)
         {
             var col = new DocRecordColumnInfo(ColumnName, Alias, LastPosition + 1)
             {
@@ -643,9 +460,13 @@ namespace SEIDR.Doc
             };
             Columns.Add(col);
             if (MaxSize == null)            
-                canFixedWidth = false;             
-            
-            SetFormat();
+                CanUseAsFixedWidth = false;
+
+            Columns.Sort((a, b) =>
+            {
+                return a.Position.CompareTo(b.Position);
+            });
+            //SetFormat();
             return col;
         }
 
@@ -663,12 +484,12 @@ namespace SEIDR.Doc
             }
             Columns.Remove(c);
             CheckForFixedWidthValid();
-            SetFormat();
+            //SetFormat();
         }
         internal void ClearColumns()
         {
             Columns.Clear();
-            canFixedWidth = true;
+            CanUseAsFixedWidth = true;
         }
         internal void RemoveColumn(DocRecordColumnInfo toRemove)
         {
@@ -682,7 +503,7 @@ namespace SEIDR.Doc
             }
             Columns.Remove(toRemove);
             CheckForFixedWidthValid();
-            SetFormat();
+            //SetFormat();
         }
         public DocRecordColumnInfo CopyColumnIntoCollection(DocRecordColumnInfo toCopy)
         {
@@ -697,9 +518,9 @@ namespace SEIDR.Doc
             Columns.Add(col);
 
             if (toCopy.MaxLength == null)
-                canFixedWidth = false;
+                CanUseAsFixedWidth = false;
             
-            SetFormat();
+            //SetFormat();
             return col;
         }
         /// <summary>
@@ -719,6 +540,7 @@ namespace SEIDR.Doc
         /// <param name="newName"></param>
         /// <param name="MaxSize"></param>        
         /// <param name="NullIfEmpty">If set, overrides the column value. If null, leaves the column's value alone</param>
+        /// <param name="dataType">Data Type of column</param>
         public void UpdateColumn(string Alias, string ColumnName, string newName, int? MaxSize, bool? NullIfEmpty = null, DocRecordColumnType? dataType = null)
         {
             var col = this[Alias, ColumnName];
@@ -729,10 +551,13 @@ namespace SEIDR.Doc
             if (MaxSize != null)
                 CheckForFixedWidthValid();
             else
-                canFixedWidth = false;
-            SetFormat();
+                CanUseAsFixedWidth = false;
+            //SetFormat();
         }
-        int LastPosition => Columns.Count == 0? -1 : Columns.Max(c => c.Position);
+        /// <summary>
+        /// Last position value in the underlying columns, for looping.
+        /// </summary>
+        public int LastPosition => Columns.Count == 0? -1 : Columns.Max(c => c.Position);
         /// <summary>
         /// Adds the set up column to the collection
         /// </summary>
@@ -769,8 +594,8 @@ namespace SEIDR.Doc
                 Columns.Add(column);
             }
             if (column.MaxLength == null)
-                canFixedWidth = false;
-            SetFormat();
+                CanUseAsFixedWidth = false;
+            //SetFormat();
             return column.Position;
         }
         /// <summary>
@@ -798,11 +623,11 @@ namespace SEIDR.Doc
             {
                 if(col.MaxLength == null)
                 {
-                    canFixedWidth = false;
+                    CanUseAsFixedWidth = false;
                     return;
                 }
             }
-            canFixedWidth = true;
+            CanUseAsFixedWidth = true;
         }        
         public IEnumerator<DocRecordColumnInfo> GetEnumerator()
         {            

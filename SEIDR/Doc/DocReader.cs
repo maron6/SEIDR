@@ -122,7 +122,179 @@ namespace SEIDR.Doc
     /// </summary>
     public class DocReader<ReadType>:IEnumerable<ReadType>, IDisposable where ReadType:DocRecord, new()
     {
+        /// <summary>
+        /// Goes through the data in the associated DocReader and attempts to check all columns for data types and attempts to narrow down the most likely data type.        
+        /// </summary>
+        /// <param name="RecordLimit">Maximum number of lines to go through from the Document. If value is less than or equal to 0, will go through all records in the file.</param>
+        public void GuessColumnDataTypes(int RecordLimit = 0)
+        {
+            long counter = 0;
+            var culture = System.Globalization.CultureInfo.CurrentCulture;
+            var AlphaCheck = new System.Text.RegularExpressions.Regex("([a-zA-Z]+?)", System.Text.RegularExpressions.RegexOptions.Compiled);
+            string num = "([0-9"
+                + culture.NumberFormat.NegativeSign.Replace("-", @"\-")
+                + culture.NumberFormat.PositiveSign.Replace("-", @"\-")
+                + "]+?)";
+            string dec = "([0-9"
+                + culture.NumberFormat.NumberDecimalSeparator.Replace("-", @"\-")
+                + culture.NumberFormat.NumberGroupSeparator.Replace("-", @"\-")
+                + culture.NumberFormat.NegativeSign.Replace("-", @"\-")
+                + culture.NumberFormat.PositiveSign.Replace("-", @"\-");
+            string money = dec + culture.NumberFormat.CurrencySymbol.Replace("-", @"\-") + "]?)";
+            dec += "]?)";
+            var decimalCheck = new System.Text.RegularExpressions.Regex(dec, System.Text.RegularExpressions.RegexOptions.Compiled);
+            var NumericCheck = new System.Text.RegularExpressions.Regex(num, System.Text.RegularExpressions.RegexOptions.Compiled);
+            var MoneyCheck = new System.Text.RegularExpressions.Regex(money, System.Text.RegularExpressions.RegexOptions.Compiled);
+            Dictionary<DocRecordColumnInfo, List<DocRecordColumnType>> PossibleMaps = new Dictionary<DocRecordColumnInfo, List<DocRecordColumnType>>();
+            foreach(var record in this)
+            {
+                if (RecordLimit > 0 && counter++ > RecordLimit)
+                    break;
+                var cols = _MetaData.GetRecordColumnInfos(record).Where(c => c.DataType == DocRecordColumnType.Unknown);
+                if (cols.UnderMaximumCount(0))
+                    continue;
+                foreach(var col in cols)
+                {                    
+                    string x = record[col];
+                    if (string.IsNullOrWhiteSpace(x))
+                        continue;
+                    x = x.Trim();
+                    List<DocRecordColumnType> l;
+                    if (!PossibleMaps.ContainsKey(col))
+                    {
+                        l = new List<DocRecordColumnType>();
+                        if (AlphaCheck.IsMatch(x))
+                        {
+                            l.AddRange(new[] { DocRecordColumnType.DateTime, DocRecordColumnType.Date, DocRecordColumnType.Bool });
+                        }                        
+                        else if (NumericCheck.IsMatch(x))
+                        {
+                            l.AddRange(new[] { DocRecordColumnType.Int, DocRecordColumnType.Bigint, DocRecordColumnType.Bool, DocRecordColumnType.Date, DocRecordColumnType.DateTime });
+                            if (MoneyCheck.IsMatch(x))
+                            {
+                                l.AddRange(new[] { DocRecordColumnType.Decimal, DocRecordColumnType.Money });
+                            }
+                            else if (decimalCheck.IsMatch(x))
+                            {
+                                l.Add(DocRecordColumnType.Decimal);
+                            }
+                        }
+                        else
+                        {
+                            l.AddRange(new[] { DocRecordColumnType.DateTime, DocRecordColumnType.Date, DocRecordColumnType.Bool });
+                        }
+                        PossibleMaps.Add(col, l);
+                    }
+                    else
+                        l = PossibleMaps[col];
+                    if (l.Contains(DocRecordColumnType.Decimal))
+                    {         
+                        if(!decimalCheck.IsMatch(x))
+                        {
+                            l.Remove(DocRecordColumnType.Decimal);                            
+                        }
+                    }
+                    if (l.Contains(DocRecordColumnType.Money))
+                    {
+                        if (!MoneyCheck.IsMatch(x))
+                        {
+                            l.Remove(DocRecordColumnType.Money);
+                        }
+                    }
+                    string throwAway;
+                    if (l.Contains(DocRecordColumnType.DateTime))
+                    {
+                        if(!DateConverter.GuessFormatDateTime(x, out throwAway))
+                        {
+                            l.Remove(DocRecordColumnType.DateTime);
+                        }
+                    }
+                    if (l.Contains(DocRecordColumnType.Date))
+                    {
+                        if (!DateConverter.GuessFormatDate(x, out throwAway))
+                        {
+                            l.Remove(DocRecordColumnType.Date);
+                        }
+                    }
+                    if (l.Contains(DocRecordColumnType.Bool))
+                    {
+                        bool b;
+                        if (!bool.TryParse(x, out b))
+                        {
+                            if (x.ToUpper().NotIn("YES", "Y", "N", "NO"))
+                                l.Remove(DocRecordColumnType.Bool);
+                        }
+                    }
+                    long tempL;
+                    if (l.Contains(DocRecordColumnType.Int))
+                    {                        
+                        if(long.TryParse(x, out tempL))
+                        {
+                            if (tempL > Int32.MaxValue || tempL < Int32.MinValue)
+                                l.Remove(DocRecordColumnType.Int);
+                        }
+                        else
+                        {
+                            l.Remove(DocRecordColumnType.Int);                            
+                            l.Remove(DocRecordColumnType.Bigint);
+                        }
+                    }
+                    else if (l.Contains(DocRecordColumnType.Bigint))
+                    {
+                        if (!long.TryParse(x, out tempL))
+                        {
+                            l.Remove(DocRecordColumnType.Bigint);
+                        }
+                    }
 
+                    if (l.Count == 0)
+                    {
+                        col.DataType = DocRecordColumnType.Varchar;
+                        PossibleMaps.Remove(col);
+                    }
+                }
+            }
+
+            foreach (var maps in PossibleMaps)
+            {
+                var l = maps.Value;
+                if (l.Contains(DocRecordColumnType.Bool))
+                {
+                    maps.Key.DataType = DocRecordColumnType.Bool;
+                    continue;
+                }
+                if (l.Contains(DocRecordColumnType.DateTime))
+                {
+                    maps.Key.DataType = DocRecordColumnType.DateTime;
+                    continue;
+                }
+                if (l.Contains(DocRecordColumnType.Date))
+                {
+                    maps.Key.DataType = DocRecordColumnType.Date;
+                    continue;
+                }
+                if (l.Contains(DocRecordColumnType.Int))
+                {
+                    maps.Key.DataType = DocRecordColumnType.Int;
+                    continue;
+                }
+                if (l.Contains(DocRecordColumnType.Bigint))
+                {
+                    maps.Key.DataType = DocRecordColumnType.Bigint;
+                    continue;
+                }
+                if (l.Contains(DocRecordColumnType.Decimal))
+                {
+                    maps.Key.DataType = DocRecordColumnType.Decimal;
+                    continue;
+                }
+                if (l.Contains(DocRecordColumnType.Money))
+                {
+                    maps.Key.DataType = DocRecordColumnType.Money;
+                    continue;
+                }
+            }
+        }
         FileStream fs;
         StreamReader sr;
         /// <summary>
@@ -195,11 +367,11 @@ namespace SEIDR.Doc
             if (_MetaData is DocMetaData)
             {
                 var dmd = _MetaData as DocMetaData;
-                if (!dmd.FixedWidthMode && string.IsNullOrEmpty(_MetaData.LineEndDelimiter))
-                    throw new InvalidOperationException("Cannot Do Delimited document without a line End delimiter.");
-                if (dmd.FixedWidthMode && !_MetaData.HeaderConfigured)
-                    throw new InvalidOperationException("Cannot do fixed width without header configured already.");
-                if (dmd.FixedWidthMode && _MetaData.PageSize < dmd.Columns.MaxLength)
+                if (dmd.Format.In(DocRecordFormat.DELIMITED, DocRecordFormat.VARIABLE_WIDTH) && string.IsNullOrEmpty(_MetaData.LineEndDelimiter))
+                    throw new InvalidOperationException("Cannot do " + dmd.Format.GetDescription() + " document without a line End delimiter.");
+                if (dmd.FixWidthMode && !_MetaData.HeaderConfigured)
+                    throw new InvalidOperationException("Cannot do " + dmd.Format.GetDescription() + " without header configured already.");
+                if (dmd.FixWidthMode && _MetaData.PageSize < dmd.Columns.MaxLength)
                     throw new InvalidOperationException($"Page Size({_MetaData.PageSize}) is smaller than FixedWidth line Length ({dmd.Columns.MaxLength})");
             }
             disposedValue = false;
@@ -228,6 +400,8 @@ namespace SEIDR.Doc
             if (_MetaData.HasHeader && _MetaData.HeaderConfigured)
                 pp = _MetaData.SkipLines + 1;
             sr.Peek(); //BOM issue shows up after initial open, peek allows us to manage during set up
+            if (_MetaData.FileEncoding == null)
+                _MetaData.FileEncoding = sr.CurrentEncoding;
             long position = 0;     
             while(SetupPageMetaData(ref position, ref pp)) { }
             if (!_MetaData.Valid)
@@ -293,7 +467,8 @@ namespace SEIDR.Doc
             int x = sr.ReadBlock(buffer, 0, _MetaData.PageSize);
             if (x == 0)
                 return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
-            bool end = x < _MetaData.PageSize;
+            //bool end = x < _MetaData.PageSize;
+            //if(!end && startPosition + x > )
             if (startPosition < _MetaData.PageSize)
             {
                 var preamble = sr.CurrentEncoding.GetPreamble();
@@ -324,20 +499,23 @@ namespace SEIDR.Doc
             }
             
             string content = /*working.ToString() +*/ new string(buffer, 0, x);
+            int contentLength = sr.CurrentEncoding.GetByteCount(content);
+            bool end = (startPosition + contentLength) >= _MetaData.FileLength;
             IList<string> lines = null;
 
             bool fixWidth_NoNewLine = false;
             if (_MetaData is DocMetaData)
             {                
-                fixWidth_NoNewLine = ((DocMetaData)_MetaData).Columns.FixedWidthMode 
-                                        && string.IsNullOrEmpty(_MetaData.LineEndDelimiter) 
+                fixWidth_NoNewLine = _MetaData.FixWidthMode 
+                                        && string.IsNullOrEmpty(_MetaData.LineEndDelimiter) //RaggedRight/Variable width need line end as well
                                         && !_MetaData.ReadWithMultiLineEndDelimiter;
             }
             bool removeHeaderFromRecordCount = false;
             int endLine;
-            int removed = 0;
+            int removedBytes = 0;
             int lastNLSize = 0; //Size of the NewLine Delimiter if the page ends on a NewLine delimiter. //Note: Potential for extra line if we have multiple line ends and end a page between an \r and \n, but that would be adding an empty record (null)
             long endPosition;
+            int removed;
             if (!fixWidth_NoNewLine)
             {
                 if (_MetaData.ReadWithMultiLineEndDelimiter)
@@ -345,22 +523,22 @@ namespace SEIDR.Doc
                 else
                     lines = content.SplitOnString(_MetaData.LineEndDelimiter);
 
-                if (end && lines[lines.Count-1].Trim() != string.Empty)
+                if (end && lines[lines.Count - 1].Trim() != string.Empty)
                 {
-                    endPosition = startPosition + x;
+                    endPosition = startPosition + contentLength;
                     if (_MetaData.ReadWithMultiLineEndDelimiter)
                     {
-                        foreach(string delim in _MetaData.MultiLineEndDelimiter)
+                        foreach (string delim in _MetaData.MultiLineEndDelimiter)
                         {
                             if (content.EndsWith(delim))
                             {
-                                lastNLSize = delim.Length;
+                                lastNLSize = sr.CurrentEncoding.GetByteCount(delim);
                                 break;
                             }
                         }
                     }
                     else if (content.EndsWith(_MetaData.LineEndDelimiter))
-                        lastNLSize = _MetaData.LineEndDelimiter.Length;
+                        lastNLSize = sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);//.Length;
 
 
                     endLine = lines.Count;
@@ -370,18 +548,18 @@ namespace SEIDR.Doc
                     int temp = lines.Count - 1;
                     if (temp == 0)
                         throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
-                    removed = sr.CurrentEncoding.GetByteCount(lines[temp]); //.Length;
+                    removedBytes = sr.CurrentEncoding.GetByteCount(lines[temp]); //.Length;
+                    removed = lines[temp].Length;
                     //lines.RemoveAt(temp);
-                    endPosition = startPosition + x - removed; //doesn't include the newline...whatever it may have been.
+                    endPosition = startPosition + contentLength - removedBytes; //doesn't include the newline...whatever it may have been.
                     if (_MetaData.ReadWithMultiLineEndDelimiter)
                     {
                         int s = x - removed;
-                        foreach(string delim in _MetaData.MultiLineEndDelimiter) //first multi line delimiter that would match and cause a split - take its length.
+                        foreach (string delim in _MetaData.MultiLineEndDelimiter) //first multi line delimiter that would match and cause a split - take its length.
                         {
-                            int delSize = sr.CurrentEncoding.GetByteCount(delim);
-                            if(content.Substring(s - delSize, delSize) == delim)
+                            if (content.Substring(s - delim.Length, delim.Length) == delim)
                             {
-                                lastNLSize = delSize;
+                                lastNLSize = sr.CurrentEncoding.GetByteCount(delim);
                                 break;
                             }
                         }
@@ -392,23 +570,23 @@ namespace SEIDR.Doc
                     endLine = lines.Count - 1;
                 }
             }
-            else //Fixwidth mode - Must be DocMetaData.
+            else //Fixwidth mode + No Newline - Must be DocMetaData.
             {
                 //No newLine, just dividing by positions....
                 if (end)
                 {
-                    endPosition = startPosition + x;
+                    endPosition = startPosition + contentLength;
                     endLine = x / ((DocMetaData)_MetaData).Columns.MaxLength;
                 }
                 else
                 {
                     removed = ((DocMetaData)_MetaData).Columns.MaxLength % _MetaData.PageSize;
                     content = new string(buffer, 0, x - removed);
-                    endPosition = startPosition + x - removed;
+                    endPosition = startPosition + contentLength - removedBytes;
                     endLine = content.Length / ((DocMetaData)_MetaData).Columns.MaxLength;
                 }
             }
-            if(skipLine > 0)
+            if (skipLine > 0)
             {
                 if(skipLine >= endLine)
                 {
@@ -419,7 +597,9 @@ namespace SEIDR.Doc
                 //endLine > skipLine, remove skipLine # records, then continue to next section...
                 if (fixWidth_NoNewLine)
                 {
-                    startPosition += skipLine * ((DocMetaData)_MetaData).Columns.MaxLength; //Move forward by skipLine lines
+                    //startPosition += skipLine * ((DocMetaData)_MetaData).Columns.MaxLength; //Move forward by skipLine lines
+                    int charSkip = skipLine * ((DocMetaData)_MetaData).Columns.MaxLength; //Move forward by skipLine lines
+                    startPosition += sr.CurrentEncoding.GetByteCount(buffer, 0, charSkip);
                 }
                 else
                 {
@@ -428,21 +608,26 @@ namespace SEIDR.Doc
                     {
                         if (_MetaData.ReadWithMultiLineEndDelimiter)
                         {
-                            int temp = lines[i].Length;
+                            int temp = lines[i].Length; //character traversal
+                            int tempBytes = sr.CurrentEncoding.GetByteCount(lines[i]); //position movement
                             foreach(string delim in _MetaData.MultiLineEndDelimiter)
                             {
                                 if(content.Substring(posHelper + temp, delim.Length) == delim)
                                 {
                                     temp += delim.Length;
+                                    tempBytes += sr.CurrentEncoding.GetByteCount(delim);
                                     break;
                                 }
                             }
                             posHelper += temp;
-                            startPosition += temp;
+                            startPosition += tempBytes;
                         }
                         else
                         {
-                            startPosition = startPosition + lines[i].Length + _MetaData.LineEndDelimiter.Length;
+                            //startPosition = startPosition + lines[i].Length + _MetaData.LineEndDelimiter.Length;
+                            startPosition = startPosition 
+                                            + sr.CurrentEncoding.GetByteCount(lines[i])
+                                            + sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);
                         }
                     }
                     skipLine = 0;
@@ -456,7 +641,7 @@ namespace SEIDR.Doc
                 //must be delimited in this section...
                 if (!_MetaData.Delimiter.HasValue)
                     _MetaData.SetDelimiter(lines.GuessDelimiter());
-                string[] firstLineS = firstLine.Split(_MetaData.Delimiter.Value);
+                string[] firstLineS = firstLine.Split(_MetaData.Delimiter.Value); //ToDo: Header infer method on DocMetaData
                 if (_MetaData is DocMetaData) //Only do header inferring for DocMetaData (single header set)
                 {
                     var md = (DocMetaData)_MetaData;
@@ -467,19 +652,23 @@ namespace SEIDR.Doc
                         if (_MetaData.ReadWithMultiLineEndDelimiter)
                         {
                             int temp = firstLine.Length;
+                            int tempBytes = sr.CurrentEncoding.GetByteCount(firstLine);
                             foreach (string delim in _MetaData.MultiLineEndDelimiter)
                             {
                                 if (content.Substring(temp, delim.Length) == delim)
                                 {
-                                    temp += delim.Length;
+                                    //temp += delim.Length;
+                                    tempBytes += sr.CurrentEncoding.GetByteCount(delim);
                                     break;
                                 }
                             }
-                            startPosition += temp;
+                            startPosition += tempBytes;
                         }
                         else
-                            startPosition += firstLine.Length + _MetaData.LineEndDelimiter.Length; //move forward by a line...
-
+                        {
+                            //startPosition += firstLine.Length + _MetaData.LineEndDelimiter.Length; //move forward by a line...
+                            startPosition += sr.CurrentEncoding.GetByteCount(firstLine) + sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);
+                        }
                         if (startPosition > endPosition - lastNLSize)
                             return true; //don't add a page, instead go to next page so we can start adding lines together.
                                          //lines.RemoveAt(0); // ... Probably don't really care about this at this point actually.
@@ -514,7 +703,7 @@ namespace SEIDR.Doc
             _MetaData = new DocMetaData(FilePath, alias)
             {
                 SkipLines = 0,
-                EmptyIsNull = true,
+                //EmptyIsNull = true,
             };
             ((DocMetaData)_MetaData).SetHasHeader(true);
             if(Delimiter.HasValue)
@@ -690,6 +879,50 @@ namespace SEIDR.Doc
         /// The last pageNumber that was used for grabbing content from a file
         /// </summary>
         protected int lastPage = -2;
+        
+        private IEnumerable<Tuple<string, int>> GetPageTupleLines(int pageNumber)
+        {
+            if (sr == null)
+                throw new InvalidOperationException("Not in a configured state. May have been disposed already");
+            if (pageNumber < 0 || pageNumber > LastPage)
+                throw new ArgumentOutOfRangeException(nameof(pageNumber));
+            string content;
+            int x;
+            int drop = 0;
+            PageHelper p = Pages[pageNumber];
+            if (pageNumber == lastPage + 1)
+            {
+                drop = (int)(p.StartPosition - Pages[lastPage].EndPosition); //If ended on a newline which gets dropped.
+                x = sr.ReadBlock(buffer, 0, p.Length + drop); //Need discard? Shouldn't, since not seeking
+            }
+            else
+            {
+                fs.Seek(p.StartPosition, SeekOrigin.Begin);
+                sr.DiscardBufferedData();
+                x = sr.ReadBlock(buffer, 0, p.Length);
+            }
+            if (x > p.Length)
+                x = p.Length; //throw away extra characters read because of dropping newlines when not adding a seek because we're going through pages sequentially.
+            content = new string(buffer, drop, x);
+            lastPage = pageNumber;
+            IList<string> lines;
+            if (_MetaData.ReadWithMultiLineEndDelimiter)
+            {
+                lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
+            }
+            else if (string.IsNullOrEmpty(_MetaData.LineEndDelimiter)) //FixWidth mode, no line ending.
+            {
+                lines = content.SplitOnString(((DocMetaData)_MetaData).Columns.MaxLength);
+            }
+            else
+            {
+                lines = content.SplitOnString(_MetaData.LineEndDelimiter);
+            }
+            for(int i = 0; i < lines.Count; i++)
+            {
+                yield return new Tuple<string, int>(lines[i], i);
+            }            
+        }
 
         /// <summary>
         /// Returns an IList of strings. May be either an <see cref="Array"/> of strings(MultiLineEnd Delimiter mode..) or a <see cref="List{string}"/>.
@@ -742,6 +975,10 @@ namespace SEIDR.Doc
         /// </summary>
         protected List<ReadType> CurrentPage = null;
         /// <summary>
+        /// Parallelism options for populating the List in <see cref="GetPage(int, bool)"/>
+        /// </summary>
+        public static ParallelOptions ParallelismOptions { get; private set; } = new ParallelOptions();
+        /// <summary>
         /// Gets the content of the specified 'page'
         /// </summary>
         /// <param name="pageNumber"></param>
@@ -751,25 +988,16 @@ namespace SEIDR.Doc
         {
             if (pageNumber == lastPage && CurrentPage != null && cached)
                 return CurrentPage;
-            var lines = GetPageLines(pageNumber);
-            List<ReadType> LineRecords = new List<ReadType>();
-            lines.ForEachIndex((line, idx) =>
+            //var lines = GetPageLines(pageNumber);
+            var LineRecords = new ReadType[Pages[pageNumber].RecordCount];
+            //List<ReadType> LineRecords = new List<ReadType>(Pages[pageNumber].RecordCount);            
+            Parallel.ForEach(GetPageTupleLines(pageNumber), ParallelismOptions, line =>
             {
-                var rec = _MetaData.Parse<ReadType>(line);
-                if (rec == null)
-                {
-                    System.Diagnostics.Debug.WriteLine("Empty Record found! Page: " + pageNumber + ", LineNumber: " + idx);
-                    /*
-                    if (idx == lines.Count)
-                    {
-                        System.Diagnostics.Debug.WriteLine("Last Line of page - Skipping empty record.");
-                        return;
-                    }*/
-                }
-                LineRecords.Add(rec);
-            }, 1, 1);
-            CurrentPage = LineRecords;
-            return LineRecords;
+                var rec = _MetaData.ParseRecord<ReadType>(line.Item1);
+                LineRecords[line.Item2] = rec; //maintain original index.
+            });
+            CurrentPage = new List<ReadType>(LineRecords);
+            return CurrentPage;
         }
 
         #endregion

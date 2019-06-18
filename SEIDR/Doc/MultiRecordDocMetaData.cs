@@ -9,7 +9,7 @@ namespace SEIDR.Doc
     /// <summary>
     /// MetaData for a Doc file containing multiple sets
     /// </summary>
-    public class MultiRecordDocMetaData : MetaDataBase
+    public sealed class MultiRecordDocMetaData : MetaDataBase
     {
         /// <summary>
         /// Default column name for the Key Column (First column)
@@ -30,11 +30,8 @@ namespace SEIDR.Doc
                     Key = DEFAULT_KEY;
                 if (!ColumnSets.TryGetValue(Key, out colSet))
                 {
-                    colSet = new DocRecordColumnCollection(Alias)
-                    {
-                        LineEndDelimiter = this.LineEndDelimiter,
-                    };
-                    colSet.SetDelimiter(RecordDelimiter);
+                    colSet = new DocRecordColumnCollection(Alias);                    
+                    //colSet.SetDelimiter(RecordDelimiter);
                     ColumnSets.Add(Key, colSet);
                 }                
                 return colSet;
@@ -44,8 +41,10 @@ namespace SEIDR.Doc
         public DocRecordColumnCollection CreateCollection(string Key, string TextQualifier = null, bool IncludeKeyColumn = true)
         {
             var colSet = new DocRecordColumnCollection(Alias);
-            colSet.TextQualifier = TextQualifier;
-            colSet.SetDelimiter(RecordDelimiter);
+            if(TextQualifier != null)
+                SetTextQualifier(TextQualifier);
+            //colSet.TextQualifier = TextQualifier;
+            //colSet.SetDelimiter(RecordDelimiter);
             ColumnSets.Add(Key, colSet);
             if (IncludeKeyColumn)
                 colSet.AddColumn(DEFAULT_KEY_NAME);
@@ -80,8 +79,7 @@ namespace SEIDR.Doc
 
         public DocRecordColumnCollection CreateCollection(string Key, string TextQualifier, bool AddKeyColumn, params string[] columnNames)
         {
-            var colSet = CreateCollection(Key, TextQualifier, AddKeyColumn);
-            colSet.SetDelimiter(RecordDelimiter);            
+            var colSet = CreateCollection(Key, TextQualifier, AddKeyColumn);            
             foreach (var col in columnNames)
             {
                 colSet.AddColumn(col);
@@ -104,6 +102,27 @@ namespace SEIDR.Doc
         /// </summary>
         public Dictionary<string, DocRecordColumnCollection> ColumnSets { get; private set; }
         /// <summary>
+        /// Gets a DocRecord using the default Column Collection (<see cref="DEFAULT_KEY"/> ). If there is no default key, return null.
+        /// </summary>
+        /// <returns></returns>
+        public override DocRecord GetBasicRecord()
+        {
+            DocRecordColumnCollection res;
+            if (ColumnSets.TryGetValue(DEFAULT_KEY, out res))
+                return new DocRecord(res) { CanWrite = CanWrite };
+            return null;
+        }
+        /// <summary>
+        /// Gets a DocRecord using a column collection associated with the key. Will error if there is no matching key.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        public DocRecord GetBasicRecord(string key)
+        {
+            var colSet = ColumnSets.First(kv => kv.Key.Like(key, false)).Value;
+            return new DocRecord(colSet);
+        }
+        /// <summary>
         /// Attempt to Get the appropriate column set for a line of a file.
         /// </summary>
         /// <param name="DocLine"></param>
@@ -112,17 +131,40 @@ namespace SEIDR.Doc
         {
             if (string.IsNullOrEmpty(DocLine))
                 return null;
-            var k = DocLine.Split(RecordDelimiter)[0];
-            
-            foreach(var kv in ColumnSets)
+            bool exact = true;
+            string k;
+            IEnumerable<KeyValuePair<string, DocRecordColumnCollection>> kvSearch = ColumnSets;
+            if (Format.In(DocRecordFormat.DELIMITED, DocRecordFormat.VARIABLE_WIDTH))            
+                k = DocLine.Split(Delimiter.Value)[0];                            
+            else if(Format == DocRecordFormat.BitCON)            
+                k = BitCONHelper.GetKey(DocLine, FileEncoding);             
+            else
             {
-                if (kv.Key == DEFAULT_KEY)
+                k = DocLine;
+                exact = false;
+                kvSearch = ColumnSets.OrderByDescending(kv => kv.Key.Length); //most detailed search first.
+                /*
+                E.g. Keys: 
+                142...
+                14 ...
+                 14...
+                 would want to match on 142 first, although because of spacing, that may not be an issue as long as the first column is consistent size
+             */
+            }
+            foreach(var kv in kvSearch)
+            {
+                string compare = kv.Key + (exact? string.Empty: "%");                
+                if (compare == DEFAULT_KEY)
                 {
                     if (string.IsNullOrEmpty(k))
-                        return kv.Value;
+                    {
+                        if(exact)
+                            return kv.Value;
+                        return null;
+                    }
                     continue;
                 }
-                if(kv.Key.Like(k, false))
+                if(compare.Like(k, false))
                 {
                     return kv.Value;
                 }
@@ -131,6 +173,43 @@ namespace SEIDR.Doc
             if (ColumnSets.TryGetValue(DEFAULT_KEY, out res))
                 return res;
             return null;
+        }
+
+        /// <summary>
+        /// Sets <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/>,
+        /// and also sets the <see cref="DocRecordColumnInfo.NullIfEmpty"/> for each column associated with the ColumnCollection
+        /// </summary>
+        /// <param name="nullifyEmpty"></param>
+        /// <param name="SetDefault">If false, just sets the values on individual columns, not the collection's default.</param>
+        /// <returns></returns>
+        public override MetaDataBase SetEmptyIsNull(bool nullifyEmpty, bool SetDefault = true)
+        {
+            ColumnSets.Values.ForEach(Columns =>
+            {
+                if (SetDefault)
+                    Columns.DefaultNullIfEmpty = nullifyEmpty;
+                Columns.Columns.ForEach(c => c.NullIfEmpty = nullifyEmpty);
+            });
+            return this;
+        }
+        /// <summary>
+        /// Sets <see cref="DocRecordColumnCollection.DefaultNullIfEmpty"/>,
+        /// and also (conditionally) sets the <see cref="DocRecordColumnInfo.NullIfEmpty"/> for each column associated with the ColumnCollection that matches <paramref name="columnPredicate"/>.
+        /// 
+        /// </summary>
+        /// <param name="NullifyEmpty"></param>
+        /// <param name="columnPredicate"></param>
+        /// <param name="SetDefault">If false, just sets the values on individual columns, not the collection's default.</param>
+        /// <returns></returns>
+        public override MetaDataBase SetEmptyIsNull(bool NullifyEmpty, Predicate<DocRecordColumnInfo> columnPredicate, bool SetDefault = true)
+        {
+            ColumnSets.Values.ForEach(Columns =>
+            {
+                if(SetDefault)
+                    Columns.DefaultNullIfEmpty = NullifyEmpty;
+                Columns.Columns.Where(c => columnPredicate(c)).ForEach(c => c.NullIfEmpty = NullifyEmpty);
+            });
+            return this;
         }
         /// <summary>
         /// Returns the Column Collection that matches this record, based on the key.
@@ -161,22 +240,7 @@ namespace SEIDR.Doc
                 return res;
             return null;
         }
-        /// <summary>
-        /// Delimiter. Multi Record DocMetaData must be delimited.
-        /// </summary>
-        public char RecordDelimiter { get; set; } = '|';
-        /// <summary>
-        /// Delimiter for the records in the Document.
-        /// </summary>
-        public override char? Delimiter => RecordDelimiter;
-        /// <summary>
-        /// Used for line endings, unless <see cref="MetaDataBase.ReadWithMultiLineEndDelimiter"/> is true.
-        /// </summary>
-        public override string LineEndDelimiter
-        {
-            get { return _LineEnd; }
-        }
-        string _LineEnd = Environment.NewLine;
+    
         /// <summary>
         /// MetaData for reading a file with multiple record types. (First Column data should specify which column set to use)
         /// </summary>
@@ -204,26 +268,35 @@ namespace SEIDR.Doc
         {
             get
             {
+                if (!CheckFormatValid(AccessMode))
+                    return false;
+                
                 if (ColumnSets.Count == 0)
                     return false;
-                if (ColumnSets.Exists(cc => cc.Value.Valid == false))
+                if (ColumnSets.Exists(cc => cc.Value.Valid == false || cc.Value.Count == 0))
                     return false;
+
+
+                if (Format.In(DocRecordFormat.FIX_WIDTH, DocRecordFormat.RAGGED_RIGHT))
+                {
+                    bool valid = true;
+                    ColumnSets.Values.ForEach(colSet =>
+                    {
+                        if (valid)
+                        {
+                            colSet.CheckForFixedWidthValid();
+                            if (!colSet.CanUseAsFixedWidth)
+                                valid = false;
+                        }
+                    });
+                    if (!valid)
+                        return false;
+                }
                 return true;
             }
         }
 
 
-        public override MetaDataBase SetDelimiter(char delimiter)
-        {
-            RecordDelimiter = delimiter;
-            return this;
-        }
-
-        public override MetaDataBase SetLineEndDelimiter(string endLine)
-        {
-            _LineEnd = endLine;
-            return this;
-        }
 
         /// <summary>
         /// Do not call for MultiRecord - Headers are not supported.

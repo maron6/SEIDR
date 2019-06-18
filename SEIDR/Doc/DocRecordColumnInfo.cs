@@ -29,7 +29,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// Indicates type of data
         /// </summary>
-        public DocRecordColumnType DataType { get; set; } = DocRecordColumnType.Varchar;
+        public DocRecordColumnType DataType { get; set; } = DocRecordColumnType.Unknown;
         /// <summary>
         /// Optional formatting for certain data types.
         /// </summary>
@@ -146,7 +146,8 @@ namespace SEIDR.Doc
             :this(column, Alias, position)
         {
             DataType = type;
-        }
+        }        
+
         /// <summary>
         /// Intended Position of the column in the raw file.
         /// </summary>
@@ -239,5 +240,6 @@ namespace SEIDR.Doc
             }
             return cols;
         }
+        
     }
 }

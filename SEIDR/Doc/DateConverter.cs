@@ -193,7 +193,7 @@ namespace SEIDR.Doc
         const string SECOND = MINUTE;
         const string H_M = HOUR + ":" + MINUTE;
         const string H_M_S = H_M + ":" + SECOND;
-        const string Hs_M = SMALL_HOUR + ":" + MINUTE + AM_PM;
+        const string Hs_M = SMALL_HOUR + ":" + MINUTE + AM_PM; //single minute shouldn't really be common...
         const string Hs_M_S = SMALL_HOUR + ":" + MINUTE + ":" + SECOND + AM_PM;
         const string H1 = "([0-9])";
         const string H1_M = H1 + ":" + MINUTE;
@@ -202,7 +202,7 @@ namespace SEIDR.Doc
         const string H1s_M_S = H1 + ":" + MINUTE + ":" + SECOND + AM_PM;
 
 
-        //ToDo: add format keys for bson dates
+        
 
         /// <summary>
         /// Guesses the format of a date string.
@@ -211,13 +211,15 @@ namespace SEIDR.Doc
         /// <param name="Format"></param>
         /// <returns></returns>
         public static bool GuessFormatDateTime(string DateString, out string Format)
-        {            
+        {
+            if (GuessFormatDate(DateString, out Format))
+                return true;
             Format = null;
             Dictionary<string, string> patternSet = new Dictionary<string, string>
             {
                 
                 //Year, but no century
-                { YEAR_NO_CENTURY + MONTH + DAY, "yyMMdd"},
+                //{ YEAR_NO_CENTURY + MONTH + DAY, "yyMMdd"},
                 { YEAR_NO_CENTURY + MONTH + DAY + SPACE + H_M, "yyMMdd HH:mm" },
                 { YEAR_NO_CENTURY + MONTH + DAY + SPACE + H_M_S, "yyMMdd HH:mm:ss" },
                 { YEAR_NO_CENTURY + MONTH + DAY + SPACE + H1_M, "yyMMdd H:mm" },
@@ -227,10 +229,10 @@ namespace SEIDR.Doc
                 { YEAR_NO_CENTURY + MONTH + DAY + SPACE + H1s_M, "yyMMdd h:mm tt" },
                 { YEAR_NO_CENTURY + MONTH + DAY + SPACE + H1s_M_S, "yyMMdd h:mm:ss tt" },    
                 //No space separator only makes sense if no other separators
-                { YEAR_NO_CENTURY + MONTH + DAY + HOUR + MINUTE, "yyMMddHHmm" },
+                //{ YEAR_NO_CENTURY + MONTH + DAY + HOUR + MINUTE, "yyMMddHHmm" },
                 { YEAR_NO_CENTURY + MONTH + DAY + HOUR + MINUTE + SECOND, "yyMMddHHmmss" },
                 //Separators:
-                { YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY , "yy-MM-dd"},
+                //{ YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY , "yy-MM-dd"},
                 { YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY + SPACE + H_M, "yy-MM-dd HH:mm" },
                 { YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY + SPACE + H_M_S, "yy-MM-dd HH:mm:ss" },
                 { YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY + SPACE + H1_M, "yy-MM-dd H:mm" },
@@ -239,7 +241,7 @@ namespace SEIDR.Doc
                 { YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY + SPACE + Hs_M_S, "yy-MM-dd hh:mm:ss tt" },
                 { YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY + SPACE + H1s_M, "yy-MM-dd h:mm tt" },
                 { YEAR_NO_CENTURY + DASH + MONTH + DASH + DAY + SPACE + H1s_M_S, "yy-MM-dd h:mm:ss tt" },
-                { YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY , "yy/MM/dd"},
+                //{ YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY , "yy/MM/dd"},
                 { YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY + SPACE + H_M, @"yy/MM/dd HH:mm" },
                 { YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY + SPACE + H_M_S, @"yy/MM/dd HH:mm:ss" },
                 { YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY + SPACE + H1_M, @"yy/MM/dd H:mm" },
@@ -248,7 +250,7 @@ namespace SEIDR.Doc
                 { YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY + SPACE + Hs_M_S, @"yy/MM/dd hh:mm:ss tt" },
                 { YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY + SPACE + H1s_M, @"yy/MM/dd h:mm tt" },
                 { YEAR_NO_CENTURY + SLASH + MONTH + SLASH + DAY + SPACE + H1s_M_S, @"yy/MM/dd h:mm:ss tt" },
-                { MONTH + SLASH + DAY + SLASH + YEAR_NO_CENTURY , "MM/dd/yy"},
+                //{ MONTH + SLASH + DAY + SLASH + YEAR_NO_CENTURY , "MM/dd/yy"},
                 { MONTH + SLASH + DAY + SLASH + YEAR_NO_CENTURY + SPACE + H_M, @"MM/dd/yy HH:mm" },
                 { MONTH + SLASH + DAY + SLASH + YEAR_NO_CENTURY + SPACE + H_M_S, @"MM/dd/yy HH:mm:ss" },
                 { MONTH + SLASH + DAY + SLASH + YEAR_NO_CENTURY + SPACE + H1_M, @"MM/dd/yy H:mm" },
@@ -259,7 +261,7 @@ namespace SEIDR.Doc
                 { MONTH + SLASH + DAY + SLASH + YEAR_NO_CENTURY + SPACE + H1s_M_S, @"MM/dd/yy h:mm:ss tt" },
 
                 //Full Year
-                { YEAR + MONTH + DAY, "yyyyMMdd"},
+                //{ YEAR + MONTH + DAY, "yyyyMMdd"},
                 { YEAR + MONTH + DAY + SPACE + H_M, "yyyyMMdd HH:mm" },
                 { YEAR + MONTH + DAY + SPACE + H_M_S, "yyyyMMdd HH:mm:ss" },
                 { YEAR + MONTH + DAY + SPACE + H1_M, "yyyyMMdd H:mm" },
@@ -273,7 +275,7 @@ namespace SEIDR.Doc
                 { YEAR + MONTH + DAY + HOUR + MINUTE + SECOND, "yyyyMMddHHmmss" },
 
 
-                { YEAR + DASH + MONTH + DASH + DAY , "yyyy-MM-dd"},
+                //{ YEAR + DASH + MONTH + DASH + DAY , "yyyy-MM-dd"},
                 { YEAR + DASH + MONTH + DASH + DAY + SPACE + H_M, "yyyy-MM-dd HH:mm" },
                 { YEAR + DASH + MONTH + DASH + DAY + SPACE + H_M_S, "yyyy-MM-dd HH:mm:ss" },
                 { YEAR + DASH + MONTH + DASH + DAY + SPACE + H1_M, "yyyy-MM-dd H:mm" },
@@ -283,7 +285,7 @@ namespace SEIDR.Doc
                 { YEAR + DASH + MONTH + DASH + DAY + SPACE + H1s_M, "yyyy-MM-dd h:mm tt" },
                 { YEAR + DASH + MONTH + DASH + DAY + SPACE + H1s_M_S, "yyyy-MM-dd h:mm:ss tt" },
 
-                { YEAR + SLASH + MONTH + SLASH + DAY , "yyyy/MM/dd"},
+                //{ YEAR + SLASH + MONTH + SLASH + DAY , "yyyy/MM/dd"},
                 { YEAR + SLASH + MONTH + SLASH + DAY + SPACE + H_M, @"yyyy/MM/dd HH:mm" },
                 { YEAR + SLASH + MONTH + SLASH + DAY + SPACE + H_M_S, @"yyyy/MM/dd HH:mm:ss" },
                 { YEAR + SLASH + MONTH + SLASH + DAY + SPACE + H1_M, @"yyyy/MM/dd H:mm" },
@@ -293,7 +295,7 @@ namespace SEIDR.Doc
                 { YEAR + SLASH + MONTH + SLASH + DAY + SPACE + H1s_M, @"yyyy/MM/dd h:mm tt" },
                 { YEAR + SLASH + MONTH + SLASH + DAY + SPACE + H1s_M_S, @"yyyy/MM/dd h:mm:ss tt" },
 
-                { MONTH + SLASH + DAY + SLASH + YEAR , "MM/dd/yyyy"},
+                //{ MONTH + SLASH + DAY + SLASH + YEAR , "MM/dd/yyyy"},
                 { MONTH + SLASH + DAY + SLASH + YEAR + SPACE + H_M, @"MM/dd/yyyy HH:mm" },
                 { MONTH + SLASH + DAY + SLASH + YEAR + SPACE + H_M_S, @"MM/dd/yyyy HH:mm:ss" },
                 { MONTH + SLASH + DAY + SLASH + YEAR + SPACE + H1_M, @"MM/dd/yyyy H:mm" },

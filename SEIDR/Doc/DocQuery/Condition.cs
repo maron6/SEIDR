@@ -187,16 +187,16 @@ namespace SEIDR.Doc.DocQuery
             return Match(LeftColumn.Content, RightColumn.Content);
         }
         
-        public bool? Matches(ulong? Left, ulong? Right, IRecord left, IRecord right, bool ExcludeEmpty)
+        public bool? Matches(ulong? Left, ulong? Right, IRecord left, IRecord right)
         {
             if (join != ConditionType.HASH_EQUAL)
                 throw new InvalidOperationException("Cannot do a hash match when join type is not a Hash join");
             
             if (Left == null)
-                Left = left.GetPartialHash(true, ExcludeEmpty, true, leftHashColumns.ToArray());
+                Left = left.GetPartialHash(true, true, leftHashColumns.ToArray());
             if (Left == null)
                 return null;
-            Right =  Right ?? right.GetPartialHash(true, ExcludeEmpty, true, rightHashColumns.ToArray());
+            Right =  Right ?? right.GetPartialHash(true, true, rightHashColumns.ToArray());
             if (Right == null)
                 return null;
             return Left == Right;
@@ -252,14 +252,14 @@ namespace SEIDR.Doc.DocQuery
             return false;            
         }*/
         public bool CheckConditions(IRecord left, IRecord right, 
-            ulong? LeftHash = null, ulong? RightHash = null, bool ExcludeEmpty = true)
+            ulong? LeftHash = null, ulong? RightHash = null)
         {
             if (MyCondition != null)
             {
                 bool x = false;
                 if(MyCondition.IsHashJoin)
                 {
-                    x = MyCondition.Matches(LeftHash, RightHash, left, right, ExcludeEmpty) ?? false;
+                    x = MyCondition.Matches(LeftHash, RightHash, left, right) ?? false;
                 }
                 else
                     x = MyCondition.Matches(left, right) ?? false;
@@ -269,7 +269,7 @@ namespace SEIDR.Doc.DocQuery
             }
             foreach (var n in Children) //Children have an 'OR' relation to each other
             {
-                if (n.CheckConditions(left, right, ExcludeEmpty: ExcludeEmpty)) //hashes don't propagate.
+                if (n.CheckConditions(left, right)) //hashes don't propagate.
                     return true;
             }
             return false;
@@ -430,14 +430,14 @@ namespace SEIDR.Doc.DocQuery
 
              return Root.CheckConditions(records);
         }*/
-        public bool CheckConditions(IRecord left, IRecord right, 
-            /*ulong? hashLeft, ulong? hashRight,*/ bool ExcludeEmptyFromHash)
+        public bool CheckConditions(IRecord left, IRecord right/*, 
+            /*ulong? hashLeft, ulong? hashRight,bool ExcludeEmptyFromHash*/ )
         {
             if (Root == null || Root.Children.Count == 0)
                 return true;
             //If the root can't do a hash after optimization, don't pass the hash value
             return Root.CheckConditions(left, right, 
-                LeftHash:null, RightHash: null, ExcludeEmpty: ExcludeEmptyFromHash);
+                LeftHash:null, RightHash: null);
         }
         public bool CheckJoinedConditions(IRecord merged)
         {

@@ -163,10 +163,10 @@ namespace SEIDR.Doc
         /// If any of the column values are null or empty strings, will return null instead of a value
         /// </summary>
         /// <param name="RollingHash"></param>
-        /// <param name="ExcludeEmpty">If true, will treat empty strings as a null</param>
+        /// <param name="includeNull"></param>
         /// <param name="columnsToHash"></param>
         /// <returns></returns>
-        public ulong? GetPartialHash(bool RollingHash, bool ExcludeEmpty, bool includeNull, params DocRecordColumnInfo[] columnsToHash)
+        public ulong? GetPartialHash(bool RollingHash, bool includeNull, params DocRecordColumnInfo[] columnsToHash)
         {
             if (_header == null || _header.Count == 0)
                 return null;
@@ -178,7 +178,8 @@ namespace SEIDR.Doc
                 foreach (var col in columnsToHash)
                 {
                     string x = this[col];
-                    if (ExcludeEmpty && x == string.Empty) x = null;
+                    if (col.NullIfEmpty && x == string.Empty)
+                        x = null;
                     if (x == null && !includeNull)
                         return null;
 
