@@ -23,6 +23,13 @@ namespace SEIDR.Test
             write.AddColumn("LineNumber", DataType: DocRecordColumnType.Int);
             write.AddColumn("TimeStamp", DataType: DocRecordColumnType.DateTime);
             write.AddColumn("NOTE"); //ToDo: 
+
+            DocMetaData delimitedCopy = new DocMetaData(TEST_FOLDER, "Test.bson.dat", "d");
+            delimitedCopy.SetHasHeader(false)
+                .SetFormat(DocRecordFormat.DELIMITED)
+                .SetDelimiter('|')                
+                .SetFileAccess(FileAccess.Write);
+            delimitedCopy.CopyDetailedColumnCollection(write);
             using (DocWriter w = new DocWriter(write))
             {
                 for (int i = 0; i < RECORDCOUNT; i++)
@@ -36,18 +43,20 @@ namespace SEIDR.Test
                 }
             }
             using (var read = new DocReader(write))
+            using (var out2 = new DocWriter(delimitedCopy))
             {
-                Assert.AreEqual(RECORDCOUNT, read.RecordCount);
+                Assert.AreEqual(RECORDCOUNT, read.RecordCount);                
                 read.ForEachIndex((r, idx) =>
                 {
                     Assert.AreEqual(idx, r.Evaluate<int>("LineNumber"));
                     DateTime dt = default;
-                    Assert.IsTrue(r.TryEvaluate("TimeStamp", out dt));                    
+                    Assert.IsTrue(r.TryEvaluate("TimeStamp", out dt));
                     Assert.AreNotEqual(default, dt);
                     if (idx % 2 == 0)
                         Assert.IsNotNull(r["NOTE"]);
                     else
                         Assert.IsNull(r["NOTE"]);
+                    out2.AddRecord(r); //To be able to compare same content output in the two formats
                 });
             }
             

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SEIDR.Doc
 {
-    public class BitCONHelper
+    public static class SBSONHelper
     {
         const int BITS_PER_BYTE = 8;
         const byte OFFSET = 2;                
@@ -528,6 +528,7 @@ namespace SEIDR.Doc
             return Position > input.Length; //Note: equal should be okay
             */
         }
+        /*
         /// <summary>
         /// Indicates how many bytes were left are going through the values in content in the last instance method call.
         /// </summary>
@@ -570,6 +571,8 @@ namespace SEIDR.Doc
                 else yield break;
             }
         }
+        */
+
         public static List<string> SplitString(string content, MetaDataBase metaData, out int RemainingBytesFromSplit)
         {
             List<string> result = new List<string>();
@@ -605,6 +608,46 @@ namespace SEIDR.Doc
                 }
                 else
                     return result;
+            }
+        }
+        public static IEnumerable<string> EnumerateLines(string content, MetaDataBase metaData)
+        {
+            List<string> result = new List<string>();
+            
+            int position = 0;
+            int positionFrom = 0;
+            Encoding fileEncoding = metaData.FileEncoding;
+            var byteSet = fileEncoding.GetBytes(content);
+            var k = //GetKey(content, fileEncoding, ref position);
+                GetValue(byteSet, ref position, out _, fileEncoding);
+            var colSet = metaData.GetRecordColumnInfos(k);
+            while (true)
+            {
+                for (int i = 1; i < colSet.Columns.Count; i++)
+                {
+#if DEBUG
+                    int test = position;
+                    string v = GetValue(byteSet, ref test, out _, fileEncoding);
+                    System.Diagnostics.Debug.WriteLine(v);
+#endif
+                    if (!CheckValue(byteSet, ref position))
+                    {
+                        //RemainingBytesFromSplit = positionFrom;
+                        yield break; //return result;
+                    }
+                }
+                yield return fileEncoding.GetString(byteSet, positionFrom, position - positionFrom);
+                positionFrom = position;
+                if (CheckValue(byteSet, position))
+                {
+                    k = GetValue(byteSet, ref position, out _, fileEncoding);
+                    colSet = metaData.GetRecordColumnInfos(k);
+                }
+                else
+                {
+                    yield break;
+                    //return result;
+                }
             }
         }
     }

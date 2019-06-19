@@ -521,7 +521,7 @@ namespace SEIDR.Doc
             int removed;
             if (_MetaData.Format == DocRecordFormat.SBSON)
             {
-                lines = BitCONHelper.SplitString(content, MetaData, out removed);
+                lines = SBSONHelper.SplitString(content, MetaData, out removed);
                 endLine = lines.Count;
                 endPosition = startPosition + contentLength - removed;
                 /*
@@ -930,7 +930,14 @@ namespace SEIDR.Doc
             content = new string(buffer, drop, x);
             lastPage = pageNumber;
             IList<string> lines;
-            if (_MetaData.ReadWithMultiLineEndDelimiter)
+            if(_MetaData.Format == DocRecordFormat.SBSON)
+            {
+                int idx = 0;
+                foreach (string s in SBSONHelper.EnumerateLines(content, _MetaData))
+                    yield return new Tuple<string, int>(s, idx++);
+                yield break;
+            }
+            else if (_MetaData.ReadWithMultiLineEndDelimiter)
             {
                 lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
             }
@@ -980,7 +987,11 @@ namespace SEIDR.Doc
             content = new string(buffer, drop, x);
             lastPage = pageNumber;
             IList<string> lines;
-            if (_MetaData.ReadWithMultiLineEndDelimiter)
+            if(_MetaData.Format == DocRecordFormat.SBSON)
+            {
+                lines = SBSONHelper.SplitString(content, _MetaData, out _);
+            }
+            else if (_MetaData.ReadWithMultiLineEndDelimiter)
             {
                 lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
             }

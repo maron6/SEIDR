@@ -693,7 +693,7 @@ namespace SEIDR.Doc
                 else if(Format == DocRecordFormat.SBSON)
                 {                    
                     DocRecordColumnType dataType;
-                    string colResult = BitCONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
+                    string colResult = SBSONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
                     if (dataType == DocRecordColumnType.Unknown)
                     {
                         split[i] = colResult;
@@ -897,7 +897,7 @@ namespace SEIDR.Doc
                     throw new MissingColumnException(i, colSet.Columns.Count - 1);
                 }
                 DocRecordColumnType dataType;
-                string colResult = BitCONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
+                string colResult = SBSONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
                 if(dataType == DocRecordColumnType.Unknown)
                 {
                     content[i] = colResult;
@@ -934,10 +934,10 @@ namespace SEIDR.Doc
                 object o;
                 if (record.TryGet(col, out o))
                 {
-                    sb.Append(BitCONHelper.SetResult(col, o, FileEncoding));
+                    sb.Append(SBSONHelper.SetResult(col, o, FileEncoding));
                 }
                 else
-                    sb.Append(BitCONHelper.SetResult(col, null, FileEncoding));                
+                    sb.Append(SBSONHelper.SetResult(col, null, FileEncoding));                
             });
             if (IncludeLineEndDelimiter)
                 CheckAddLineDelimiter(sb);
@@ -960,10 +960,10 @@ namespace SEIDR.Doc
                 object o;
                 if (record.TryGet(col, out o))
                 {
-                    sb.Append(BitCONHelper.SetResult(col, o, FileEncoding));
+                    sb.Append(SBSONHelper.SetResult(col, o, FileEncoding));
                 }
                 else
-                    sb.Append(BitCONHelper.SetResult(col, null, FileEncoding));                                
+                    sb.Append(SBSONHelper.SetResult(col, null, FileEncoding));                                
             }
             if (IncludeLineEndDelimiter)
                 CheckAddLineDelimiter(sb);

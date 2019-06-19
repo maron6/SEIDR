@@ -137,7 +137,7 @@ namespace SEIDR.Doc
             if (Format.In(DocRecordFormat.DELIMITED, DocRecordFormat.VARIABLE_WIDTH))            
                 k = DocLine.Split(Delimiter.Value)[0];                            
             else if(Format == DocRecordFormat.SBSON)            
-                k = BitCONHelper.GetKey(DocLine, FileEncoding);             
+                k = SBSONHelper.GetKey(DocLine, FileEncoding);             
             else
             {
                 k = DocLine;
