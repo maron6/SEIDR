@@ -27,6 +27,10 @@ namespace SEIDR.Doc
     public sealed class DocRecordColumnInfo : IRecordColumnInfo
     {
         /// <summary>
+        /// For formatting - indicates that data is separated by a subdelimiter and can be returned as an array or list.
+        /// </summary>
+        public bool Array { get; set; }
+        /// <summary>
         /// Indicates type of data
         /// </summary>
         public DocRecordColumnType DataType { get; set; } = DocRecordColumnType.Unknown;

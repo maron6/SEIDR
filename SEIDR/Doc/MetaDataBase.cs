@@ -55,7 +55,7 @@ namespace SEIDR.Doc
                             return false;
                         return true;
                     }
-                case DocRecordFormat.BitCON:
+                case DocRecordFormat.SBSON:
                 default:
                     return true;
             }
@@ -431,7 +431,7 @@ namespace SEIDR.Doc
         public virtual MetaDataBase SetFormat(DocRecordFormat NewFormat)
         {
             Format = NewFormat;
-            if (NewFormat == DocRecordFormat.BitCON)
+            if (NewFormat == DocRecordFormat.SBSON)
                 SetLineEndDelimiter(DEFAULT_BSON_LINE_END);
             return this;
         }
@@ -484,7 +484,7 @@ namespace SEIDR.Doc
             var colSet = GetRecordColumnInfos(record);
             if (colSet == null)
                 return null;
-            if(Format == DocRecordFormat.BitCON)
+            if(Format == DocRecordFormat.SBSON)
             {
                 return ParseBSON<DocRecord>(writeMode, record);
             }
@@ -579,7 +579,7 @@ namespace SEIDR.Doc
                 return null;
             if (!Valid)
                 throw new InvalidOperationException("Collection state is not valid.");
-            if(Format == DocRecordFormat.BitCON)
+            if(Format == DocRecordFormat.SBSON)
             {
                 return ParseBSON<ReadType>(writeMode, record);
             }
@@ -690,7 +690,7 @@ namespace SEIDR.Doc
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }                
-                else if(Format == DocRecordFormat.BitCON)
+                else if(Format == DocRecordFormat.SBSON)
                 {                    
                     DocRecordColumnType dataType;
                     string colResult = BitCONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
@@ -780,7 +780,7 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public string FormatRecord(DocRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
         {
-            if (Format == DocRecordFormat.BitCON)
+            if (Format == DocRecordFormat.SBSON)
                 return FormatBSON(record, IncludeLineEndDelimiter, columnMapping);
             if(columnMapping == null || columnMapping.Count == 0)
             {
@@ -855,18 +855,20 @@ namespace SEIDR.Doc
         /// <summary>
         /// Conditionally adds a LineEnd delimiter.
         /// <para>If <see cref="LineEndDelimiter"/> is not null, then that will be added.</para>
-        /// <para>Else, will add <see cref="Environment.NewLine"/>, unless the <see cref="Format"/> is either <see cref="DocRecordFormat.FIX_WIDTH"/> or <see cref="DocRecordFormat.BitCON"/></para>
+        /// <para>Else, will add <see cref="Environment.NewLine"/>, unless the <see cref="Format"/> is either <see cref="DocRecordFormat.FIX_WIDTH"/> or <see cref="DocRecordFormat.SBSON"/></para>
         /// </summary>
         /// <param name="sb"></param>
         public void CheckAddLineDelimiter(StringBuilder sb)
         {
+            if (Format.In(DocRecordFormat.BSON, DocRecordFormat.SBSON))
+                return;
             string le = LineEndDelimiter;
             if (le != null)
             {
                 sb.Append(le);
                 return;
             }
-            if (FixWidthMode || Format == DocRecordFormat.BitCON)
+            if (FixWidthMode)
                 return;
             sb.Append(Environment.NewLine);
         }
@@ -975,7 +977,7 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public string FormatRecord(DocRecord record, bool IncludeLineEndDelimiter)
         {
-            if (Format == DocRecordFormat.BitCON)
+            if (Format == DocRecordFormat.SBSON)
                 return FormatBSON(record, IncludeLineEndDelimiter);
             StringBuilder sb = new StringBuilder();
             var Columns = record.Columns;

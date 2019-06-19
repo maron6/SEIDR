@@ -28,11 +28,11 @@ namespace SEIDR.Doc
         /// </summary>
         VARIABLE_WIDTH,
         /// <summary>
-        /// Bit Condensed Object notation. Variation of BSON
+        /// Bit Condensed Object notation. SEIDR Custom Variation of BSON
         /// </summary>
-        BitCON,
+        SBSON,
         /// <summary>
-        /// Variation of Binary JSON
+        /// Variation of Binary JSON, intended to be closer to specifications from http://bsonspec.org
         /// </summary>
         BSON
     }

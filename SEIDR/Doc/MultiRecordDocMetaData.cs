@@ -136,7 +136,7 @@ namespace SEIDR.Doc
             IEnumerable<KeyValuePair<string, DocRecordColumnCollection>> kvSearch = ColumnSets;
             if (Format.In(DocRecordFormat.DELIMITED, DocRecordFormat.VARIABLE_WIDTH))            
                 k = DocLine.Split(Delimiter.Value)[0];                            
-            else if(Format == DocRecordFormat.BitCON)            
+            else if(Format == DocRecordFormat.SBSON)            
                 k = BitCONHelper.GetKey(DocLine, FileEncoding);             
             else
             {

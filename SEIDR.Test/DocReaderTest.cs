@@ -17,7 +17,7 @@ namespace SEIDR.Test
             DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
             write
                 .SetHasHeader(false)
-                .SetFormat(DocRecordFormat.BitCON)
+                .SetFormat(DocRecordFormat.SBSON)
                 //.SetLineEndDelimiter(Environment.NewLine + Environment.NewLine)
                 .SetFileAccess(FileAccess.ReadWrite);
             write.AddColumn("LineNumber", DataType: DocRecordColumnType.Int);

@@ -375,6 +375,8 @@ namespace SEIDR.Doc
                     throw new InvalidOperationException($"Page Size({_MetaData.PageSize}) is smaller than FixedWidth line Length ({dmd.Columns.MaxLength})");
             }
             disposedValue = false;
+            //if (_MetaData.Format == DocRecordFormat.SBSON && helper == null)
+            //    helper = new BitCONHelper();
             if (sr != null) { sr.Close(); sr = null; }
             if (fs != null) { fs.Close(); fs = null; }
             fs = new FileStream(_MetaData.FilePath, FileMode.Open, _MetaData.AccessMode);
@@ -460,6 +462,7 @@ namespace SEIDR.Doc
         /// <param name="page"></param>
         /// <returns></returns>
         public PageHelper GetPageInfo(int page) => Pages[page];
+        //BitCONHelper helper = null;
         bool SetupPageMetaData(ref long startPosition, ref int skipLine)
         {
             fs.Seek(startPosition, SeekOrigin.Begin);
@@ -516,7 +519,19 @@ namespace SEIDR.Doc
             int lastNLSize = 0; //Size of the NewLine Delimiter if the page ends on a NewLine delimiter. //Note: Potential for extra line if we have multiple line ends and end a page between an \r and \n, but that would be adding an empty record (null)
             long endPosition;
             int removed;
-            if (!fixWidth_NoNewLine)
+            if (_MetaData.Format == DocRecordFormat.SBSON)
+            {
+                lines = BitCONHelper.SplitString(content, MetaData, out removed);
+                endLine = lines.Count;
+                endPosition = startPosition + contentLength - removed;
+                /*
+                lines = helper.SplitString(content, _MetaData).ToList();
+                removed = helper.RemainingBytesFromSplit;
+                endLine = lines.Count;
+                endPosition = startPosition + contentLength - helper.RemainingBytesFromSplit;
+                */
+            }
+            else if (!fixWidth_NoNewLine)
             {
                 if (_MetaData.ReadWithMultiLineEndDelimiter)
                     lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
@@ -682,8 +697,17 @@ namespace SEIDR.Doc
                         }
                     }
                 }
+                else
+                {
+                    //ToDo:
+                    /*
+                     * Infer column sets for multi record meta data - header inferring is done when a key is reused.
+                     * 
+                     */
+
+                }
             }
-            int recordCount = endLine - (removeHeaderFromRecordCount ? 1 : 0);
+            int recordCount = endLine - (removeHeaderFromRecordCount ? 1 : 0); //ToDo: HeaderRemovalCount variable, default to 0.
             Pages.Add(new PageHelper(startPosition, endPosition - lastNLSize, _MetaData.PageSize, recordCount: recordCount));
             startPosition = endPosition;
             return !end;
