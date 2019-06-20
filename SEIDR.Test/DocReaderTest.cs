@@ -11,9 +11,59 @@ namespace SEIDR.Test
     public class DocReaderTest: TestBase
     {
         [TestMethod]
+        public void TypedBSONTest()
+        {
+            const int RECORDCOUNT = 30 * 30;
+            DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
+            write
+                .SetHasHeader(false)
+                .SetFormat(DocRecordFormat.SBSON)
+                //.SetLineEndDelimiter(Environment.NewLine + Environment.NewLine)
+                .SetFileAccess(FileAccess.ReadWrite);
+            write.AddColumn("LineNumber", DataType: DocRecordColumnType.Int);
+            write.AddColumn("TimeStamp", DataType: DocRecordColumnType.DateTime);
+            write.AddColumn("NOTE"); //ToDo: 
+
+            DocMetaData delimitedCopy = new DocMetaData(TEST_FOLDER, "Test.bson.dat", "d");
+            delimitedCopy.SetHasHeader(false)
+                .SetFormat(DocRecordFormat.DELIMITED)
+                .SetDelimiter('|')
+                .SetFileAccess(FileAccess.Write);
+            delimitedCopy.CopyDetailedColumnCollection(write);
+            using (DocWriter w = new DocWriter(write))
+            {
+                for (int i = 0; i < RECORDCOUNT; i++)
+                {
+                    var r = write.GetBasicTypedDataRecord();
+                    r.SetValue("LineNumber", i);
+                    r.SetValue("TimeStamp", DateTime.Now);
+                    if (i % 2 == 0)
+                        r.SetValue("NOTE", "Bla bla Note # " + i);
+                    w.AddRecord(r);
+                }
+            }
+            using (var read = new DocReader<TypedDataRecord>(write))
+            using (var out2 = new DocWriter(delimitedCopy))
+            {
+                Assert.AreEqual(RECORDCOUNT, read.RecordCount);
+                read.ForEachIndex((r, idx) =>
+                {
+                    Assert.AreEqual(idx, r["LineNumber"]);                    
+                    Assert.AreNotEqual(default(DateTime), r["TimeStamp"]);
+                    if (idx % 2 == 0)
+                        Assert.IsNotNull(r["NOTE"].Value);
+                    else
+                    {
+                        Assert.IsNull(r["NOTE"].Value);
+                    }
+                    out2.AddRecord(r); //To be able to compare same content output in the two formats
+                });
+            }
+        }
+        [TestMethod]
         public void BSONtest()
         {
-            const int RECORDCOUNT = 30;
+            const int RECORDCOUNT = 30 * 30;
             DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
             write
                 .SetHasHeader(false)

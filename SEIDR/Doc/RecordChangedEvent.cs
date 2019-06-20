@@ -11,7 +11,6 @@ namespace SEIDR.Doc
     /// </summary>
     public class RecordChangedEventArgs : EventArgs
     {
-        public DocRecord SourceRecord { get; private set; }
         /// <summary>
         /// Column that was changed.
         /// </summary>
@@ -26,17 +25,31 @@ namespace SEIDR.Doc
         public string NewValue { get; private set; }
         /// <summary>
         /// Args passed to event handlers when a DocRecord column value is changed.
+        /// <para>(DocRecord will be the event's sender)</para>
         /// </summary>
         /// <param name="columnModified"></param>
         /// <param name="oldValue"></param>
         /// <param name="newValue"></param>
-        /// <param name="source"></param>
-        public RecordChangedEventArgs(DocRecordColumnInfo columnModified, string oldValue, string newValue, DocRecord source)
+        public RecordChangedEventArgs(DocRecordColumnInfo columnModified, string oldValue, string newValue)
         {
             ColumnChanged = columnModified;
             OldValue = oldValue;
             NewValue = newValue;
-            SourceRecord = source;
+        }
+    }
+    /// <summary>
+    /// For responding when a <see cref="TypedDataRecord"/> is modified.
+    /// </summary>
+    public class TypedRecordChangedEventArgs : EventArgs
+    {
+        public DocRecordColumnInfo ColumnChanged { get; private set; }
+        public DataItem OldValue { get; private set; }
+        public DataItem NewValue { get; private set; }
+        public TypedRecordChangedEventArgs(DocRecordColumnInfo columnModified, DataItem oldValue, DataItem newValue)
+        {
+            ColumnChanged = columnModified;
+            OldValue = oldValue;
+            NewValue = newValue;
         }
     }
 }

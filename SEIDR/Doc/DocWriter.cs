@@ -9,7 +9,6 @@ namespace SEIDR.Doc
 {
     public class DocWriter : DocWriter<DocMetaData>
     {
-        private DocMetaData Dmd => md as DocMetaData;
         #region operators   
         /// <summary>
         /// Allow treating the doc writer as a DocMetaData to help keep code more succinct. Returns null if the MetaData type is not a DocMetaData.
@@ -90,7 +89,7 @@ namespace SEIDR.Doc
 
         
         /// <summary>
-        /// Calls <see cref="AddTypedRecord(RecordType, IDictionary{int, DocRecordColumnInfo})"/> using the DocWriter's underlying dictionary.
+        /// Calls <see cref="AddDocRecord(DocRecord, IDictionary{int, DocRecordColumnInfo})> using the DocWriter's underlying dictionary.
         /// </summary>
         /// <param name="record"></param>
         /// <param name="columnMapping"></param>
@@ -122,7 +121,7 @@ namespace SEIDR.Doc
         /// Adds record to output.
         /// </summary>
         /// <param name="record"></param>
-        public void AddRecord(DocRecord record)
+        public void AddRecord(IDataRecord record)
         {
             sw.Write(md.FormatRecord(record, true));
         }
@@ -187,7 +186,7 @@ namespace SEIDR.Doc
         /// <para>Null records will be ignored.</para>
         /// </summary>
         /// <param name="toWrite"></param>
-        public void BulkWrite(IEnumerable<DocRecord> toWrite)
+        public void BulkWrite(IEnumerable<IDataRecord> toWrite)
         {
             foreach (var rec in toWrite)
             {
@@ -200,7 +199,7 @@ namespace SEIDR.Doc
         /// Writes the records out using ToString without validating that they match the column meta data of the writer.
         /// </summary>
         /// <param name="toWrite"></param>
-        public void BulkWrite(params DocRecord[] toWrite) => BulkWrite((IEnumerable<DocRecord>)toWrite);
+        public void BulkWrite(params IDataRecord[] toWrite) => BulkWrite((IEnumerable<IDataRecord>)toWrite);
 
         /// <summary>
         /// Writes the strings out without validating that they match the column meta data of the writer. Will add the LineEndDelimiter of this metaData if specified, though.

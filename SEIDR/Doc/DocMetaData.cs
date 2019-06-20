@@ -38,7 +38,7 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="record"></param>
         /// <returns></returns>
-        public override DocRecordColumnCollection GetRecordColumnInfos(IRecord record)
+        public override DocRecordColumnCollection GetRecordColumnInfos(IDataRecord record)
         {
             return Columns;
         }
@@ -316,7 +316,7 @@ namespace SEIDR.Doc
         {
             foreach (var col in columnCollection)
             {
-                Columns.AddColumn(col.ColumnName, col.MaxLength, col.LeftJustify, col.TextQualify);
+                Columns.AddColumn(col.ColumnName, col.MaxLength, col.LeftJustify, col.TextQualify, col.DataType);
             }
             return this;
         }

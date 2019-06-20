@@ -10,7 +10,7 @@ namespace SEIDR.Doc
     /// <summary>
     /// Read/write class for use with DocQueries, DocReader, and DocWriter
     /// </summary>
-    public class DocRecord: DynamicObject, IRecord
+    public class DocRecord: DynamicObject, IRecord, IDataRecord
     {
         #region hashing
         static ulong GetRollingHash(string content)
@@ -179,7 +179,7 @@ namespace SEIDR.Doc
         /// <param name="Result"></param>
         /// <returns></returns>
         public bool TryEvaluate<T>(int Position, out T Result)
-        {
+        {            
             object o;
             if (TryGet(null, out o, null, Position))
             {
@@ -236,161 +236,7 @@ namespace SEIDR.Doc
         public bool TryGet(DocRecordColumnInfo col, out object result)
         {
             string val = this[col];
-            bool success = false;
-            bool nulVal = false;
-            if (!col.DataType.In(DocRecordColumnType.Varchar, DocRecordColumnType.NVarchar, DocRecordColumnType.Unknown))
-            {
-                val = val.Trim();
-            }
-            if (col.NullIfEmpty && string.IsNullOrWhiteSpace(val))
-                nulVal = true;
-
-            switch (col.DataType)
-            {
-                case DocRecordColumnType.Unknown:
-                case DocRecordColumnType.Varchar:
-                case DocRecordColumnType.NVarchar:
-                    result = val;
-                    return true;
-                case DocRecordColumnType.Tinyint:
-                    {
-                        if (nulVal)
-                        {
-                            result = null as byte?;
-                            return true;
-                        }
-                        byte b;
-                        success = byte.TryParse(val, out b);
-                        result = b;
-                        break;
-                    }
-                case DocRecordColumnType.Smallint:
-                    if (nulVal)
-                    {
-                        result = null as short?;
-                        return true;
-                    }
-                    short s;
-                    success = short.TryParse(val, out s);
-                    result = s;
-                    break;
-                case DocRecordColumnType.Bool:
-                    if (nulVal)
-                    {
-                        result = null as bool?;
-                        return true;
-                    }
-                    bool br;
-                    success = bool.TryParse(val, out br);
-                    if (!success)
-                    {
-                        if (val.ToUpper().In("YES", "Y"))
-                        {
-                            result = true;
-                            return true;
-                        }
-                        if (val.ToUpper().In("NO", "N"))
-                        {
-                            result = false;
-                            return true;
-                        }
-                    }
-
-                    result = br;
-                    break;
-                case DocRecordColumnType.Int:
-                    if (nulVal)
-                    {
-                        result = null as int?;
-                        return true;
-                    }
-                    int i;
-                    success = int.TryParse(val, out i);
-                    result = i;
-                    break;
-                case DocRecordColumnType.Bigint:
-                    if (nulVal)
-                    {
-                        result = null as long?;
-                        return true;
-                    }
-                    long l;
-                    success = long.TryParse(val, out l);
-                    result = l;
-                    break;
-                case DocRecordColumnType.Double:
-                    if (nulVal)
-                    {
-                        result = null as double?;
-                        return true;
-                    }
-                    double dbl;
-                    success = double.TryParse(val, out dbl);
-                    result = dbl;
-                    break;
-                case DocRecordColumnType.Money:
-                    if (nulVal)
-                    {
-                        result = null as decimal?;
-                        return true;
-                    }
-
-                    var cInfo = System.Globalization.CultureInfo.CurrentCulture;
-                    bool neg = val.Contains(cInfo.NumberFormat.NegativeSign);
-                    var regex = new System.Text.RegularExpressions.Regex("[^0-9" + cInfo.NumberFormat.NumberDecimalSeparator + "]+");
-                    string parse = regex.Replace(val, string.Empty);
-                    decimal m;
-                    success = decimal.TryParse(parse, out m);
-                    if (success)
-                    {
-                        if (neg)
-                            result = -1 * m;
-                        else
-                            result = m;
-                    }
-                    else
-                        result = 0M;
-                    break;
-                case DocRecordColumnType.Decimal:
-                    if (nulVal)
-                    {
-                        result = null as decimal?;
-                        return true;
-                    }
-                    decimal d;
-                    success = decimal.TryParse(val, out d);
-                    result = d;
-                    break;
-                case DocRecordColumnType.Date:
-                case DocRecordColumnType.DateTime:
-                    if (nulVal)
-                    {
-                        result = null as DateTime?;
-                        return true;
-                    }
-                    DateTime dt = default;
-                    string format = col.Format;
-                    if (string.IsNullOrWhiteSpace(format))
-                    {
-                        if (!DateConverter.GuessFormatDateTime(val, out format))
-                        {
-                            format = null;
-                            success = DateTime.TryParse(val, out dt); //Try parse with base DateTime method to be safe.
-                        }
-                        else
-                            col.Format = format;
-                    }
-                    if (format != null)
-                    {
-                        success = DateTime.TryParseExact(val, format, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AllowInnerWhite, out dt);
-                    }
-                    result = dt;
-                    return success;
-                default:
-                    result = val;
-                    return false;
-            }
-            return success;
+            return col.TryGet(val, out result);
         }
         /// <summary>
         /// Tries to get an the object associated with the value.
@@ -642,6 +488,8 @@ namespace SEIDR.Doc
         internal protected DocRecordColumnCollection Columns;        
         List<string> Content = new List<string>(); //toDo: consider changing to an array?  Or else add additional records as needed when calling toString to avoid the format getting messed up if we're allowing records to miss end columns..
         //Dictionary<DocRecordColumnInfo, string> Content;
+        DocRecordColumnCollection IDataRecord.Columns => this.Columns;
+        
 
         /// <summary>
         /// Overrides to string, combining the columns depending on the set up of the Column Collection it was created with. Includes the NewLine delimiter from the Column collection
@@ -776,6 +624,11 @@ namespace SEIDR.Doc
             else
                 Content.Clear();
         }
+        void IDataRecord.Configure(DocRecordColumnCollection owner, bool? canWrite, IList<object> parsedContent)
+        {
+            var parseList = parsedContent.Select(c => c?.ToString()).ToList();
+            Configure(owner, canWrite, parseList);
+        }
         #endregion
 
         /// <summary>
@@ -828,7 +681,7 @@ namespace SEIDR.Doc
                     //}
                     if (x != value)
                     {
-                        RecordChangedEventArgs e = new RecordChangedEventArgs(col, x, value, this);
+                        RecordChangedEventArgs e = new RecordChangedEventArgs(col, x, value);
                         OnRecordDataChanged(e);
                     }
                 }
@@ -875,7 +728,7 @@ namespace SEIDR.Doc
                     //}
                     if (x != value)
                     {
-                        RecordChangedEventArgs e = new RecordChangedEventArgs(col, x, value, this);
+                        RecordChangedEventArgs e = new RecordChangedEventArgs(col, x, value);
                         OnRecordDataChanged(e);
                     }
                 }
@@ -907,6 +760,7 @@ namespace SEIDR.Doc
             }
             return x;
         }
+        string IDataRecord.GetBestMatch(string column, string alias) => GetBestMatch(column, alias, -1);
         /// <summary>
         /// Attempts to set the value for the first column that matches specified criteria.
         /// </summary>
@@ -967,7 +821,7 @@ namespace SEIDR.Doc
 
                     if (x != value)
                     {
-                        RecordChangedEventArgs e = new RecordChangedEventArgs(column, x, value, this);
+                        RecordChangedEventArgs e = new RecordChangedEventArgs(column, x, value);
                         OnRecordDataChanged(e);
                     }
                 }
@@ -1043,7 +897,7 @@ namespace SEIDR.Doc
 
                 if (x != value)
                 {
-                    var arg = new RecordChangedEventArgs(col, x, value, this);
+                    var arg = new RecordChangedEventArgs(col, x, value);
                     OnRecordDataChanged(arg);
                 }
             }

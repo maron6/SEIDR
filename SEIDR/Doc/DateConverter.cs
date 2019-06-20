@@ -74,7 +74,7 @@ namespace SEIDR.Doc
         /// <param name="metaData"></param>
         /// <param name="record"></param>
         /// <returns>Number of DateColumns remaining with an undetermined format.</returns>
-        public static int GuessFormats(MetaDataBase metaData, IRecord record)
+        public static int GuessFormats(MetaDataBase metaData, IDataRecord record)
         {
             var col = metaData.GetRecordColumnInfos(record);
             var rc = GuessFormats(col, record);
@@ -100,7 +100,7 @@ namespace SEIDR.Doc
         /// <param name="columnSet"></param>
         /// <param name="record"></param>        
         /// <returns>Number of DateColumns remaining with an undetermined format.</returns>
-        public static int GuessFormats(DocRecordColumnCollection columnSet, IRecord record)
+        public static int GuessFormats(DocRecordColumnCollection columnSet, IDataRecord record)
         {
             var dateCols = columnSet.Columns
                .Where(c => c.DataType.In(DocRecordColumnType.Date, DocRecordColumnType.DateTime)
@@ -141,7 +141,7 @@ namespace SEIDR.Doc
         /// <param name="columnSet"></param>
         /// <param name="records">Set of records to check. Note: You should be able to pass an entire DocReader to this method because it implements IEnumerable for <see cref="DocRecord"/></param>
         /// <returns>Number of DateColumns remaining with an undetermined format.</returns>
-        public static int GuessFormats(DocRecordColumnCollection columnSet, IEnumerable<IRecord> records)
+        public static int GuessFormats(DocRecordColumnCollection columnSet, IEnumerable<IDataRecord> records)
         {
             var dateCols = columnSet.Columns
                 .Where(c => c.DataType.In(DocRecordColumnType.Date, DocRecordColumnType.DateTime) 

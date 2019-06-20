@@ -11,7 +11,7 @@ namespace SEIDR.Doc
     /// <para>Mainly for formatting purposes when writing, but also some being able to parse to a consistent format based on <see cref="DocRecordColumnInfo.Format"/>
     /// </para>
     /// </summary>
-    public enum DocRecordColumnType
+    public enum DocRecordColumnType : byte
     {
         /// <summary>
         /// For BSON. Should not be used for actual column info.

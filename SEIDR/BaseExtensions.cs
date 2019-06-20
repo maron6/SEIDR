@@ -41,7 +41,14 @@
         }
         #endregion
 
-
+        public static int GetDateSerial(this DateTime value)
+        {
+            return Convert.ToInt32(value.ToOADate());
+        }
+        public static DateTime GetDateFromSerial(this int value)
+        {
+            return DateTime.FromOADate(value);
+        }
         /// <summary>
         /// Map properties of map to the inheriting class instance, IT
         /// </summary>

@@ -113,6 +113,18 @@ namespace SEIDR.Doc
             return null;
         }
         /// <summary>
+        /// Gets a basic TypedDataRecord that can be used. Associates with the default column collection (<see cref="DEFAULT_KEY"/>, or returns null.
+        /// </summary>
+        /// <returns></returns>
+        public override TypedDataRecord GetBasicTypedDataRecord()
+        {
+
+            DocRecordColumnCollection res;
+            if (ColumnSets.TryGetValue(DEFAULT_KEY, out res))
+                return new TypedDataRecord(res) { CanWrite = CanWrite };
+            return null;
+        }
+        /// <summary>
         /// Gets a DocRecord using a column collection associated with the key. Will error if there is no matching key.
         /// </summary>
         /// <param name="key"></param>
@@ -216,7 +228,7 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="record"></param>
         /// <returns></returns>
-        public override DocRecordColumnCollection GetRecordColumnInfos(IRecord record)
+        public override DocRecordColumnCollection GetRecordColumnInfos(IDataRecord record)
         {
             if (record == null)
                 return null;

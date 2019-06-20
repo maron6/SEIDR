@@ -120,8 +120,23 @@ namespace SEIDR.Doc
     /// Includes paging for working with large files in batches
     /// </para>
     /// </summary>
-    public class DocReader<ReadType>:IEnumerable<ReadType>, IDisposable where ReadType:DocRecord, new()
+    public class DocReader<ReadType>:IEnumerable<ReadType>, IDisposable where ReadType: IDataRecord, new()
     {
+        /// <summary>
+        /// Preview the first <paramref name="charCount"/> characters from the file.
+        /// </summary>
+        /// <param name="FilePath"></param>
+        /// <param name="charCount"></param>
+        /// <returns></returns>
+        public static string Preview(string FilePath, int charCount = 3000)
+        {
+            char[] ret = new char[charCount];
+            using (var sr = new StreamReader(FilePath))
+            {
+                int x = sr.ReadBlock(ret, 0, charCount);
+                return new string(ret, 0, x);
+            }
+        }
         /// <summary>
         /// Goes through the data in the associated DocReader and attempts to check all columns for data types and attempts to narrow down the most likely data type.        
         /// </summary>

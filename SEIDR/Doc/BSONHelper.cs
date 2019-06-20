@@ -16,14 +16,15 @@ namespace SEIDR.Doc
         {
             var byteSet = encoding.GetBytes(record);
             int pos = 0;
-            return GetValue(byteSet, ref pos, out _, encoding);
+            return GetValue(byteSet, ref pos, out _, encoding).ToString();
         }
         public static string GetKey(string record, Encoding encoding, ref int position)
         {
             var byteSet = encoding.GetBytes(record);            
-            return GetValue(byteSet, ref position, out _, encoding);
+            return GetValue(byteSet, ref position, out _, encoding).ToString();
         }
-        public static string GetValue(byte[] input, ref int Position, out DocRecordColumnType format, Encoding ReadEncoding, string SubDelimiter = null)
+        
+        public static object GetValue(byte[] input, ref int Position, out DocRecordColumnType format, Encoding ReadEncoding, string SubDelimiter = null)
         {
             byte type = input[Position++];
             bool arr = false;
@@ -97,7 +98,7 @@ namespace SEIDR.Doc
             return result;*/
         }
 
-        static string[] DecodeArray(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding)
+        static object[] DecodeArray(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding)
             //where V:class //Must be nullable. E.g., string, DateTime?, int?
         {
             //check length
@@ -110,33 +111,86 @@ namespace SEIDR.Doc
 
             }
             return vs;
+        }        
+        public static string FormatObject(this DocRecordColumnType type, object o)
+        {
+            string result;
+            switch (type)
+            {
+                case DocRecordColumnType.Bool:
+                    result = (bool)o ? "TRUE" : "FALSE";
+                    break;
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                case DocRecordColumnType.Double:
+                    if (o is double)
+                    {
+                        var dbl = (double)o;
+                        if (type == DocRecordColumnType.Date)
+                            result = DateTime.FromOADate(dbl).ToString("yyyyMMdd");
+                        else if (type == DocRecordColumnType.DateTime)
+                            result = DateTime.FromOADate(dbl).ToString("yyyyMMddHHmmss");
+                        else
+                            result = dbl.ToString();
+                    }
+                    else
+                    {
+                        DateTime dt = (DateTime)o;
+                        if (type == DocRecordColumnType.Date)
+                            result = dt.ToString("yyyyMMdd");
+                        else
+                            result = dt.ToString("yyyyMMddHHmmss");
+                    }
+                    break;
+                case DocRecordColumnType.Decimal:
+                    result = ((decimal)o).ToString();
+                    break;
+                case DocRecordColumnType.Money:
+                    result = ((decimal)o).ToString("C");
+                    break;
+                case DocRecordColumnType.NUL:                    
+                    result = null;
+                    break;
+                case DocRecordColumnType.Unknown:
+                case DocRecordColumnType.Varchar:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Bigint:                    
+                case DocRecordColumnType.Int:                    
+                case DocRecordColumnType.Smallint:                    
+                case DocRecordColumnType.Tinyint:
+                default:
+                    result = o.ToString();
+                    break;
+            }
+            return result;
+
         }
-        static string DecodeItem(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding, byte TypeHeader) //where V: class
+        static object DecodeItem(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding, byte TypeHeader) //where V: class
         {
             //V result = default;
-            string result;
+            object result;
             int byteL;//number of records to move forward
             switch (format)
             {
                 case DocRecordColumnType.Bigint:
-                    result = BitConverter.ToInt64(input, Position).ToString();
+                    result = BitConverter.ToInt64(input, Position);
                     byteL = sizeof(long);
                     break;
                 case DocRecordColumnType.Int:
                     byteL = sizeof(int);
-                    result = BitConverter.ToInt32(input, Position).ToString();
+                    result = BitConverter.ToInt32(input, Position);
                     break;
                 case DocRecordColumnType.Smallint:
                     byteL = sizeof(short);
-                    result = BitConverter.ToInt16(input, Position).ToString();
+                    result = BitConverter.ToInt16(input, Position);
                     break;
                 case DocRecordColumnType.Tinyint:
                     byteL = sizeof(byte);
-                    result = input[Position].ToString();
+                    result = input[Position];
                     break;
                 case DocRecordColumnType.Bool:
                     byteL = 0;
-                    result = ((TypeHeader & 1) == 1) ? "TRUE" : "FALSE";
+                    result = ((TypeHeader & 1) == 1) ? true : false;
                     break;
                 case DocRecordColumnType.DateTime:
                 case DocRecordColumnType.Date:
@@ -192,13 +246,14 @@ namespace SEIDR.Doc
             }
         }
         static void EncodeType(DocRecordColumnType encodeType, object value, List<byte> work, Encoding WriteEncoding)
-        {
-
+        {            
             if (value == null || string.IsNullOrEmpty(value.ToString()))
             {
                 work.Add((int)DocRecordColumnType.NUL << OFFSET);
                 return;
             }
+            if (value is DataItem)
+                value = ((DataItem)value).Value;
             byte type = (byte)((int)encodeType << OFFSET);
             switch (encodeType)
             {
@@ -258,10 +313,10 @@ namespace SEIDR.Doc
                             case DocRecordColumnType.Tinyint:
                                 work.Add((byte)value);
                                 break;
-                            case DocRecordColumnType.Int:
+                            case DocRecordColumnType.Int:                                
                                 work.AddRange(BitConverter.GetBytes((int)value));
                                 break;
-                            case DocRecordColumnType.Smallint:
+                            case DocRecordColumnType.Smallint:                                
                                 work.AddRange(BitConverter.GetBytes((short)value));
                                 break;
                             case DocRecordColumnType.Bigint:
@@ -582,7 +637,7 @@ namespace SEIDR.Doc
             Encoding fileEncoding = metaData.FileEncoding;
             var byteSet = fileEncoding.GetBytes(content);
             var k = //GetKey(content, fileEncoding, ref position);
-                GetValue(byteSet, ref position, out _, fileEncoding);
+                GetValue(byteSet, ref position, out _, fileEncoding).ToString();
             var colSet = metaData.GetRecordColumnInfos(k);
             while (true)
             {
@@ -590,7 +645,7 @@ namespace SEIDR.Doc
                 {
 #if DEBUG
                     int test = position;
-                    string v = GetValue(byteSet, ref test, out _, fileEncoding);
+                    var v = GetValue(byteSet, ref test, out _, fileEncoding);
                     System.Diagnostics.Debug.WriteLine(v);
 #endif
                     if (!CheckValue(byteSet, ref position))
@@ -603,7 +658,7 @@ namespace SEIDR.Doc
                 positionFrom = position;
                 if (CheckValue(byteSet, position))
                 {
-                    k = GetValue(byteSet, ref position, out _, fileEncoding);
+                    k = GetValue(byteSet, ref position, out _, fileEncoding).ToString();
                     colSet = metaData.GetRecordColumnInfos(k);
                 }
                 else
@@ -619,7 +674,7 @@ namespace SEIDR.Doc
             Encoding fileEncoding = metaData.FileEncoding;
             var byteSet = fileEncoding.GetBytes(content);
             var k = //GetKey(content, fileEncoding, ref position);
-                GetValue(byteSet, ref position, out _, fileEncoding);
+                GetValue(byteSet, ref position, out _, fileEncoding).ToString();
             var colSet = metaData.GetRecordColumnInfos(k);
             while (true)
             {
@@ -627,7 +682,7 @@ namespace SEIDR.Doc
                 {
 #if DEBUG
                     int test = position;
-                    string v = GetValue(byteSet, ref test, out _, fileEncoding);
+                    var v = GetValue(byteSet, ref test, out _, fileEncoding);
                     System.Diagnostics.Debug.WriteLine(v);
 #endif
                     if (!CheckValue(byteSet, ref position))
@@ -640,7 +695,7 @@ namespace SEIDR.Doc
                 positionFrom = position;
                 if (CheckValue(byteSet, position))
                 {
-                    k = GetValue(byteSet, ref position, out _, fileEncoding);
+                    k = GetValue(byteSet, ref position, out _, fileEncoding).ToString();
                     colSet = metaData.GetRecordColumnInfos(k);
                 }
                 else

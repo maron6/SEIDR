@@ -73,7 +73,7 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="record"></param>
         /// <returns></returns>
-        public abstract DocRecordColumnCollection GetRecordColumnInfos(IRecord record);
+        public abstract DocRecordColumnCollection GetRecordColumnInfos(IDataRecord record);
         /// <summary>
         /// Parses a line from a document and returns a DocRecord.
         /// </summary>
@@ -563,7 +563,7 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="record"></param>
         /// <returns></returns>
-        public ReadType ParseRecord<ReadType>(string record) where ReadType : DocRecord, new()
+        public ReadType ParseRecord<ReadType>(string record) where ReadType : IDataRecord, new()
         {
             return ParseRecord<ReadType>(CanWrite, record);
         }
@@ -573,10 +573,10 @@ namespace SEIDR.Doc
         /// <param name="writeMode"></param>
         /// <param name="record"></param>
         /// <returns></returns>
-        public ReadType ParseRecord<ReadType>(bool writeMode, string record) where ReadType : DocRecord, new()
+        public ReadType ParseRecord<ReadType>(bool writeMode, string record) where ReadType : IDataRecord, new()
         {
             if (string.IsNullOrEmpty(record))
-                return null;
+                return default;
             if (!Valid)
                 throw new InvalidOperationException("Collection state is not valid.");
             if(Format == DocRecordFormat.SBSON)
@@ -693,7 +693,9 @@ namespace SEIDR.Doc
                 else if(Format == DocRecordFormat.SBSON)
                 {                    
                     DocRecordColumnType dataType;
-                    string colResult = SBSONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
+                    var temp = SBSONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
+                    var colResult = dataType.FormatObject(temp);
+
                     if (dataType == DocRecordColumnType.Unknown)
                     {
                         split[i] = colResult;
@@ -778,7 +780,7 @@ namespace SEIDR.Doc
         /// <param name="IncludeLineEndDelimiter"></param>
         /// <param name="columnMapping"></param>
         /// <returns></returns>
-        public string FormatRecord(DocRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
+        public string FormatRecord(IDataRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
         {
             if (Format == DocRecordFormat.SBSON)
                 return FormatBSON(record, IncludeLineEndDelimiter, columnMapping);
@@ -881,12 +883,22 @@ namespace SEIDR.Doc
             var colSet = GetRecordColumnInfos((string) null);
             return new DocRecord(colSet) { CanWrite = CanWrite };
         }
-        protected ReadType ParseBSON<ReadType>(bool WriteMode, string Record) where ReadType : DocRecord, new()
+        /// <summary>
+        /// Gets a basic TypedDataRecord that can be used.
+        /// </summary>
+        /// <returns></returns>
+        public virtual TypedDataRecord GetBasicTypedDataRecord()
+        {
+            var colSet = GetRecordColumnInfos((string) null);
+            return new TypedDataRecord(colSet) { CanWrite = CanWrite };
+        }
+        
+        protected ReadType ParseBSON<ReadType>(bool WriteMode, string Record) where ReadType : IDataRecord, new()
         {
             var colSet = GetRecordColumnInfos(Record);
             var result = new ReadType();
             var byteSet = FileEncoding.GetBytes(Record);
-            string[] content = new string[colSet.Columns.Count];
+            object[] content = new object[colSet.Columns.Count];
             int position = 0;
             for (int i = 0; i < colSet.Columns.Count; i++)
             {
@@ -897,7 +909,7 @@ namespace SEIDR.Doc
                     throw new MissingColumnException(i, colSet.Columns.Count - 1);
                 }
                 DocRecordColumnType dataType;
-                string colResult = SBSONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
+                var colResult = SBSONHelper.GetValue(byteSet, ref position, out dataType, FileEncoding);
                 if(dataType == DocRecordColumnType.Unknown)
                 {
                     content[i] = colResult;
@@ -925,7 +937,7 @@ namespace SEIDR.Doc
             //result.SetParsedContent(content);
             return result;
         }
-        protected string FormatBSON(DocRecord record, bool IncludeLineEndDelimiter)
+        protected string FormatBSON(IDataRecord record, bool IncludeLineEndDelimiter)
         {
             StringBuilder sb = new StringBuilder();
             var Columns = record.Columns;
@@ -943,7 +955,7 @@ namespace SEIDR.Doc
                 CheckAddLineDelimiter(sb);
             return sb.ToString();
         }
-        protected string FormatBSON(DocRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
+        protected string FormatBSON(IDataRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
         {
             if (columnMapping == null || columnMapping.Count == 0)
                 return FormatBSON(record, IncludeLineEndDelimiter);
@@ -975,7 +987,7 @@ namespace SEIDR.Doc
         /// <param name="record"></param>
         /// <param name="IncludeLineEndDelimiter"></param>
         /// <returns></returns>
-        public string FormatRecord(DocRecord record, bool IncludeLineEndDelimiter)
+        public string FormatRecord(IDataRecord record, bool IncludeLineEndDelimiter)
         {
             if (Format == DocRecordFormat.SBSON)
                 return FormatBSON(record, IncludeLineEndDelimiter);
