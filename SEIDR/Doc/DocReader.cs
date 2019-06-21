@@ -419,7 +419,9 @@ namespace SEIDR.Doc
             sr.Peek(); //BOM issue shows up after initial open, peek allows us to manage during set up
             if (_MetaData.FileEncoding == null)
                 _MetaData.FileEncoding = sr.CurrentEncoding;
-            long position = 0;     
+            long position = 0;
+            if (_MetaData.TrustPreamble)
+                position = _MetaData.FileEncoding.GetPreamble().Length;
             while(SetupPageMetaData(ref position, ref pp)) { }
             if (!_MetaData.Valid)
             {
@@ -487,10 +489,15 @@ namespace SEIDR.Doc
                 return false; //empty, nothing to do. Shouldn't happen, though, since startPosition should be the previous end position after removing the end...
             //bool end = x < _MetaData.PageSize;
             //if(!end && startPosition + x > )
-            if (startPosition < _MetaData.PageSize)
+            if (startPosition < _MetaData.PageSize && !_MetaData.TrustPreamble)
             {
-                var preamble = sr.CurrentEncoding.GetPreamble();
-                if (((int)buffer[0]).In(65279, 65533, 0))
+                var preamble = sr.CurrentEncoding.GetPreamble();                
+                char pc = buffer[0];
+                if (char.IsControl(pc) 
+                    || ( !char.IsWhiteSpace(pc) && !char.IsLetterOrDigit(pc) && !char.IsNumber(pc)
+                            && !char.IsSeparator(pc) && !char.IsPunctuation(pc) && !char.IsSymbol(pc)                        
+                    ))
+                //if (((int)buffer[0]).In(65279, 65533, 0))
                 {
                     if (preamble.Length > 0 && buffer.StartsWithByteSet(sr.CurrentEncoding, preamble))
                     {
@@ -499,14 +506,14 @@ namespace SEIDR.Doc
                     else
                         startPosition += 1; // BOM fix: move initial position forward 1 by 1 until we have our initial position completely past the BOM 
                                             /*
-                                             Behaviour seen: 
-                                             First Pass: Looks normal
-                                             Second pass: character 65279 shows up in position 0
-                                             Third pass: 65533 shows up twice. 
+                                                Behaviour seen: 
+                                                First Pass: Looks normal
+                                                Second pass: character 65279 shows up in position 0
+                                                Third pass: 65533 shows up twice. 
 
                                             May be able to just go forward a hardcoded value if we see 65279 in position 0 with the throwaway from setup, but this way we can be sure that we get a clean start.
                                             Would need to see if other encodings that make use of a byte order specification at the start of the stream could have similar issue but with different char values or required position offsets for startPosition
-                                             */
+                                                */
                     return true;
                 }
                 if(preamble.Length > 0 && buffer.StartsWithByteSet(sr.CurrentEncoding, preamble))
@@ -1055,7 +1062,9 @@ namespace SEIDR.Doc
                 return CurrentPage;
             }
 #endif
-            Parallel.ForEach(GetPageTupleLines(pageNumber), new ParallelOptions { MaxDegreeOfParallelism = MaxDegreeParallelism }, line =>
+            Parallel.ForEach(GetPageTupleLines(pageNumber), 
+                new ParallelOptions { MaxDegreeOfParallelism = MaxDegreeParallelism }, 
+                line =>
             {
                 var rec = _MetaData.ParseRecord<ReadType>(line.Item1);
                 LineRecords[line.Item2] = rec; //maintain original index.
@@ -1064,6 +1073,7 @@ namespace SEIDR.Doc
             CurrentPage = new List<ReadType>(LineRecords);
             return CurrentPage;
         }
+     
 
         #endregion
 

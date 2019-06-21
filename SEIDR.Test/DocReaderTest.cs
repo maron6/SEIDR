@@ -13,7 +13,9 @@ namespace SEIDR.Test
         [TestMethod]
         public void TypedBSONTest()
         {
-            const int RECORDCOUNT = 300 * 300;
+            //const int RECORDCOUNT = 3000 * 3000; //0:02:53.1901146
+            const int RECORDCOUNT = 300 * 300; //0:00:03.442483 
+            //Bson file is ~60% of size, in addition to having typed metadata
             DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
             write
                 .SetHasHeader(false)
@@ -57,7 +59,7 @@ namespace SEIDR.Test
             using (var read = new DocReader<TypedDataRecord>(write))
             using (var out2 = new DocWriter(delimitedCopy))
             {
-                read.MaxDegreeParallelism = 1;//for debug purposes
+                //read.MaxDegreeParallelism = 1;//for debug purposes
                 Assert.AreEqual(RECORDCOUNT, read.RecordCount); //Missing one record with array mode...
                 read.ForEachIndex((r, idx) =>
                 {
@@ -886,8 +888,11 @@ LineNumber|Description
         [TestMethod]
         public void BOM_ReadTest()
         {
-            DocMetaData.TESTMODE = true;
-            var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "bomCheck.txt", "bc").SetDelimiter('|').SetPageSize(80);
+            MetaDataBase.TESTMODE = true;
+            var md = (DocMetaData)new DocMetaData(TEST_FOLDER + "bomCheck.txt", "bc")
+                .SetDelimiter('|')
+                .SetPageSize(80)
+                .SetTrustPreamble(true);
             //md.SetFileEncoding(System.Text.Encoding.UTF8);
             md.SetFileEncoding(null); 
             using (var r = new DocReader(md))

@@ -14,6 +14,17 @@ namespace SEIDR.Doc
     public abstract class MetaDataBase
     {
         /// <summary>
+        /// Indicates that we should trust the preamble to cover any control characters at the beginning.
+        /// <para>Any control characters beside the preamble are expected and for the data, if true.</para>
+        /// </summary>
+        public bool TrustPreamble { get; set; } = true;
+        public MetaDataBase SetTrustPreamble(bool trust)
+        {
+            TrustPreamble = trust;
+            return this;
+        }
+
+        /// <summary>
         /// Perform basic checks to make sure meta Data is valid.
         /// </summary>
         /// <param name="mode"></param>
