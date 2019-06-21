@@ -65,6 +65,28 @@ namespace SEIDR.Doc
                 return null;
             return (int)item;
         }
+        public static implicit operator int[](DataItem item)
+        {
+            if (item.Value is int[])
+                return (int[])item.Value;
+            else if (item.Value is IList<int>)
+            {
+                var i = item.Value as IList<int>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match int[]");
+        }
+        public static implicit operator int?[](DataItem item)
+        {
+            if (item.Value is int?[])
+                return (int?[])item.Value;
+            else if (item.Value is IList<int?>)
+            {
+                var i = item.Value as IList<int?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match int[]");
+        }
         public static implicit operator bool(DataItem item)
         {
             if (item.DataType == DocRecordColumnType.Bool)
@@ -78,6 +100,28 @@ namespace SEIDR.Doc
             if (item.DataType == DocRecordColumnType.NUL)
                 return null;
             return (bool)item;
+        }
+        public static implicit operator bool[](DataItem item)
+        {
+            if (item.Value is bool[])
+                return (bool[])item.Value;            
+            else if (item.Value is IList<bool>)
+            {
+                var i = item.Value as IList<bool>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match bool[]");
+        }
+        public static implicit operator bool?[](DataItem item)
+        {
+            if (item.Value is bool?[])
+                return (bool?[])item.Value;            
+            else if (item.Value is IList<bool?>)
+            {
+                var i = item.Value as IList<bool?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match bool?[]");
         }
         public static implicit operator byte(DataItem item)
         {
@@ -105,6 +149,29 @@ namespace SEIDR.Doc
             if (item.DataType == DocRecordColumnType.NUL)
                 return null;
             return (byte)item;
+        }
+
+        public static implicit operator byte[](DataItem item)
+        {
+            if (item.Value is byte[])
+                return (byte[])item.Value;
+            else if (item.Value is IList<byte>)
+            {
+                var i = item.Value as IList<byte>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match byte[]");
+        }
+        public static implicit operator byte?[](DataItem item)
+        {
+            if (item.Value is byte?[])
+                return (byte?[])item.Value;
+            else if (item.Value is IList<byte?>)
+            {
+                var i = item.Value as IList<byte?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match byte?[]");
         }
         public static implicit operator short(DataItem item)
         {
@@ -135,6 +202,29 @@ namespace SEIDR.Doc
                 return null;
             return (short)item;
         }
+
+        public static implicit operator short[](DataItem item)
+        {
+            if (item.Value is short[])
+                return (short[])item.Value;
+            else if (item.Value is IList<short>)
+            {
+                var i = item.Value as IList<short>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match short[]");
+        }
+        public static implicit operator short?[](DataItem item)
+        {
+            if (item.Value is short?[])
+                return (short?[])item.Value;
+            else if (item.Value is IList<short?>)
+            {
+                var i = item.Value as IList<short?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match short?[]");
+        }
         public static implicit operator decimal(DataItem item)
         {
             switch (item.DataType)
@@ -164,7 +254,30 @@ namespace SEIDR.Doc
                 return null;
             return (decimal)item;
         }
-    
+
+        public static implicit operator decimal[](DataItem item)
+        {
+            if (item.Value is decimal[])
+                return (decimal[])item.Value;
+            else if (item.Value is IList<decimal>)
+            {
+                var i = item.Value as IList<decimal>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match decimal[]");
+        }
+        public static implicit operator decimal?[](DataItem item)
+        {
+            if (item.Value is decimal?[])
+                return (decimal?[])item.Value;
+            else if (item.Value is IList<decimal?>)
+            {
+                var i = item.Value as IList<decimal?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match decimal?[]");
+        }
+
         public static implicit operator long(DataItem item)
         {
             switch (item.DataType)
@@ -193,6 +306,29 @@ namespace SEIDR.Doc
             if (item.DataType == DocRecordColumnType.NUL)
                 return null;
             return (long)item;
+        }
+
+        public static implicit operator long[](DataItem item)
+        {
+            if (item.Value is long[])
+                return (long[])item.Value;
+            else if (item.Value is IList<long>)
+            {
+                var i = item.Value as IList<long>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match long[]");
+        }
+        public static implicit operator long?[](DataItem item)
+        {
+            if (item.Value is long?[])
+                return (long?[])item.Value;
+            else if (item.Value is IList<long?>)
+            {
+                var i = item.Value as IList<long?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match long?[]");
         }
         public static implicit operator DateTime(DataItem item)
         {
@@ -223,6 +359,29 @@ namespace SEIDR.Doc
                 return null;
             return (DateTime)item;
         }
+        
+        public static implicit operator DateTime[](DataItem item)
+        {
+            if (item.Value is DateTime[])
+                return (DateTime[])item.Value;
+            else if (item.Value is IList<DateTime>)
+            {
+                var i = item.Value as IList<DateTime>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match DateTime[]");
+        }
+        public static implicit operator DateTime?[](DataItem item)
+        {
+            if (item.Value is DateTime?[])
+                return (DateTime?[])item.Value;
+            else if (item.Value is IList<DateTime?>)
+            {
+                var i = item.Value as IList<DateTime?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match DateTime?[]");
+        }
         public static implicit operator string(DataItem item)
         {
             if (item.DataType == DocRecordColumnType.NUL)
@@ -241,6 +400,19 @@ namespace SEIDR.Doc
             }
             return item.Value.ToString();
         }
+
+        public static implicit operator string[](DataItem item)
+        {
+            if (item.Value is string[])
+                return (string[])item.Value;
+            else if (item.Value is IList<string>)
+            {
+                var i = item.Value as IList<string>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match string[]");
+        }
+
         public override bool Equals(object obj)
         {
             if (Value == null && obj == null)
@@ -258,6 +430,61 @@ namespace SEIDR.Doc
             return Value?.ToString();
         }
         #endregion
+        /// <summary>
+        /// If object type is IList rather than a plain array, convert to array.
+        /// </summary>
+        /// <param name="o"></param>
+        /// <param name="dataType"></param>
+        /// <returns></returns>
+        public static void CheckArrayObject(ref object o, DocRecordColumnType dataType)
+        {
+            var tInfo = o.GetType();
+            if (tInfo.IsArray)
+                return;
+            switch (dataType)
+            {
+                case DocRecordColumnType.Int:
+                    if (!CheckType<int>(ref o))
+                        CheckType<int?>(ref o);
+                    break;
+                case DocRecordColumnType.Bigint:
+                    if(!CheckType<long>(ref o))
+                        CheckType<long?>(ref o);
+                    break;
+                case DocRecordColumnType.Smallint:
+                    if(!CheckType<short>(ref o))
+                        CheckType<short?>(ref o);
+                    break;
+                case DocRecordColumnType.Date:
+                case DocRecordColumnType.DateTime:
+                    if (!CheckType<DateTime>(ref o))
+                        CheckType<DateTime?>(ref o);
+                    break;
+                case DocRecordColumnType.Tinyint:
+                    if (!CheckType<byte>(ref o))
+                        CheckType<byte?>(ref o);
+                    break;
+                case DocRecordColumnType.Decimal:
+                case DocRecordColumnType.Money:
+                    if (!CheckType<decimal>(ref o))
+                        CheckType<decimal?>(ref o);
+                    break;
+                default:
+                    CheckType<string>(ref o);
+                    break;
+
+            }
+        }
+        static bool CheckType<T>(ref object o)
+        {
+            if(o is IList<T>)
+            {
+                o = ((IList<T>)o).ToArray();
+                return true;
+            }
+            return false;
+        }
+
         /*
         #region explicit
         public static explicit operator int(DataItem item)

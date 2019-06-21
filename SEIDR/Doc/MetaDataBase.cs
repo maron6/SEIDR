@@ -941,19 +941,21 @@ namespace SEIDR.Doc
         {
             StringBuilder sb = new StringBuilder();
             var Columns = record.Columns;
+            int len = 0;
             Columns.ForEachIndex((col, idx) =>
             {
                 object o;
                 if (record.TryGet(col, out o))
                 {
-                    sb.Append(SBSONHelper.SetResult(col, o, FileEncoding));
+                    sb.Append(SBSONHelper.SetResult(col, o, FileEncoding, ref len));
                 }
                 else
-                    sb.Append(SBSONHelper.SetResult(col, null, FileEncoding));                
+                    sb.Append(SBSONHelper.SetResult(col, null, FileEncoding, ref len));
             });
-            if (IncludeLineEndDelimiter)
-                CheckAddLineDelimiter(sb);
-            return sb.ToString();
+            //if (IncludeLineEndDelimiter)
+            //    CheckAddLineDelimiter(sb);
+            var prefix = BitConverter.GetBytes(len);
+            return FileEncoding.GetString(prefix) + sb.ToString();
         }
         protected string FormatBSON(IDataRecord record, bool IncludeLineEndDelimiter, IDictionary<int, DocRecordColumnInfo> columnMapping)
         {
@@ -961,6 +963,7 @@ namespace SEIDR.Doc
                 return FormatBSON(record, IncludeLineEndDelimiter);
             StringBuilder sb = new StringBuilder();
             var Columns = record.Columns;
+            int byteCount = 0;
             int Last = Columns.LastPosition.MaxOfComparison(columnMapping.Max(k => k.Key));
             for (int idx = 0; idx <= Last; idx++)
             {
@@ -972,14 +975,15 @@ namespace SEIDR.Doc
                 object o;
                 if (record.TryGet(col, out o))
                 {
-                    sb.Append(SBSONHelper.SetResult(col, o, FileEncoding));
+                    sb.Append(SBSONHelper.SetResult(col, o, FileEncoding, ref byteCount));
                 }
                 else
-                    sb.Append(SBSONHelper.SetResult(col, null, FileEncoding));                                
+                    sb.Append(SBSONHelper.SetResult(col, null, FileEncoding, ref byteCount));                                
             }
-            if (IncludeLineEndDelimiter)
-                CheckAddLineDelimiter(sb);
-            return sb.ToString();
+            //if (IncludeLineEndDelimiter)
+            //    CheckAddLineDelimiter(sb);
+            var prefix = BitConverter.GetBytes(byteCount);
+            return FileEncoding.GetString(prefix) + sb.ToString();
         }
         /// <summary>
         /// Formats a record for writing to output.

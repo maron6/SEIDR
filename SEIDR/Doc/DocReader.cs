@@ -1024,10 +1024,11 @@ namespace SEIDR.Doc
         /// cached list, the most recent result from calling <see cref="GetPage(int, bool)"/>
         /// </summary>
         protected List<ReadType> CurrentPage = null;
+        public int MaxDegreeParallelism = -1;
         /// <summary>
         /// Parallelism options for populating the List in <see cref="GetPage(int, bool)"/>
         /// </summary>
-        public static ParallelOptions ParallelismOptions { get; private set; } = new ParallelOptions();
+        //public static ParallelOptions ParallelismOptions { get; private set; } = new ParallelOptions();
         /// <summary>
         /// Gets the content of the specified 'page'
         /// </summary>
@@ -1041,11 +1042,25 @@ namespace SEIDR.Doc
             //var lines = GetPageLines(pageNumber);
             var LineRecords = new ReadType[Pages[pageNumber].RecordCount];
             //List<ReadType> LineRecords = new List<ReadType>(Pages[pageNumber].RecordCount);            
-            Parallel.ForEach(GetPageTupleLines(pageNumber), ParallelismOptions, line =>
+#if DEBUG
+            if (MaxDegreeParallelism == 1)
+            {
+                GetPageLines(pageNumber).ForEachIndex((line, idx) =>
+                {
+                    var rec = _MetaData.ParseRecord<ReadType>(line);
+                    LineRecords[idx] = rec;
+                });
+
+                CurrentPage = new List<ReadType>(LineRecords);
+                return CurrentPage;
+            }
+#endif
+            Parallel.ForEach(GetPageTupleLines(pageNumber), new ParallelOptions { MaxDegreeOfParallelism = MaxDegreeParallelism }, line =>
             {
                 var rec = _MetaData.ParseRecord<ReadType>(line.Item1);
                 LineRecords[line.Item2] = rec; //maintain original index.
             });
+            
             CurrentPage = new List<ReadType>(LineRecords);
             return CurrentPage;
         }

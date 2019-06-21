@@ -29,7 +29,32 @@ namespace SEIDR.Doc
         /// <summary>
         /// For formatting - indicates that data is separated by a subdelimiter and can be returned as an array or list.
         /// </summary>
-        public bool Array { get; set; }
+        public bool Array { get; private set; }
+        /// <summary>
+        /// Data is expected to be an array - delimiter for splitting data.
+        /// </summary>
+        public string ArrayDelimiter { get; private set; }
+        /// <summary>
+        /// Set to Array mode, and also set the ArrayDelimiter.
+        /// </summary>
+        /// <param name="arrDelim"></param>
+        /// <returns></returns>
+        public DocRecordColumnInfo SetArrayMode(string arrDelim)
+        {
+            ArrayDelimiter = arrDelim;
+            Array = true;
+            return this;
+        }
+        /// <summary>
+        /// Sets <see cref="Array"/> to false, and clears the <see cref="ArrayDelimiter"/>
+        /// </summary>
+        /// <returns></returns>
+        public DocRecordColumnInfo UnsetArrayMode()
+        {
+            Array = false;
+            ArrayDelimiter = null;
+            return this;
+        }
         /// <summary>
         /// Indicates type of data
         /// </summary>
@@ -281,6 +306,16 @@ namespace SEIDR.Doc
         public bool CompareDataType(object o)
         {
             var tInfo = o.GetType();
+            if (Array )
+            {
+                if(tInfo.IsArray || o is System.Collections.IList)
+                    tInfo = tInfo.GetElementType();
+                else
+                {
+                    return false;
+                }
+                
+            }
             tInfo = Nullable.GetUnderlyingType(tInfo) ?? tInfo;
             var tt = Type.GetTypeCode(tInfo);
             
@@ -303,6 +338,8 @@ namespace SEIDR.Doc
                     return tt == TypeCode.DateTime;
                 case DocRecordColumnType.Double:
                     return tt == TypeCode.Double;
+                case DocRecordColumnType.Bool:
+                    return tt == TypeCode.Boolean;
                 default:
                     return true;
             }
@@ -352,14 +389,37 @@ namespace SEIDR.Doc
             Result = default;
             return false;
         }      
+        public bool TryGetArray(string val, out object result)
+        {
+            var source = val.SplitByKeyword(ArrayDelimiter);
+            var t = new List<object>();
+            foreach(var s in source)
+            {
+                object o;
+                if (TryGet(s, out o, true))
+                    t.Add(o);
+                else
+                {
+                    result = null;
+                    return false;
+                }
+            }
+            result = t.ToArray();
+            return true;
+        }
         /// <summary>
         /// Tries to parse out the data from the value, based on Column data type.
         /// </summary>
         /// <param name="val"></param>
         /// <param name="result"></param>
+        /// <param name="fromArray">Indicates that the caller is trying to get individual items from the array.</param>
         /// <returns></returns>
-        public bool TryGet(string val, out object result)
+        public bool TryGet(string val, out object result, bool fromArray = false)
         {
+            if(Array && !fromArray)
+            {
+                return TryGetArray(val, out result);
+            }
             bool nulVal = false;
             if (val == null || NullIfEmpty && string.IsNullOrWhiteSpace(val))
                 nulVal = true;

@@ -34,7 +34,13 @@ namespace SEIDR.Doc
             }
         }        
         public void SetValue(int Position, object value) => SetValue(Columns[Position], value);
-        void SetValue(DocRecordColumnInfo column, object value, bool RaiseColChanged = true)
+        /// <summary>
+        /// Sets the value in the internal content array.
+        /// </summary>
+        /// <param name="column"></param>
+        /// <param name="value"></param>
+        /// <param name="RaiseColChanged"></param>
+        protected void SetValue(DocRecordColumnInfo column, object value, bool RaiseColChanged = true)
         {
             if (!CanWrite)
                 throw new InvalidOperationException("Not allowed to write values.");
@@ -47,25 +53,31 @@ namespace SEIDR.Doc
                 n = new DataItem(null, DocRecordColumnType.NUL);
                 content.SetWithExpansion(column.Position, n, n);
             }
-            else if (value is string)
+            else
             {
-                object o;
-                if (column.TryGet((string)value, out o))
+                if(column.Array)
                 {
-                    n = new DataItem(o, column.DataType);
+                    DataItem.CheckArrayObject(ref value, column.DataType);                    
+                }
+                if (value is string)
+                {
+                    object o;
+                    if (column.TryGet((string)value, out o))
+                    {
+                        n = new DataItem(o, column.DataType);
+                        content.SetWithExpansion(column.Position, n, new DataItem(null, DocRecordColumnType.NUL));
+                    }
+                    else
+                        throw new ArgumentException("Value type (" + value.GetType().Name + ") does not match expected - " + column.DataType, nameof(value));
+                }
+                else if (column.CompareDataType(value))
+                {
+                    n = new DataItem(value, column.DataType);
                     content.SetWithExpansion(column.Position, n, new DataItem(null, DocRecordColumnType.NUL));
                 }
                 else
                     throw new ArgumentException("Value type (" + value.GetType().Name + ") does not match expected - " + column.DataType, nameof(value));
             }
-            else if (column.CompareDataType(value))
-            {
-                n = new DataItem(value, column.DataType);
-                content.SetWithExpansion(column.Position, n, new DataItem(null, DocRecordColumnType.NUL));
-            }
-            else
-                throw new ArgumentException("Value type (" + value.GetType().Name + ") does not match expected - " + column.DataType, nameof(value));
-
             if (RaiseColChanged && x != null)
             {
                 TypedRecordChangedEventArgs e = new TypedRecordChangedEventArgs(column, x, n);
@@ -114,6 +126,13 @@ namespace SEIDR.Doc
             }
         }
         List<DataItem> content;
+        /// <summary>
+        /// For debug purposes - allows viewing a copy of the internal content.
+        /// </summary>
+        public DataItem[] ContentCopy
+        {
+            get { return content.ToArray(); }
+        }
         string IDataRecord.GetBestMatch(string column, string alias)
         {
             return ((IDataRecord)this)[column, alias];
@@ -121,7 +140,7 @@ namespace SEIDR.Doc
 
         public bool HasColumn(string alias, string Column)
         {
-            throw new NotImplementedException();
+            return Columns.HasColumn(alias, Column);
         }
 
         public bool TryGet(DocRecordColumnInfo columnInfo, out object result)

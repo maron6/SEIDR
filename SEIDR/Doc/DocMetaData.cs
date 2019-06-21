@@ -373,7 +373,13 @@ namespace SEIDR.Doc
             Columns.AddColumn(ColumnName, MaxLength, textQualify: TextQual, dataType: DataType);
             return this;
         }
+        public DocRecordColumnInfo AddGetColumn(string ColumnName, int? MaxLength = null, bool TextQual = false, DocRecordColumnType DataType = DocRecordColumnType.Unknown)
+        {
+            if (FixWidthMode && MaxLength == null)
+                throw new ArgumentNullException(nameof(MaxLength), $"MetaData indicates fixed width mode, but a length was not provided for new column '{ColumnName}'");
+            return Columns.AddColumn(ColumnName, MaxLength, textQualify: TextQual, dataType: DataType);            
+        }
 
-      
+
     }   
 }

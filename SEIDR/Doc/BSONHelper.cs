@@ -10,7 +10,8 @@ namespace SEIDR.Doc
     public static class SBSONHelper
     {
         const int BITS_PER_BYTE = 8;
-        const byte OFFSET = 2;                
+        const byte OFFSET = 2;
+        const int TYPE_SPACER = (1 << OFFSET) - 1;
         //const int STRING_CUTOFF = (byte.MaxValue >> OFFSET) << (BITS_PER_BYTE * 2);
         public static string GetKey(string record, Encoding encoding)
         {
@@ -23,21 +24,32 @@ namespace SEIDR.Doc
             var byteSet = encoding.GetBytes(record);            
             return GetValue(byteSet, ref position, out _, encoding).ToString();
         }
-        
-        public static object GetValue(byte[] input, ref int Position, out DocRecordColumnType format, Encoding ReadEncoding, string SubDelimiter = null)
+        public static object GetValue(byte[] input, ref int Position, out DocRecordColumnType format, Encoding ReadEncoding)
+        {
+            string _ = default;
+            return GetValue(input, ref Position, out format, ReadEncoding, ref _);
+        }
+        public static object GetValue(byte[] input, ref int Position, out DocRecordColumnType format, Encoding ReadEncoding, ref string SubDelimiter)
         {
             byte type = input[Position++];
             bool arr = false;
+            bool nullable = false;
             if ((type & 0b1000_0000) != 0)
             {
-                arr = true;
-                type &= 0b0111_1111; //remove array flag.
+                arr = true;                                
+                if ((type & 0b0000_0001) != 0)                
+                    nullable = true;
+                type &= 0b0111_1110; //remove array flag + option flag. 
+
                 if (SubDelimiter == null)
                     SubDelimiter = "*"; //Decode type
             }
             format = (DocRecordColumnType)(type >> OFFSET);
             if (arr)
-                return string.Join(SubDelimiter, DecodeArray(input, ref Position, format, ReadEncoding));
+            {
+                return DecodeArray(input, ref Position, format, ReadEncoding, nullable);
+                //return string.Join(SubDelimiter, DecodeArray(input, ref Position, format, ReadEncoding));
+            }
             else
                 return DecodeItem(input, ref Position, format, ReadEncoding, type);
             //int byteL = 0;
@@ -98,20 +110,84 @@ namespace SEIDR.Doc
             return result;*/
         }
 
-        static object[] DecodeArray(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding)
+        static object DecodeArray(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding, bool nullable)
             //where V:class //Must be nullable. E.g., string, DateTime?, int?
         {
             //check length
             int l = BitConverter.ToInt32(input, Position);
             Position += sizeof(int);
             //V[] vs = new V[l];
-            string[] vs = new string[l]; //results are strings for the 
-            for(int i = 0; i < Position; i++)
+
+            //ToDo: put nullable into the type option.
+            switch (format)
             {
+                case DocRecordColumnType.Bigint:                 
+                    if(nullable)
+                        return DecodeArray<long?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<long>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Int:
+                    if(nullable)
+                        return DecodeArray<int?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<int>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Smallint:
+                    if(nullable)
+                        return DecodeArray<short?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<short>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Tinyint:
+                    if(nullable)
+                        return DecodeArray<byte?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<byte>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Bool:
+                    if(nullable)
+                        return DecodeArray <bool?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<bool>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Decimal:
+                case DocRecordColumnType.Money:
+                    if(nullable)
+                        return DecodeArray<decimal?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<decimal>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Double:
+                    if(nullable)
+                        return DecodeArray<double?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<double>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Date:
+                case DocRecordColumnType.DateTime:
+                    if(nullable)
+                        return DecodeArray<DateTime?>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<DateTime>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Varchar:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Unknown: //obj?
+                default:
+                    return DecodeArray<string>(input, ref Position, format, ReadEncoding, l);
 
             }
+            /*
+            var vs = new object[l]; //results are strings for the 
+            for(int i = 0; i < l; i++)
+            {
+                byte t = input[Position++];
+                vs[i] = DecodeItem(input, ref Position, format, ReadEncoding, t); 
+            }
             return vs;
+            */
         }        
+        static T[] DecodeArray<T>(byte[] input, ref int Position, DocRecordColumnType decodeType, Encoding readEncoding, int len)            
+        {
+            T[] ret = new T[len];
+            for(int i = 0; i < len; i++)
+            {
+                byte t = input[Position++];
+                ret[i] = TryDecode<T>(input, ref Position, decodeType, readEncoding, t);
+            }
+            return ret;
+        }
+        /// <summary>
+        /// Format a typed object into a string based to a standard format.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="o"></param>
+        /// <returns></returns>
         public static string FormatObject(this DocRecordColumnType type, object o)
         {
             string result;
@@ -165,6 +241,15 @@ namespace SEIDR.Doc
             return result;
 
         }
+        static T TryDecode<T>(byte[] input, ref int position, DocRecordColumnType format, Encoding read, byte typeHeader)
+        {
+            var o = DecodeItem(input, ref position, format, read, typeHeader);
+            if (o == null)
+                return default;
+            if(o is T)            
+                return (T)o;                            
+            return default;
+        }
         static object DecodeItem(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding, byte TypeHeader) //where V: class
         {
             //V result = default;
@@ -209,7 +294,7 @@ namespace SEIDR.Doc
                 case DocRecordColumnType.NVarchar:
                 case DocRecordColumnType.Decimal:
                 case DocRecordColumnType.Money:
-                    byteL = (int)TypeHeader & 3; //Last two bytes - will be a value between 00 and 11 (0-3), indicating i + 1 bytes to int (number of characters to read from bytes as a string)
+                    byteL = TypeHeader & TYPE_SPACER; //Last two bytes - will be a value between 00 and 11 (0-3), indicating i + 1 bytes to int (number of characters to read from bytes as a string)
                     int L = input[Position++]; //0 - just a single byte.
                     for(int i = 1; i <= byteL; i++)
                     {
@@ -227,18 +312,28 @@ namespace SEIDR.Doc
             Position += byteL;
             return result;
         }
-        static void EncodeArray<T>(DocRecordColumnType encodeType, object value, List<byte> work, Encoding WriteEncoding)
+        static void EncodeArray<T, L>(DocRecordColumnType encodeType, object value, List<byte> work, Encoding WriteEncoding, bool nullable) where L: IList<T>
         {            
-            if (value == null || string.IsNullOrEmpty(value.ToString()) || !(value is T))
+            if (value == null || string.IsNullOrEmpty(value.ToString()))
             {
                 work.Add((int)DocRecordColumnType.NUL << OFFSET);
                 return;
             }
+            if (value is DataItem)
+                value = ((DataItem)value).Value;
+            if (!(value is L))
+            {
+                DataItem.CheckArrayObject(ref value, encodeType);
+                if (!(value is L))
+                    throw new ArgumentException("Unexpected data type.");
+            }
 
             byte type = (byte)((int)encodeType << OFFSET);            
-            type = (byte)(0b1000_0000 | type);
+            type |= 0b1000_0000;
+            if (nullable)
+                type |= 1;
             work.Add(type);
-            IList<T> data = (IList<T>)value;
+            L data = (L)value;
             work.AddRange(BitConverter.GetBytes(data.Count));
             foreach (T item in data)
             {
@@ -266,6 +361,7 @@ namespace SEIDR.Doc
                         var data = WriteEncoding.GetBytes(value.ToString());
                         var len = data.Length;
                         var bl = BitConverter.GetBytes(len);
+                        //ToDo: loop based on TYPE_SPACER?
                         if (bl[3] == 0)
                         {
                             if (bl[2] == 0)
@@ -335,10 +431,11 @@ namespace SEIDR.Doc
                     }
             }
         }
-        public static string SetResult(DocRecordColumnInfo column, object value, Encoding WriteEncoding)
-        {
+        public static string SetResult(DocRecordColumnInfo column, object value, Encoding WriteEncoding, ref int byteCount)
+        {            
             if (value == null || string.IsNullOrEmpty(value.ToString()))
             {
+                byteCount++;
                 return WriteEncoding.GetString(new byte[] { (int)DocRecordColumnType.NUL << OFFSET });
             }
             List<byte> result = new List<byte>();
@@ -350,20 +447,42 @@ namespace SEIDR.Doc
                 //ToDo: Encode array - type to use depends on column data type, though.
                 switch (column.DataType)
                 {
+                    case DocRecordColumnType.Money:
+                    case DocRecordColumnType.Decimal:
+                        if (value is decimal?[])
+                            EncodeArray<decimal?, decimal?[]>(column.DataType, value, result, WriteEncoding, true);
+                        else
+                            EncodeArray<decimal, decimal[]>(column.DataType, value, result, WriteEncoding, false);
+                        break;
+                    case DocRecordColumnType.Bool:
+                        if (value is bool?[])
+                            EncodeArray<bool?,bool?[]>(column.DataType, value, result, WriteEncoding, true);
+                        else
+                            EncodeArray<bool, bool[]>(column.DataType, value, result, WriteEncoding, false);
+                        break;
+                    case DocRecordColumnType.Int:
+                        if (value is int?[])
+                            EncodeArray<int?, int?[]>(column.DataType, value, result, WriteEncoding, true);
+                        else
+                            EncodeArray<int, int[]>(column.DataType, value, result, WriteEncoding, false);
+                        break;
+                    case DocRecordColumnType.Smallint:
+                        if (value is short?[])
+                            EncodeArray<short?, short?[]>(column.DataType, value, result, WriteEncoding, true);
+                        else
+                            EncodeArray<short, short[]>(column.DataType, value, result, WriteEncoding, false);
+                        break;
+                    case DocRecordColumnType.DateTime:
+                    case DocRecordColumnType.Date:
+                        if (value is DateTime?[])
+                            EncodeArray<DateTime?, DateTime?[]>(column.DataType, value, result, WriteEncoding, true);
+                        else
+                            EncodeArray<DateTime, DateTime[]>(column.DataType, value, result, WriteEncoding, false);
+                        break;
                     case DocRecordColumnType.Unknown:
                     case DocRecordColumnType.Varchar:
                     case DocRecordColumnType.NVarchar:
-                        EncodeArray<string>(column.DataType, value, result, WriteEncoding);
-                        break;
-                    case DocRecordColumnType.Money:
-                    case DocRecordColumnType.Decimal:
-                        EncodeArray<decimal?>(column.DataType, value, result, WriteEncoding);
-                        break;
-                    case DocRecordColumnType.Bool:
-                        EncodeArray<bool?>(column.DataType, value, result, WriteEncoding);
-                        break;
-                    case DocRecordColumnType.Int:
-                        EncodeArray<int?>(column.DataType, value, result, WriteEncoding);
+                        EncodeArray<string, string[]>(column.DataType, value, result, WriteEncoding, true);
                         break;
                 }
             }
@@ -371,6 +490,7 @@ namespace SEIDR.Doc
             {
                 EncodeType(column.DataType, value, result, WriteEncoding);
             }
+            byteCount += result.Count;            
             return WriteEncoding.GetString(result.ToArray());
             /*
             if(column.DataType.In(DocRecordColumnType.Unknown, 
@@ -517,7 +637,8 @@ namespace SEIDR.Doc
                 type &= 0b0111_1111; //remove array flag.
             }
             var format = (DocRecordColumnType)(type >> OFFSET);
-            if (format == DocRecordColumnType.NUL || format == DocRecordColumnType.Bool) //no more bytes for this value.
+            if (format == DocRecordColumnType.NUL 
+                || format == DocRecordColumnType.Bool && !arr) //no more bytes for this value.
                 return true;
             //int byteL;
             if (arr)
@@ -526,10 +647,11 @@ namespace SEIDR.Doc
                     return false;
                 int colCount = BitConverter.ToInt32(input, Position);
                 Position += sizeof(int);
-                if (Position + 1 >= input.Length)
-                    return false;
+                
                 for(int subcol = 0; subcol < colCount; subcol++)
                 {
+                    if (Position + 1 >= input.Length)
+                        return false;
                     var subformat = input[Position++];
                     if (subformat == 0) //null
                         continue;                        
@@ -628,6 +750,26 @@ namespace SEIDR.Doc
         }
         */
 
+        public static IEnumerable<string> EnumerateLines(string content, MetaDataBase metaData)
+        {
+            Encoding FileEncoding = metaData.FileEncoding;
+            int position = 0;
+            var byteSet = FileEncoding.GetBytes(content);
+            while (true)
+            {
+                if (position + sizeof(int) >= byteSet.Length)
+                    break;
+                //var len = byteSet[position++];
+
+                var len = BitConverter.ToInt32(byteSet, position);                
+                if (len + position + sizeof(int) > byteSet.Length)
+                    break;
+                position += sizeof(int);
+                yield return FileEncoding.GetString(byteSet, position, len); //Note: Does *NOT* include prefix.
+                position += len;
+            }
+            yield break;
+        }
         public static List<string> SplitString(string content, MetaDataBase metaData, out int RemainingBytesFromSplit)
         {
             List<string> result = new List<string>();
@@ -636,6 +778,20 @@ namespace SEIDR.Doc
             int positionFrom = 0;
             Encoding fileEncoding = metaData.FileEncoding;
             var byteSet = fileEncoding.GetBytes(content);
+            while (true)
+            {
+                if (position + sizeof(int) >= byteSet.Length)
+                    break;
+                var len = BitConverter.ToInt32(byteSet, position);
+                if (len + position + sizeof(int) > byteSet.Length)
+                    break;
+                position += sizeof(int);
+                result.Add(fileEncoding.GetString(byteSet, position, len));
+                position += len;
+            }
+            RemainingBytesFromSplit = byteSet.Length - position;
+            return result;
+
             var k = //GetKey(content, fileEncoding, ref position);
                 GetValue(byteSet, ref position, out _, fileEncoding).ToString();
             var colSet = metaData.GetRecordColumnInfos(k);
@@ -646,7 +802,7 @@ namespace SEIDR.Doc
 #if DEBUG
                     int test = position;
                     var v = GetValue(byteSet, ref test, out _, fileEncoding);
-                    System.Diagnostics.Debug.WriteLine(v);
+                    //System.Diagnostics.Debug.WriteLine(v);
 #endif
                     if (!CheckValue(byteSet, ref position))
                     {
@@ -665,6 +821,7 @@ namespace SEIDR.Doc
                     return result;
             }
         }
+        /*
         public static IEnumerable<string> EnumerateLines(string content, MetaDataBase metaData)
         {
             List<string> result = new List<string>();
@@ -683,7 +840,7 @@ namespace SEIDR.Doc
 #if DEBUG
                     int test = position;
                     var v = GetValue(byteSet, ref test, out _, fileEncoding);
-                    System.Diagnostics.Debug.WriteLine(v);
+                    //System.Diagnostics.Debug.WriteLine(v);
 #endif
                     if (!CheckValue(byteSet, ref position))
                     {
@@ -704,6 +861,6 @@ namespace SEIDR.Doc
                     //return result;
                 }
             }
-        }
+        } //*/
     }
 }

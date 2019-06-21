@@ -13,7 +13,7 @@ namespace SEIDR.Test
         [TestMethod]
         public void TypedBSONTest()
         {
-            const int RECORDCOUNT = 30 * 30;
+            const int RECORDCOUNT = 300 * 300;
             DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
             write
                 .SetHasHeader(false)
@@ -23,6 +23,10 @@ namespace SEIDR.Test
             write.AddColumn("LineNumber", DataType: DocRecordColumnType.Int);
             write.AddColumn("TimeStamp", DataType: DocRecordColumnType.DateTime);
             write.AddColumn("NOTE"); //ToDo: 
+            write.AddGetColumn("DataSet", DataType: DocRecordColumnType.Bool)
+                .SetArrayMode("*");
+            //write.SetPageSize(50_000);
+            
 
             DocMetaData delimitedCopy = new DocMetaData(TEST_FOLDER, "Test.bson.dat", "d");
             delimitedCopy.SetHasHeader(false)
@@ -39,13 +43,22 @@ namespace SEIDR.Test
                     r.SetValue("TimeStamp", DateTime.Now);
                     if (i % 2 == 0)
                         r.SetValue("NOTE", "Bla bla Note # " + i);
+                    
+                    int x = i % 3;
+                    var b = new bool[x];
+                    for (int bidx = 0; bidx < x; bidx++)
+                    {
+                        b[bidx] = i % 2 == 0 ? true : false;
+                    }
+                    r.SetValue("DataSet", b);
                     w.AddRecord(r);
                 }
             }
             using (var read = new DocReader<TypedDataRecord>(write))
             using (var out2 = new DocWriter(delimitedCopy))
             {
-                Assert.AreEqual(RECORDCOUNT, read.RecordCount);
+                read.MaxDegreeParallelism = 1;//for debug purposes
+                Assert.AreEqual(RECORDCOUNT, read.RecordCount); //Missing one record with array mode...
                 read.ForEachIndex((r, idx) =>
                 {
                     Assert.AreEqual(idx, r["LineNumber"]);                    
@@ -56,6 +69,13 @@ namespace SEIDR.Test
                     {
                         Assert.IsNull(r["NOTE"].Value);
                     }
+                    if (r["DataSet"].DataType != DocRecordColumnType.NUL)
+                    {
+                        bool[] t = r["DataSet"];
+                        Assert.AreEqual(idx % 3, t.Length);
+                    }
+                    else
+                        Assert.IsNull(r["DataSet"].Value);
                     out2.AddRecord(r); //To be able to compare same content output in the two formats
                 });
             }
