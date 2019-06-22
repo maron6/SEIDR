@@ -555,11 +555,21 @@ namespace SEIDR.Doc
             }
             else if (!fixWidth_NoNewLine)
             {
+                /*
+                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out removedBytes, false, _MetaData, end);
+                //Removed bytes will be 0 for end
+                endLine = lines.Count;
+                endPosition = startPosition + contentLength - removedBytes; //doesn't include the newline...whatever it may have been.                 
+                if (lines.Count == 0)
+                    throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
+                    */
+                // /*
                 if (_MetaData.ReadWithMultiLineEndDelimiter)
                     lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
                 else
                     lines = content.SplitOnString(_MetaData.LineEndDelimiter);
-
+                //    */
+                    //  /*
                 if (end && lines[lines.Count - 1].Trim() != string.Empty)
                 {
                     endPosition = startPosition + contentLength;
@@ -582,6 +592,13 @@ namespace SEIDR.Doc
                 }
                 else
                 {
+                    /*
+                    endLine = lines.Count;
+                    endPosition = startPosition + contentLength - removedBytes; //doesn't include the newline...whatever it may have been.
+                    if (lines.Count == 0)
+                        throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
+                       // */
+                    // /*
                     int temp = lines.Count - 1;
                     if (temp == 0)
                         throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
@@ -604,8 +621,8 @@ namespace SEIDR.Doc
                     else
                         lastNLSize = sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);
 
-                    endLine = lines.Count - 1;
-                }
+                    endLine = lines.Count - 1; // */
+                }//*/
             }
             else //Fixwidth mode + No Newline - Must be DocMetaData.
             {

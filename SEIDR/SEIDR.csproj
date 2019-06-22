@@ -55,7 +55,7 @@
     <Compile Include="DataBase\ParamStore.cs" />
     <Compile Include="DataBase\Schema.cs" />
     <Compile Include="DateFormatter.cs" />
-    <Compile Include="Doc\BSONHelper.cs" />
+    <Compile Include="Doc\FormatHelper\BSONHelper.cs" />
     <Compile Include="Doc\DataItem.cs" />
     <Compile Include="Doc\DataTableDoc.cs" />
     <Compile Include="Doc\DateConverter.cs" />
@@ -67,6 +67,8 @@
     <Compile Include="Doc\DocWriter.cs" />
     <Compile Include="Doc\DocWriterMap.cs" />
     <Compile Include="Doc\DuplicateRecordException.cs" />
+    <Compile Include="Doc\FormatHelper\DelimiterHelper.cs" />
+    <Compile Include="Doc\FormatHelper\FixWidthHelper.cs" />
     <Compile Include="Doc\IDataRecord.cs" />
     <Compile Include="Doc\ISingleRecordTypeMetaData.cs" />
     <Compile Include="Doc\MetaDataBase.cs" />
