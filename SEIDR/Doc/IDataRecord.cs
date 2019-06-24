@@ -16,6 +16,12 @@ namespace SEIDR.Doc
         string this[DocRecordColumnInfo column] { get; set; }
         DocRecordColumnCollection Columns { get; }
         bool HasColumn(string alias, string Column);
+        /// <summary>
+        /// Returns whether or not the IDataRecord has a column name, regardless of alias.
+        /// </summary>
+        /// <param name="ColumnName"></param>
+        /// <returns></returns>
+        bool HasColumn(string ColumnName);
         bool TryGet(DocRecordColumnInfo columnInfo, out object result);
         void Configure(DocRecordColumnCollection owner, bool? canWrite, IList<object> parsedContent);
     }

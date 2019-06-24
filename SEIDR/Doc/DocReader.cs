@@ -422,7 +422,8 @@ namespace SEIDR.Doc
             long position = 0;
             if (_MetaData.TrustPreamble)
                 position = _MetaData.FileEncoding.GetPreamble().Length;
-            while(SetupPageMetaData(ref position, ref pp)) { }
+            while(SetupPageMetaDataV2(ref position, ref pp)) { }
+            //while(SetupPageMetaData(ref position, ref pp)) { }
             if (!_MetaData.Valid)
             {
                 RecordCount = -1;
@@ -479,8 +480,8 @@ namespace SEIDR.Doc
         /// <param name="page"></param>
         /// <returns></returns>
         public PageHelper GetPageInfo(int page) => Pages[page];
-        //BitCONHelper helper = null;
-        bool SetupPageMetaData(ref long startPosition, ref int skipLine)
+
+        bool SetupPageMetaDataV2(ref long startPosition, ref int skipLine)
         {
             fs.Seek(startPosition, SeekOrigin.Begin);
             sr.DiscardBufferedData();
@@ -491,11 +492,11 @@ namespace SEIDR.Doc
             //if(!end && startPosition + x > )
             if (startPosition < _MetaData.PageSize && !_MetaData.TrustPreamble)
             {
-                var preamble = sr.CurrentEncoding.GetPreamble();                
+                var preamble = sr.CurrentEncoding.GetPreamble();
                 char pc = buffer[0];
-                if (char.IsControl(pc) 
-                    || ( !char.IsWhiteSpace(pc) && !char.IsLetterOrDigit(pc) && !char.IsNumber(pc)
-                            && !char.IsSeparator(pc) && !char.IsPunctuation(pc) && !char.IsSymbol(pc)                        
+                if (char.IsControl(pc)
+                    || (!char.IsWhiteSpace(pc) && !char.IsLetterOrDigit(pc) && !char.IsNumber(pc)
+                            && !char.IsSeparator(pc) && !char.IsPunctuation(pc) && !char.IsSymbol(pc)
                     ))
                 //if (((int)buffer[0]).In(65279, 65533, 0))
                 {
@@ -516,36 +517,39 @@ namespace SEIDR.Doc
                                                 */
                     return true;
                 }
-                if(preamble.Length > 0 && buffer.StartsWithByteSet(sr.CurrentEncoding, preamble))
+                if (preamble.Length > 0 && buffer.StartsWithByteSet(sr.CurrentEncoding, preamble))
                 {
                     startPosition += preamble.Length;
                     return true;
                 }
             }
-            
+            Encoding readCode = sr.CurrentEncoding;
             string content = /*working.ToString() +*/ new string(buffer, 0, x);
-            int contentLength = sr.CurrentEncoding.GetByteCount(content);
+            int contentLength = readCode.GetByteCount(content);
             bool end = (startPosition + contentLength) >= _MetaData.FileLength;
-            IList<string> lines = null;
+            IList<string> lines;
 
             bool fixWidth_NoNewLine = false;
             if (_MetaData is DocMetaData)
-            {                
-                fixWidth_NoNewLine = _MetaData.FixWidthMode 
+            {
+                fixWidth_NoNewLine = _MetaData.FixWidthMode
                                         && string.IsNullOrEmpty(_MetaData.LineEndDelimiter) //RaggedRight/Variable width need line end as well
                                         && !_MetaData.ReadWithMultiLineEndDelimiter;
             }
-            bool removeHeaderFromRecordCount = false;
             int endLine;
-            int removedBytes = 0;
-            int lastNLSize = 0; //Size of the NewLine Delimiter if the page ends on a NewLine delimiter. //Note: Potential for extra line if we have multiple line ends and end a page between an \r and \n, but that would be adding an empty record (null)
+            //int lastNLSize = 0; //Size of the NewLine Delimiter if the page ends on a NewLine delimiter. //Note: Potential for extra line if we have multiple line ends and end a page between an \r and \n, but that would be adding an empty record (null)
+            int maxNLSize;
+            if (_MetaData.ReadWithMultiLineEndDelimiter)
+                maxNLSize = _MetaData.MultiLineEndDelimiter.Max(c => c.Length);
+            else
+                maxNLSize = _MetaData.LineEndDelimiter.Length;
+
             long endPosition;
-            int removed;
+            int removedBytes;
+            int startOffset = 0;
             if (_MetaData.Format == DocRecordFormat.SBSON)
             {
-                lines = SBSONHelper.SplitString(content, MetaData, out removed);
-                endLine = lines.Count;
-                endPosition = startPosition + contentLength - removed;
+                lines = SBSONHelper.SplitString(content, MetaData, out removedBytes);
                 /*
                 lines = helper.SplitString(content, _MetaData).ToList();
                 removed = helper.RemainingBytesFromSplit;
@@ -553,96 +557,20 @@ namespace SEIDR.Doc
                 endPosition = startPosition + contentLength - helper.RemainingBytesFromSplit;
                 */
             }
-            else if (!fixWidth_NoNewLine)
-            {
-                /*
-                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out removedBytes, false, _MetaData, end);
-                //Removed bytes will be 0 for end
-                endLine = lines.Count;
-                endPosition = startPosition + contentLength - removedBytes; //doesn't include the newline...whatever it may have been.                 
-                if (lines.Count == 0)
-                    throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
-                    */
-                // /*
-                if (_MetaData.ReadWithMultiLineEndDelimiter)
-                    lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
-                else
-                    lines = content.SplitOnString(_MetaData.LineEndDelimiter);
-                //    */
-                    //  /*
-                if (end && lines[lines.Count - 1].Trim() != string.Empty)
-                {
-                    endPosition = startPosition + contentLength;
-                    if (_MetaData.ReadWithMultiLineEndDelimiter)
-                    {
-                        foreach (string delim in _MetaData.MultiLineEndDelimiter)
-                        {
-                            if (content.EndsWith(delim))
-                            {
-                                lastNLSize = sr.CurrentEncoding.GetByteCount(delim);
-                                break;
-                            }
-                        }
-                    }
-                    else if (content.EndsWith(_MetaData.LineEndDelimiter))
-                        lastNLSize = sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);//.Length;
-
-
-                    endLine = lines.Count;
-                }
-                else
-                {
-                    /*
-                    endLine = lines.Count;
-                    endPosition = startPosition + contentLength - removedBytes; //doesn't include the newline...whatever it may have been.
-                    if (lines.Count == 0)
-                        throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
-                       // */
-                    // /*
-                    int temp = lines.Count - 1;
-                    if (temp == 0)
-                        throw new Exception("BufferSize too small - may be missing LineEndDelimiter");
-                    removedBytes = sr.CurrentEncoding.GetByteCount(lines[temp]); //.Length;
-                    removed = lines[temp].Length;
-                    //lines.RemoveAt(temp);
-                    endPosition = startPosition + contentLength - removedBytes; //doesn't include the newline...whatever it may have been.
-                    if (_MetaData.ReadWithMultiLineEndDelimiter)
-                    {
-                        int s = x - removed;
-                        foreach (string delim in _MetaData.MultiLineEndDelimiter) //first multi line delimiter that would match and cause a split - take its length.
-                        {
-                            if (content.Substring(s - delim.Length, delim.Length) == delim)
-                            {
-                                lastNLSize = sr.CurrentEncoding.GetByteCount(delim);
-                                break;
-                            }
-                        }
-                    }
-                    else
-                        lastNLSize = sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);
-
-                    endLine = lines.Count - 1; // */
-                }//*/
-            }
-            else //Fixwidth mode + No Newline - Must be DocMetaData.
-            {
-                //No newLine, just dividing by positions....
-                if (end)
-                {
-                    endPosition = startPosition + contentLength;
-                    endLine = x / ((DocMetaData)_MetaData).Columns.MaxLength;
-                }
-                else
-                {
-                    removed = ((DocMetaData)_MetaData).Columns.MaxLength % _MetaData.PageSize;
-                    content = new string(buffer, 0, x - removed);
-                    endPosition = startPosition + contentLength - removedBytes;
-                    endLine = content.Length / ((DocMetaData)_MetaData).Columns.MaxLength;
-                }
-            }
+            else if (fixWidth_NoNewLine)
+                lines = FormatHelper.FixWidthHelper.SplitStringByLength(content, _MetaData, out removedBytes); //Must be single column set metadata. (DocMetaData)
+            else if (_MetaData.ReadWithMultiLineEndDelimiter)                            
+                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out startOffset, out removedBytes, _MetaData.AllowQuotedNewLine, _MetaData, end, true);             
+            else
+                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out startOffset, out removedBytes, _MetaData.AllowQuotedNewLine, _MetaData, end, true);                
+            
+            endPosition = startPosition + contentLength - removedBytes;
+            startPosition += startOffset;
+            startOffset = 0;
+            endLine = lines.Count;
             if (skipLine > 0)
             {
-                if(skipLine >= endLine)
+                if (skipLine >= endLine)
                 {
                     startPosition = endPosition;
                     skipLine -= endLine;
@@ -651,107 +579,165 @@ namespace SEIDR.Doc
                 //endLine > skipLine, remove skipLine # records, then continue to next section...
                 if (fixWidth_NoNewLine)
                 {
+                    //Must be single column type, so max length would be consistent.
                     //startPosition += skipLine * ((DocMetaData)_MetaData).Columns.MaxLength; //Move forward by skipLine lines
                     int charSkip = skipLine * ((DocMetaData)_MetaData).Columns.MaxLength; //Move forward by skipLine lines
                     startPosition += sr.CurrentEncoding.GetByteCount(buffer, 0, charSkip);
                 }
+                else if(_MetaData.Format == DocRecordFormat.SBSON)
+                {
+                    startPosition += SBSONHelper.GetSkipPosition(content, readCode, skipLine);
+                }
                 else
                 {
-                    int posHelper = 0; //offset from content[0]
-                    for(int i = 0; i < skipLine; i ++)
-                    {
-                        if (_MetaData.ReadWithMultiLineEndDelimiter)
-                        {
-                            int temp = lines[i].Length; //character traversal
-                            int tempBytes = sr.CurrentEncoding.GetByteCount(lines[i]); //position movement
-                            foreach(string delim in _MetaData.MultiLineEndDelimiter)
-                            {
-                                if(content.Substring(posHelper + temp, delim.Length) == delim)
-                                {
-                                    temp += delim.Length;
-                                    tempBytes += sr.CurrentEncoding.GetByteCount(delim);
-                                    break;
-                                }
-                            }
-                            posHelper += temp;
-                            startPosition += tempBytes;
-                        }
-                        else
-                        {
-                            //startPosition = startPosition + lines[i].Length + _MetaData.LineEndDelimiter.Length;
-                            startPosition = startPosition 
-                                            + sr.CurrentEncoding.GetByteCount(lines[i])
-                                            + sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);
-                        }
-                    }
-                    skipLine = 0;
-                    return true; //re-read from the correct starting position instead of trying to mess with the list.
-                }
-
-            }
-            if (!_MetaData.HeaderConfigured)
-            {
-                string firstLine = lines[0];
-                //must be delimited in this section...
-                if (!_MetaData.Delimiter.HasValue)
-                    _MetaData.SetDelimiter(lines.GuessDelimiter());
-                string[] firstLineS = firstLine.Split(_MetaData.Delimiter.Value); //ToDo: Header infer method on DocMetaData
-                if (_MetaData is DocMetaData) //Only do header inferring for DocMetaData (single header set)
-                {
-                    var md = (DocMetaData)_MetaData;
-                    if (_MetaData.HasHeader)
-                    {
-                        removeHeaderFromRecordCount = true;
-                        md.AddDelimitedColumns(firstLineS);
-                        if (_MetaData.ReadWithMultiLineEndDelimiter)
-                        {
-                            int temp = firstLine.Length;
-                            int tempBytes = sr.CurrentEncoding.GetByteCount(firstLine);
-                            foreach (string delim in _MetaData.MultiLineEndDelimiter)
-                            {
-                                if (content.Substring(temp, delim.Length) == delim)
-                                {
-                                    //temp += delim.Length;
-                                    tempBytes += sr.CurrentEncoding.GetByteCount(delim);
-                                    break;
-                                }
-                            }
-                            startPosition += tempBytes;
-                        }
-                        else
-                        {
-                            //startPosition += firstLine.Length + _MetaData.LineEndDelimiter.Length; //move forward by a line...
-                            startPosition += sr.CurrentEncoding.GetByteCount(firstLine) + sr.CurrentEncoding.GetByteCount(_MetaData.LineEndDelimiter);
-                        }
-                        if (startPosition > endPosition - lastNLSize)
-                            return true; //don't add a page, instead go to next page so we can start adding lines together.
-                                         //lines.RemoveAt(0); // ... Probably don't really care about this at this point actually.
-                    }
+                    //int posHelper = 0; //offset from content[0]
+                    int forward;
+                    if (_MetaData.ReadWithMultiLineEndDelimiter)
+                        forward = FormatHelper.DelimiterHelper.GetSkipPosition(content, 
+                            _MetaData.MultiLineEndDelimiter, 
+                            false, _MetaData, skipLine);
                     else
+                        forward = FormatHelper.DelimiterHelper.GetSkipPosition(content, 
+                            new string[] { _MetaData.LineEndDelimiter }, 
+                            false, _MetaData, skipLine);
+                    startPosition += forward;
+                    skipLine = 0;                    
+                }
+                return true; //re-read from the correct starting position instead of trying to mess with the list.
+            }
+            int headerCount = 0;
+            if (!_MetaData.HeaderConfigured)
+            {                
+                if (_MetaData.Format.In(DocRecordFormat.VARIABLE_WIDTH, DocRecordFormat.DELIMITED) && !_MetaData.Delimiter.HasValue)
+                {
+                    _MetaData.SetDelimiter(lines.GuessDelimiter());
+                    if (!_MetaData.Delimiter.HasValue)
+                        throw new Exception("Unable to guess column delimiter.");
+                }
+                startOffset = 0;
+                if (_MetaData is DocMetaData)
+                {                    
+                    var md = _MetaData as DocMetaData;
+                    List<DocRecordColumnInfo> cols;
+                    bool checkOffSet = !fixWidth_NoNewLine && md.HasHeader;
+                    switch (_MetaData.Format)
                     {
-                        int hl = firstLineS.Length;
-                        for (int ti = 1; ti <= hl; ti++)
+                        case DocRecordFormat.FIX_WIDTH:
+                        case DocRecordFormat.RAGGED_RIGHT:
+                        //case DocRecordFormat.VARIABLE_WIDTH: 
+                            cols = FormatHelper.FixWidthHelper.InferColumnset(lines, md); //ToDo
+                            break;
+                        case DocRecordFormat.SBSON:
+                            checkOffSet = false;
+                            cols = SBSONHelper.InferColumnList(lines[headerCount], readCode, md.Alias, md.HasHeader);
+                            break;
+                        default:
+                            cols = FormatHelper.DelimiterHelper.InferColumnList(lines[headerCount], _MetaData, true, ref startOffset);
+                            break;
+                    }
+                    
+                    foreach(var col in cols)
+                    {
+                        md.AddColumn(col);
+                    }
+                    if (checkOffSet)
+                    {
+                        var byteSet = readCode.GetBytes(content.ToCharArray(lines[headerCount].Length, maxNLSize));
+                        if (md.ReadWithMultiLineEndDelimiter)
                         {
-                            md.AddColumn("Column # " + ti);
+                            foreach(string le in md.MultiLineEndDelimiter)
+                            {
+                                int byteCount = readCode.GetByteCount(le);
+                                if (byteCount + startOffset > contentLength)
+                                    continue;
+                                if (readCode.GetString(byteSet, 0, byteCount) == le)
+                                {
+                                    startOffset += byteCount;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            int off = readCode.GetByteCount(md.LineEndDelimiter); //single delimiter - if we're splitting on it, then just add its byte count.
+                            if(startOffset + off < contentLength) //Only include the delimiter as part of offset if it didn't go over... Shouldn't happen, though.
+                                startOffset += off;
                         }
                     }
+                    startPosition += startOffset;
+                    headerCount++;
                 }
-                else
+                else if(_MetaData is MultiRecordDocMetaData)
                 {
-                    //ToDo:
-                    /*
-                     * Infer column sets for multi record meta data - header inferring is done when a key is reused.
-                     * 
-                     */
-
+                    var md = (MultiRecordDocMetaData)_MetaData;                    
+                    int headerStop = 0;
+                    bool checkOffSet = !fixWidth_NoNewLine && md.HasHeader;
+                    while (true)
+                    {                        
+                        List<DocRecordColumnInfo> cols;
+                        switch (_MetaData.Format)
+                        {
+                            case DocRecordFormat.FIX_WIDTH:
+                            case DocRecordFormat.RAGGED_RIGHT:
+                            case DocRecordFormat.VARIABLE_WIDTH:
+                                //cols = FormatHelper.FixWidthHelper.InferColumnset(lines, md);
+                                throw new Exception("Header inferring not available for Fix width mutli record.");                                
+                            case DocRecordFormat.SBSON:
+                                checkOffSet = false;
+                                cols = SBSONHelper.InferColumnList(lines[headerCount], md.FileEncoding, md.Alias, md.HasHeader);
+                                break;
+                            default:
+                                cols = FormatHelper.DelimiterHelper.InferColumnList(lines[headerCount], _MetaData, true, ref startOffset);
+                                break;
+                        }
+                        if (md.ColumnSets.ContainsKey(cols[0].ColumnName))
+                            break;                        
+                        md.CreateCollection(cols);
+                        if (checkOffSet)
+                        {
+                            headerStop += lines[headerCount].Length;
+                            var byteSet = readCode.GetBytes(content.ToCharArray(headerStop, maxNLSize));
+                            if (md.ReadWithMultiLineEndDelimiter)
+                            {
+                                foreach (string le in md.MultiLineEndDelimiter)
+                                {
+                                    int byteCount = readCode.GetByteCount(le);
+                                    if (byteCount + startOffset > contentLength)
+                                        continue;
+                                    if (readCode.GetString(byteSet, 0, byteCount) == le)
+                                    {
+                                        startOffset += byteCount;
+                                        headerStop += le.Length;
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                int off = readCode.GetByteCount(md.LineEndDelimiter); //single delimiter - if we're splitting on it, then just add its byte count.
+                                if (startOffset + off < contentLength)
+                                {
+                                    //Only include the delimiter as part of offset if it didn't go over... Shouldn't happen, though.
+                                    startOffset += off;
+                                    headerStop += maxNLSize; // char count of line end.
+                                }
+                            }
+                        }
+                        headerCount++;
+                        if (headerCount > lines.Count)
+                            throw new Exception("Buffer too small to infer column set. Condsider increased buffer size or explicit column values.");
+                    }
                 }
             }
-            int recordCount = endLine - (removeHeaderFromRecordCount ? 1 : 0); //ToDo: HeaderRemovalCount variable, default to 0.
-            Pages.Add(new PageHelper(startPosition, endPosition - lastNLSize, _MetaData.PageSize, recordCount: recordCount));
+
+            int recordCount = endLine;
+            if(_MetaData.HasHeader)
+                recordCount -= headerCount; 
+
+            Pages.Add(new PageHelper(startPosition, endPosition, _MetaData.PageSize, recordCount: recordCount));
             startPosition = endPosition;
             return !end;
-        }
-
+        }       
 
         /// <summary>
         /// Sets up a basic delimited reader, assuming the file has headers starting on the first line.

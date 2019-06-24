@@ -626,7 +626,7 @@ namespace SEIDR.Test
         [TestMethod]
         public void TestRead()
         {
-            DocMetaData.TESTMODE = true; //Allow page size below minimum for test purposes
+            MetaDataBase.TESTMODE = true; //Allow page size below minimum for test purposes
             FilePrep();
 
             DocReader r = new DocReader("F", FilePath);
@@ -856,6 +856,7 @@ LineNumber|Description
                     w.AddDocRecord(record);
                 }
             }
+            Assert.IsTrue(TestFileMatch(md.FilePath, "TestFiles", "BiggerSortedFile.txt"));
         }
         [TestMethod]
         public void BigSortedReadToFileTest()

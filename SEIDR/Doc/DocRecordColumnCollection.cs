@@ -12,6 +12,78 @@ namespace SEIDR.Doc
     /// </summary>
     public class DocRecordColumnCollection : IEnumerable<DocRecordColumnInfo>
     {
+        /// <summary>
+        /// Using IRecord info containing the following columns at minimum:
+        /// <para>ColumnName (or Name)</para>        
+        /// <para>Optional: Position (or Index/ID), MaxLength, LeftJustify, DataType</para>
+        /// </summary>
+        /// <param name="alias"></param>
+        /// <param name="columnRecords"></param>
+        /// <returns></returns>
+        public static DocRecordColumnCollection ParseFromIRecordSet(string alias, IEnumerable<IDataRecord> columnRecords)
+        {
+            DocRecordColumnCollection ret = new DocRecordColumnCollection(alias);
+            if (columnRecords.UnderMaximumCount(0))
+                return ret;
+            var colName = "ColumnName";
+            var cr1 = columnRecords.First();
+            if (!cr1.HasColumn(null, colName))
+            {
+                colName = "Name";
+                if (!cr1.HasColumn(colName))
+                    throw new ArgumentException("Records do not contain an identifier for Column Name.");
+            }
+            string idx = "Position";
+            if (!cr1.HasColumn("Position"))
+            {
+                if(cr1.HasColumn("Index"))
+                    idx = "Index";
+                else
+                {
+                    if (cr1.HasColumn("ID"))
+                        idx = "ID";
+                    else
+                        idx = null;
+                }                
+            }
+            bool HasMaxLength = cr1.HasColumn("MaxLength");
+            bool LeftJustify = cr1.HasColumn("LeftJustify");
+            bool DataType = cr1.HasColumn("DataType");
+            columnRecords.ForEachIndex((record, i) =>
+            {
+                string name = record[colName];
+                int pos = i;
+                if (!string.IsNullOrEmpty(idx))
+                    pos = int.Parse(record[idx]);
+                int? maxLen = null;
+                int temp;
+                if (HasMaxLength && int.TryParse(record["MaxLength"], out temp))
+                    maxLen = temp;
+                bool justify = false;
+                if (justify && !bool.TryParse(record["LeftJustify"], out justify))
+                    justify = false;
+
+                DocRecordColumnType t;
+                if (!DataType || !Enum.TryParse(record["DataType"], out t))
+                    t = DocRecordColumnType.Unknown;
+                if (ret.Columns.Count > pos)
+                {
+                    ret.Columns[pos].ColumnName = name;
+                    ret.Columns[pos].DataType = t;
+                    ret.Columns[pos].LeftJustify = justify;
+                    ret.Columns[pos].MaxLength = maxLen;
+                }
+                else 
+                {
+                    while(pos > ret.Columns.Count + 1)
+                    {
+                        ret.AddColumn("COLUMN # " + ret.Columns.Count + 1); //1 based default name for columns.
+                    }
+                    ret.AddColumn(name, maxLen, justify, dataType: t);
+                }
+            });
+            return ret;
+        }
         #region static Class mapping utility methods
         /// <summary>
         /// Creates a column collection from a class's properties.

@@ -8,11 +8,11 @@ namespace SEIDR.Doc.FormatHelper
 {
     public class DelimiterHelper
     {
-        public static List<string> SplitString(string content, char delimiter, out int remainingBytes, bool checkTextQualifier, MetaDataBase metaData, bool End)
-            => SplitString(content, new string[] { delimiter.ToString() }, out remainingBytes, checkTextQualifier, metaData, End);
-        public static List<string> SplitString(string content, string delimiter, out int remainingBytes, bool checkTextQualifier, MetaDataBase metaData, bool End)
-            => SplitString(content, new string[] { delimiter }, out remainingBytes, checkTextQualifier, metaData, End);
-        public static List<string> SplitString(string content, string[] delimiterList, out int remainingBytes, bool CheckTextQualifier, MetaDataBase metaData, bool End)
+        public static List<string> SplitString(string content, char delimiter, out int startByte, out int remainingBytes, bool checkTextQualifier, MetaDataBase metaData, bool End, bool SkipEmpty)
+            => SplitString(content, new string[] { delimiter.ToString() }, out startByte, out remainingBytes, checkTextQualifier, metaData, End, SkipEmpty);
+        public static List<string> SplitString(string content, string delimiter, out int startByte, out int remainingBytes, bool checkTextQualifier, MetaDataBase metaData, bool End, bool SkipEmpty)
+            => SplitString(content, new string[] { delimiter }, out startByte, out remainingBytes, checkTextQualifier, metaData, End, SkipEmpty);
+        public static List<string> SplitString(string content, string[] delimiterList, out int startByte, out int remainingBytes, bool CheckTextQualifier, MetaDataBase metaData, bool End, bool SkipEmpty)
         {
             //string delim = metaData.Delimiter.ToString();
             /*
@@ -25,18 +25,23 @@ namespace SEIDR.Doc.FormatHelper
             List<string> result = new List<string>();
             int Position = 0;
             int nextTextQual = -1;
-            if (CheckTextQualifier)
+            if (CheckTextQualifier && !string.IsNullOrEmpty(textQual))
                 nextTextQual = content.IndexOf(textQual);
             int textQualCount = 0;
+            int lastPositionEnd = 0;
             int nextRowDelim = content.IndexOfAny(delimiterList);
+            startByte = 0;
             while (true)
             {
                 if (nextTextQual == -1 || nextRowDelim < nextTextQual && textQualCount % 2 == 0)
                 {
                     textQualCount = 0;
+                    int fromPosition = Position;
                     string val = content.Substring(Position, nextRowDelim - Position);
                     if (delimiterList.Length == 1)
+                    {
                         Position = nextRowDelim + delimiterList[0].Length;
+                    }
                     else
                     {
                         foreach (var le in delimiterList)
@@ -44,16 +49,33 @@ namespace SEIDR.Doc.FormatHelper
                             if (le == content.Substring(nextRowDelim, le.Length))
                             {
                                 Position = nextRowDelim + le.Length;
+                                //emptyEnd = metaData.FileEncoding.GetByteCount(le);
                                 break;
                             }
                         }
                     }
-                    result.Add(val);
+                    if (!string.IsNullOrEmpty(val) || !SkipEmpty)
+                    {
+                        if (result.Count == 0)
+                        {
+                            startByte = metaData.FileEncoding.GetByteCount(content.ToCharArray(0, fromPosition));
+                            //First record being added - set starting offset based on where this string was started.
+                        }
+                        result.Add(val);
+                        lastPositionEnd = nextRowDelim;
+                    }
                     nextRowDelim = content.IndexOfAny(delimiterList, Position);
                     if (nextRowDelim < 0)
                     {
                         if (End)
-                            result.Add(content.Substring(Position));
+                        {
+                            val = content.Substring(Position);
+                            if (!SkipEmpty || !string.IsNullOrEmpty(val))
+                            {
+                                result.Add(val);
+                                lastPositionEnd = content.Length;
+                            }                            
+                        }
                         break;
                     }
                     continue;
@@ -65,26 +87,41 @@ namespace SEIDR.Doc.FormatHelper
                 if(nextRowDelim < 0)
                 {
                     if (End)
-                        result.Add(content.Substring(Position));
+                    {
+                        string val = content.Substring(Position);
+                        if (!SkipEmpty || !string.IsNullOrEmpty(val))
+                        {
+                            result.Add(val);
+                            //emptyEnd = 0;
+                        }
+                    }
                     break;
                 }
             }
             if (End)
-                remainingBytes = 0;
+            {
+                if (SkipEmpty && lastPositionEnd < content.Length)
+                {
+                    //remainingBytes;
+                    remainingBytes = metaData.FileEncoding.GetByteCount(content.ToCharArray(lastPositionEnd, content.Length - lastPositionEnd));
+                }
+                else
+                    remainingBytes = 0;                
+            }
             else
-                remainingBytes = metaData.FileEncoding.GetByteCount(content.ToCharArray(Position, content.Length - Position));
+                remainingBytes = metaData.FileEncoding.GetByteCount(content.ToCharArray(lastPositionEnd, content.Length - lastPositionEnd));
             return result;
         }
-        public static IEnumerable<string> EnumerateLines(string content, string delimiterList, bool CheckTextQualifier, MetaDataBase metaData)
-            => EnumerateLines(content, new string[] { delimiterList }, CheckTextQualifier, metaData);
-        public static IEnumerable<string> EnumerateLines(string content, char delimiter, bool checkTextQualifier, MetaDataBase metaData)
-            => EnumerateLines(content, new string[] { delimiter.ToString() }, checkTextQualifier, metaData);
-        public static IEnumerable<string> EnumerateLines(string content, string[] delimiterList, bool CheckTextQualifier, MetaDataBase metaData)
+        public static IEnumerable<string> EnumerateSplits(string content, string delimiter, bool CheckTextQualifier, MetaDataBase metaData, bool SkipEmpty)
+            => EnumerateSplits(content, new string[] { delimiter }, CheckTextQualifier, metaData, SkipEmpty);
+        public static IEnumerable<string> EnumerateSplits(string content, char delimiter, bool checkTextQualifier, MetaDataBase metaData, bool SkipEmpty)
+            => EnumerateSplits(content, new string[] { delimiter.ToString() }, checkTextQualifier, metaData, SkipEmpty);
+        public static IEnumerable<string> EnumerateSplits(string content, string[] delimiterList, bool CheckTextQualifier, MetaDataBase metaData, bool SkipEmpty)
         {
             string textQual = metaData.TextQualifier;
             int Position = 0;
             int nextTextQual = -1;
-            if (CheckTextQualifier)
+            if (CheckTextQualifier && !string.IsNullOrEmpty(textQual))
                 nextTextQual = content.IndexOf(textQual);
             int textQualCount = 0;
             int nextRowDelim = content.IndexOfAny(delimiterList);
@@ -93,7 +130,9 @@ namespace SEIDR.Doc.FormatHelper
                 if (nextTextQual == -1 || nextRowDelim < nextTextQual && textQualCount % 2 == 0)
                 {
                     textQualCount = 0;
-                    yield return content.Substring(Position, nextRowDelim - Position);
+                    string val = content.Substring(Position, nextRowDelim - Position);
+                    if (!SkipEmpty || !string.IsNullOrEmpty(val))
+                        yield return val;
                     if (delimiterList.Length == 1)
                         Position = nextRowDelim + delimiterList[0].Length;
                     else
@@ -110,7 +149,9 @@ namespace SEIDR.Doc.FormatHelper
                     nextRowDelim = content.IndexOfAny(delimiterList, Position);
                     if (nextRowDelim < 0)
                     {
-                        yield return content.Substring(Position);
+                        val = content.Substring(Position);
+                        if (!SkipEmpty || !string.IsNullOrEmpty(val))
+                            yield return val;
                         break;
                     }
                     continue;
@@ -121,11 +162,98 @@ namespace SEIDR.Doc.FormatHelper
                 nextRowDelim = content.IndexOfAny(delimiterList, quotePosition);
                 if (nextRowDelim < 0)
                 {
-                    yield return content.Substring(Position);
+
+                    if(!SkipEmpty || Position < content.Length)
+                        yield return content.Substring(Position);
                     break;
                 }
             }
             yield break;
+        }
+        public static List<DocRecordColumnInfo> InferColumnList(string ContentLine, MetaDataBase metaData, bool CheckTextQualifier, ref int startPosition)
+        {
+            var valset = EnumerateSplits(ContentLine, metaData.Delimiter.Value, CheckTextQualifier, metaData, false);
+            List<DocRecordColumnInfo> colSet = new List<DocRecordColumnInfo>();
+            int idx = 0;                        
+            foreach(var val in valset)
+            {                
+                string colName;
+                if (metaData.HasHeader)
+                {
+                    colName = val;
+                    startPosition += metaData.FileEncoding.GetByteCount(val);
+                }
+                else
+                    colName = "COLUMN # " + idx;
+                colSet.Add(new DocRecordColumnInfo(colName, metaData.Alias, idx++));
+                
+            }
+            if (metaData.HasHeader)
+            {
+                startPosition += (colSet.Count - 1) * metaData.FileEncoding.GetByteCount(metaData.Delimiter.ToString());
+                //2 columns = Col1|Col2 -> delimiter count = colcount - 1.
+            }
+            return colSet;
+        }
+
+        /// <summary>
+        /// Get starting byte position after skipping X lines.
+        /// </summary>
+        /// <param name="content"></param>
+        /// <param name="delimiterList"></param>
+        /// <param name="CheckTextQualifier"></param>
+        /// <param name="metaData"></param>
+        /// <param name="skipLines"></param>
+        /// <param name="skipEmpty"></param>
+        /// <returns></returns>
+        public static int GetSkipPosition(string content, string[] delimiterList, bool CheckTextQualifier, MetaDataBase metaData, int skipLines, bool skipEmpty = true)
+        {
+            if (skipLines == 0)
+                return 0;
+            var encode = metaData.FileEncoding;
+            int position = 0, lineCounter = 0;
+            string textQual = metaData.TextQualifier;
+            int nextTextQual = -1;
+            if (CheckTextQualifier && !string.IsNullOrEmpty(textQual))
+                nextTextQual = content.IndexOf(textQual);
+            int textQualCount = 0;
+            int nextRowDelim = content.IndexOfAny(delimiterList);
+
+            while (lineCounter < skipLines)
+            {
+                if (nextTextQual == -1 || nextRowDelim < nextTextQual && textQualCount % 2 == 0)
+                {
+                    textQualCount = 0;               
+                    if (!skipEmpty || nextRowDelim - position > 0)                    
+                        lineCounter++;                     
+                    if (delimiterList.Length == 1)
+                        position = nextRowDelim + delimiterList[0].Length;
+                    else
+                    {
+                        foreach (var le in delimiterList)
+                        {
+                            if (le == content.Substring(nextRowDelim, le.Length))
+                            {
+                                position = nextRowDelim + le.Length;
+                                break;
+                            }
+                        }
+                    }
+                    nextRowDelim = content.IndexOfAny(delimiterList, position);                    
+                    if (nextRowDelim < 0)
+                    {
+                        throw new Exception("Unexpected end while determining start position.");
+                    }
+                }
+                else
+                {
+                    textQualCount++;
+                    int quotePosition = nextTextQual + textQual.Length;
+                    nextTextQual = content.IndexOf(textQual, quotePosition);
+                    nextRowDelim = content.IndexOfAny(delimiterList, quotePosition);
+                }
+            }
+            return encode.GetByteCount(content.ToCharArray(0, position)); //ending position is where we want to start up again.
         }
     }
 }

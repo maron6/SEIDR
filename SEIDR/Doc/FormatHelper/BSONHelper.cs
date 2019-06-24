@@ -24,6 +24,8 @@ namespace SEIDR.Doc
             var byteSet = encoding.GetBytes(record);            
             return GetValue(byteSet, ref position, out _, encoding).ToString();
         }
+        static string GetKey(byte[] input, Encoding encoding, ref int position)
+            => GetValue(input, ref position, out _, encoding).ToString();
         public static object GetValue(byte[] input, ref int Position, out DocRecordColumnType format, Encoding ReadEncoding)
         {
             string _ = default;
@@ -749,7 +751,38 @@ namespace SEIDR.Doc
             }
         }
         */
-
+        public static int GetSkipPosition(string content, Encoding FileEncoding, int linesToSkip)
+        {
+            if (linesToSkip == 0)
+                return 0;
+            int position = 0;
+            var byteSet = FileEncoding.GetBytes(content);
+            int lineCounter = 0;
+            while (lineCounter < linesToSkip)
+            {
+                var len = BitConverter.ToInt32(byteSet, position);
+                position += sizeof(int) + len;
+                lineCounter++;
+            }
+            return position;
+        }        
+        public static List<DocRecordColumnInfo> InferColumnList(string content, Encoding fileEncoding, string alias, bool NamedHeader)
+        {
+            List<DocRecordColumnInfo> result = new List<DocRecordColumnInfo>();
+            int position = 0;
+            int idx = 0;
+            var byteSet = fileEncoding.GetBytes(content);
+            while (position < byteSet.Length)
+            {
+                string colName;
+                if (NamedHeader)
+                    colName = GetKey(byteSet, fileEncoding, ref position);
+                else
+                    colName = "COLUMN # " + idx;
+                result.Add(new DocRecordColumnInfo(colName, alias, idx++));
+            }
+            return result;
+        }
         public static IEnumerable<string> EnumerateLines(string content, MetaDataBase metaData)
         {
             Encoding FileEncoding = metaData.FileEncoding;

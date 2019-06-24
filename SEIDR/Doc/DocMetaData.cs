@@ -12,6 +12,11 @@ namespace SEIDR.Doc
     /// </summary>
     public sealed class DocMetaData : MetaDataBase, ISingleRecordTypeMetaData
     {
+        public override MetaDataBase LinkColumnSet(DocRecordColumnCollection columnSet)
+        {
+            Columns = columnSet;
+            return this;
+        }
         /// <summary>
         /// Treats the MetaData as the underlying ColumnsCollection
         /// </summary>
@@ -189,10 +194,10 @@ namespace SEIDR.Doc
                         fmt.Append(Delimiter);
                 }
             }
-            if (LineEndDelimiter != null)
-                fmt.Append(LineEndDelimiter);
-            else
-                fmt.Append(Environment.NewLine);
+            //if (LineEndDelimiter != null)
+            //    fmt.Append(LineEndDelimiter);
+            //else
+            //    fmt.Append(Environment.NewLine);
             return string.Format(fmt.ToString(), Columns.Columns.Select(c => c.ColumnName).ToArray());
         }        
       

@@ -8,8 +8,9 @@ namespace SEIDR.Doc.FormatHelper
 {
     public static class FixWidthHelper
     {
-        public static void InferColumnset(string[] lineSource)
+        public static List<DocRecordColumnInfo> InferColumnset(IList<string> lineSource, MetaDataBase metaData)
         {
+            var ret = new List<DocRecordColumnInfo>();
             /*
             Need to check a few lines 
             Rules:
@@ -17,8 +18,9 @@ namespace SEIDR.Doc.FormatHelper
              If starting point inconsistent - right justify and end at consistent spot.
              
              */
+            return ret;
         }
-        public static List<string> SplitStringByLength(string contentSource, MetaDataBase metaData, ref int remainingBytes)
+        public static List<string> SplitStringByLength(string contentSource, MetaDataBase metaData, out int remainingBytes)
         {
             var columnInfos = metaData.GetRecordColumnInfos(contentSource);            
             int len = columnInfos.MaxLength;

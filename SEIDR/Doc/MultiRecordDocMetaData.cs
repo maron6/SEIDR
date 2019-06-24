@@ -12,6 +12,18 @@ namespace SEIDR.Doc
     public sealed class MultiRecordDocMetaData : MetaDataBase
     {
         /// <summary>
+        /// Sets the default column set. 
+        /// <para>If you want to set the column set to a speecific key - use <see cref="SetCollection(string, DocRecordColumnCollection)"/>
+        /// </para>
+        /// </summary>
+        /// <param name="columnSet"></param>
+        /// <returns></returns>
+        public override MetaDataBase LinkColumnSet(DocRecordColumnCollection columnSet)
+        {
+            ColumnSets[DEFAULT_KEY] = columnSet;
+            return this;
+        }
+        /// <summary>
         /// Default column name for the Key Column (First column)
         /// </summary>
         public const string DEFAULT_KEY_NAME = "Key";
@@ -38,6 +50,25 @@ namespace SEIDR.Doc
             }
         }
         #region Collection creation
+        /// <summary>
+        /// Adds or overwrites the column set associated with the given key
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="colSet"></param>
+        /// <returns></returns>
+        public MetaDataBase SetCollection(string key, DocRecordColumnCollection colSet)
+        {
+            ColumnSets[key] = colSet;
+            return this;
+        }
+          
+        public DocRecordColumnCollection CreateCollection(List<DocRecordColumnInfo> colInput)
+        {
+            string key = colInput[0].ColumnName;
+            var colSet = new DocRecordColumnCollection(colInput);
+            ColumnSets.Add(key, colSet);
+            return colSet;
+        }
         public DocRecordColumnCollection CreateCollection(string Key, string TextQualifier = null, bool IncludeKeyColumn = true)
         {
             var colSet = new DocRecordColumnCollection(Alias);

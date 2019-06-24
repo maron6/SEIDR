@@ -142,7 +142,10 @@ namespace SEIDR.Doc
         {
             return Columns.HasColumn(alias, Column);
         }
-
+        public bool HasColumn(string columnName)
+        {
+            return Columns.HasColumn(null, columnName, -1);
+        }
         public bool TryGet(DocRecordColumnInfo columnInfo, out object result)
         {
             if (content.Count > columnInfo.Position)

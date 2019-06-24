@@ -19,24 +19,24 @@ namespace SEIDR.Test
             md.SetDelimiter('|').SetLineEndDelimiter("\r\n");
                 md.SetFileEncoding(Encoding.Default)
                 .SetTextQualifier("'");
-            var i = DelimiterHelper.EnumerateLines(test, "|", true, md).ToArray();
+            var i = DelimiterHelper.EnumerateSplits(test, "|", true, md, false).ToArray();
             Assert.AreEqual("bla bla", i[0]);
             Assert.AreEqual("'test|'something\r\nheya'\r\ntest'\r\n", i[1]); //Note: splitting on PIPE, not \r\n.
-            var l = DelimiterHelper.SplitString(test, '|', out _, true, md, true);
+            var l = DelimiterHelper.SplitString(test, '|', out _, out _, true, md, true, false);
             Assert.AreEqual(i.Length, l.Count);
             for(int idx = 0; idx < i.Length; idx++)
             {
                 Assert.AreEqual(i[idx], l[idx]);
             }
 
-            i = DelimiterHelper.EnumerateLines(test, "|", false, md).ToArray();
+            i = DelimiterHelper.EnumerateSplits(test, "|", false, md, false).ToArray();
             Assert.AreEqual("bla bla", i[0]);
             Assert.AreEqual("'test", i[1]);
 
-            i = DelimiterHelper.EnumerateLines(test, "\r\n", true, md).ToArray();
+            i = DelimiterHelper.EnumerateSplits(test, "\r\n", true, md, false).ToArray();
             Assert.AreEqual("heya'\r\ntest'", i[1]);
 
-            i = DelimiterHelper.EnumerateLines(test, "\r\n", false, md).ToArray();
+            i = DelimiterHelper.EnumerateSplits(test, "\r\n", false, md, false).ToArray();
             Assert.AreEqual("heya'", i[1]);
 
         }

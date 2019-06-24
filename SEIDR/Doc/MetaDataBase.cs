@@ -189,6 +189,10 @@ namespace SEIDR.Doc
             return this;
         }
         /// <summary>
+        /// Indicates whether or to expect newlines in a text qualified column value.
+        /// </summary>
+        public bool AllowQuotedNewLine { get; set; } = false;
+        /// <summary>
         /// Delimiter for columns
         /// </summary>
         public char? Delimiter { get; set; }
@@ -442,11 +446,8 @@ namespace SEIDR.Doc
         public virtual MetaDataBase SetFormat(DocRecordFormat NewFormat)
         {
             Format = NewFormat;
-            if (NewFormat == DocRecordFormat.SBSON)
-                SetLineEndDelimiter(DEFAULT_BSON_LINE_END);
             return this;
-        }
-        public readonly string DEFAULT_BSON_LINE_END = ((char)0).ToString() + Environment.NewLine + ((char)0).ToString();
+        }        
         /// <summary>
         /// Indicates whether or not the file should be treated as FixedWidth
         /// </summary>
@@ -804,15 +805,25 @@ namespace SEIDR.Doc
             int Last = Columns.LastPosition.MaxOfComparison(columnMapping.Max(k => k.Key));
             for(int idx = 0; idx <= Last; idx++)             
             {
-                DocRecordColumnInfo col;
+                DocRecordColumnInfo col = null;
+                string s = string.Empty;
                 if (columnMapping != null && columnMapping.ContainsKey(idx))
-                    col = columnMapping[idx];
-                else
+                    col = columnMapping[idx];                
+                else if(idx < Columns.Count)
                     col = Columns[idx];
+                /*
+                 * else 
+                 * {
+                 *  col = null, s = string.Empty; //Mapping goes above original col count. Put blanks in between.
+                 * }
+                 */
+                if(col != null)
+                    s = record.GetBestMatch(col.ColumnName, col.OwnerAlias) ?? string.Empty;
 
-                string s = record.GetBestMatch(col.ColumnName, col.OwnerAlias) ?? string.Empty;
                 if (FixWidthMode || RaggedRightMode)
                 {
+                    if (col == null)
+                        throw new Exception("Mapping column collection does not include a column with position " + idx);
                     if (RaggedRightMode && idx == Columns.LastPosition)
                         sb.Append(s);
                     else if (col.LeftJustify)
@@ -822,11 +833,16 @@ namespace SEIDR.Doc
                 }
                 else if (VariableWidthMode)
                 {
-                    if (!col.MaxLength.HasValue || s.Length < col.MaxLength.Value || idx == Columns.LastPosition)
+                    if (col == null)
+                    {
+                        if (idx < Last)
+                            sb.Append(Delimiter.Value);
+                    }
+                    else if (!col.MaxLength.HasValue || s.Length < col.MaxLength.Value || idx == Columns.LastPosition)
                     {
                         if (col.TextQualify)
                             sb.Append(TextQualifier);
-                        else if (s.Contains(Delimiter.Value))
+                        else if(col.CheckNeedTextQualifier(Delimiter, s) || col.CheckNeedTextQualifier(LineEndDelimiter, s))                             
                         {
                             sb.Append(TextQualifier);
                             col.TextQualify = true; //force text qualify in the column going forward.
@@ -844,17 +860,20 @@ namespace SEIDR.Doc
                 }
                 else
                 {
-                    if (col.TextQualify)
-                        sb.Append(TextQualifier);
-                    else if (s.Contains(Delimiter.Value))
+                    if (col != null)
                     {
-                        sb.Append(TextQualifier);
-                        col.TextQualify = true; //force text qualify in the column going forward.
+                        if (col.TextQualify)
+                            sb.Append(TextQualifier);
+                        else if (col.CheckNeedTextQualifier(Delimiter, s) || col.CheckNeedTextQualifier(LineEndDelimiter, s))
+                        {
+                            sb.Append(TextQualifier);
+                            col.TextQualify = true; //force text qualify in the column going forward.
+                        }
+                        sb.Append(s); //if col == null, then this is going to be empty string.
+                        if (col.TextQualify)
+                            sb.Append(TextQualifier);
                     }
 
-                    sb.Append(s);
-                    if (col.TextQualify)
-                        sb.Append(TextQualifier);
                     if (idx < Last)
                         sb.Append(Delimiter.Value);
                 }
@@ -866,6 +885,12 @@ namespace SEIDR.Doc
             return sb.ToString();
         }
         /// <summary>
+        /// Links a column set to the metadata, overriding whatever the current column set is.
+        /// </summary>
+        /// <param name="columnSet"></param>
+        /// <returns></returns>
+        public abstract MetaDataBase LinkColumnSet(DocRecordColumnCollection columnSet);
+        /// <summary>
         /// Conditionally adds a LineEnd delimiter.
         /// <para>If <see cref="LineEndDelimiter"/> is not null, then that will be added.</para>
         /// <para>Else, will add <see cref="Environment.NewLine"/>, unless the <see cref="Format"/> is either <see cref="DocRecordFormat.FIX_WIDTH"/> or <see cref="DocRecordFormat.SBSON"/></para>
@@ -873,7 +898,7 @@ namespace SEIDR.Doc
         /// <param name="sb"></param>
         public void CheckAddLineDelimiter(StringBuilder sb)
         {
-            if (Format.In(DocRecordFormat.BSON, DocRecordFormat.SBSON))
+            if (Format.In(DocRecordFormat.BSON, DocRecordFormat.SBSON)) //Each record or "document" should be prepended with length. No newline.
                 return;
             string le = LineEndDelimiter;
             if (le != null)

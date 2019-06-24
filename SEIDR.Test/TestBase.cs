@@ -46,5 +46,20 @@ namespace SEIDR.Test
             RootDirectory = di;
             return di;
         }
+
+        public bool TestFileMatch(string TestFile, params string[] TestProjectFile)
+        {
+            var projTest = GetFile(TestProjectFile);
+            string s = File.ReadAllText(TestFile);
+            string s2 = File.ReadAllText(projTest.FullName);
+            return s == s2;
+        }
+        public bool TestFileMatchIgnoreNewline(string TestFile, params string[] TestProjectFile)
+        {
+            var projTest = GetFile(TestProjectFile);
+            string s = File.ReadAllText(TestFile).Replace(Environment.NewLine, string.Empty);
+            string s2 = File.ReadAllText(projTest.FullName).Replace(Environment.NewLine, string.Empty);
+            return s == s2;
+        }
     }
 }

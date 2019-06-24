@@ -27,6 +27,26 @@ namespace SEIDR.Doc
     public sealed class DocRecordColumnInfo : IRecordColumnInfo
     {
         /// <summary>
+        /// Check whether or not a value indicates that the column should be text qualified.
+        /// </summary>
+        /// <param name="delimiter"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool CheckNeedTextQualifier(string delimiter, string value)
+        {
+            if (string.IsNullOrEmpty(delimiter) || string.IsNullOrEmpty(value))
+                return false;
+            if (!DataType.In(DocRecordColumnType.Varchar, DocRecordColumnType.NVarchar, DocRecordColumnType.Unknown))
+                return false;
+            return value.Contains(delimiter);
+        }
+        public bool CheckNeedTextQualifier(char? delimiter, string value)
+        {
+            if (!delimiter.HasValue)
+                return false;
+            return CheckNeedTextQualifier(delimiter.Value.ToString(), value);
+        }
+        /// <summary>
         /// For formatting - indicates that data is separated by a subdelimiter and can be returned as an array or list.
         /// </summary>
         public bool Array { get; private set; }
@@ -55,10 +75,21 @@ namespace SEIDR.Doc
             ArrayDelimiter = null;
             return this;
         }
+        DocRecordColumnType _DataType = DocRecordColumnType.Unknown;
         /// <summary>
         /// Indicates type of data
         /// </summary>
-        public DocRecordColumnType DataType { get; set; } = DocRecordColumnType.Unknown;
+        public DocRecordColumnType DataType
+        {
+            get => _DataType;
+            set
+            {
+                _DataType = value;
+                if (value.NotIn(DocRecordColumnType.Unknown, DocRecordColumnType.Varchar, DocRecordColumnType.NVarchar))
+                    TextQualify = false; //by default, don't text qualify dates/numerics/etc
+            }
+        }
+        
         /// <summary>
         /// Optional formatting for certain data types.
         /// </summary>
