@@ -123,6 +123,10 @@ namespace SEIDR.Doc
     public class DocReader<ReadType>:IEnumerable<ReadType>, IDisposable where ReadType: IDataRecord, new()
     {
         /// <summary>
+        /// Indicates whether or not empty lines are skipped, or returned as null.
+        /// </summary>
+        public readonly bool IncludeNullRecords = false;
+        /// <summary>
         /// Preview the first <paramref name="charCount"/> characters from the file.
         /// </summary>
         /// <param name="FilePath"></param>
@@ -359,6 +363,7 @@ namespace SEIDR.Doc
             if (!info.AccessMode.HasFlag(FileAccess.Read))
                 throw new ArgumentException(nameof(info), "Not Configured for read mode");
             _MetaData = info;
+            IncludeNullRecords = info.AllowNullRecords;
             SetupStream();
         }
 
@@ -560,9 +565,9 @@ namespace SEIDR.Doc
             else if (fixWidth_NoNewLine)
                 lines = FormatHelper.FixWidthHelper.SplitStringByLength(content, _MetaData, out removedBytes); //Must be single column set metadata. (DocMetaData)
             else if (_MetaData.ReadWithMultiLineEndDelimiter)                            
-                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out startOffset, out removedBytes, _MetaData.AllowQuotedNewLine, _MetaData, end, true);             
+                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out startOffset, out removedBytes, _MetaData.AllowQuotedNewLine, _MetaData, end, SkipEmpty: !IncludeNullRecords);             
             else
-                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out startOffset, out removedBytes, _MetaData.AllowQuotedNewLine, _MetaData, end, true);                
+                lines = FormatHelper.DelimiterHelper.SplitString(content, _MetaData.MultiLineEndDelimiter, out startOffset, out removedBytes, _MetaData.AllowQuotedNewLine, _MetaData, end, SkipEmpty: !IncludeNullRecords);                
             
             endPosition = startPosition + contentLength - removedBytes;
             startPosition += startOffset;
@@ -595,11 +600,11 @@ namespace SEIDR.Doc
                     if (_MetaData.ReadWithMultiLineEndDelimiter)
                         forward = FormatHelper.DelimiterHelper.GetSkipPosition(content, 
                             _MetaData.MultiLineEndDelimiter, 
-                            false, _MetaData, skipLine);
+                            false, _MetaData, skipLine, skipEmpty: !IncludeNullRecords);
                     else
                         forward = FormatHelper.DelimiterHelper.GetSkipPosition(content, 
                             new string[] { _MetaData.LineEndDelimiter }, 
-                            false, _MetaData, skipLine);
+                            false, _MetaData, skipLine, skipEmpty: !IncludeNullRecords);
                     startPosition += forward;
                     skipLine = 0;                    
                 }
@@ -731,8 +736,14 @@ namespace SEIDR.Doc
             }
 
             int recordCount = endLine;
-            if(_MetaData.HasHeader)
-                recordCount -= headerCount; 
+            if (_MetaData.HasHeader && headerCount != 0)
+            {
+                if (recordCount == headerCount)
+                    return !end;//Small page size, only content was header info... we don't want to use it as the first page then, though.
+                recordCount -= headerCount;                
+            }
+            if (recordCount == 0) //Probably only possible when doing headers (headerCount == recordCount), or if there's a bunch of empty lines and we aren't including those.
+                return !end; 
 
             Pages.Add(new PageHelper(startPosition, endPosition, _MetaData.PageSize, recordCount: recordCount));
             startPosition = endPosition;
@@ -954,7 +965,7 @@ namespace SEIDR.Doc
                 x = p.Length; //throw away extra characters read because of dropping newlines when not adding a seek because we're going through pages sequentially.
             content = new string(buffer, drop, x);
             lastPage = pageNumber;
-            IList<string> lines;
+            
             if(_MetaData.Format == DocRecordFormat.SBSON)
             {
                 int idx = 0;
@@ -964,20 +975,29 @@ namespace SEIDR.Doc
             }
             else if (_MetaData.ReadWithMultiLineEndDelimiter)
             {
-                lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
+                int idx = 0;
+                foreach (string s in FormatHelper.DelimiterHelper.EnumerateSplits(content, _MetaData.MultiLineEndDelimiter, _MetaData.AllowQuotedNewLine, _MetaData, SkipEmpty: !IncludeNullRecords))
+                    yield return new Tuple<string, int>(s, idx++);
+                yield break;
+                //lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
             }
             else if (string.IsNullOrEmpty(_MetaData.LineEndDelimiter)) //FixWidth mode, no line ending.
             {
-                lines = content.SplitOnString(((DocMetaData)_MetaData).Columns.MaxLength);
+                IList<string> lines = content.SplitOnString(((DocMetaData)_MetaData).Columns.MaxLength);
+                for(int i = 0; i < lines.Count; i++)
+                {
+                    yield return new Tuple<string, int>(lines[i], i);
+                }         
             }
             else
             {
-                lines = content.SplitOnString(_MetaData.LineEndDelimiter);
+                int idx = 0;
+                foreach (string s in FormatHelper.DelimiterHelper.EnumerateSplits(content, _MetaData.LineEndDelimiter, _MetaData.AllowQuotedNewLine, _MetaData, SkipEmpty: !IncludeNullRecords))
+                    yield return new Tuple<string, int>(s, idx++);
+                yield break;
+                //lines = content.SplitOnString(_MetaData.LineEndDelimiter);
             }
-            for(int i = 0; i < lines.Count; i++)
-            {
-                yield return new Tuple<string, int>(lines[i], i);
-            }            
+            yield break;
         }
 
         /// <summary>
@@ -1018,7 +1038,8 @@ namespace SEIDR.Doc
             }
             else if (_MetaData.ReadWithMultiLineEndDelimiter)
             {
-                lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
+                lines = FormatHelper.DelimiterHelper.EnumerateSplits(content, _MetaData.MultiLineEndDelimiter, _MetaData.AllowQuotedNewLine, _MetaData, SkipEmpty: !IncludeNullRecords).ToArray();
+                //lines = content.Split(_MetaData.MultiLineEndDelimiter, StringSplitOptions.None);
             }
             else if (string.IsNullOrEmpty(_MetaData.LineEndDelimiter)) //FixWidth mode, no line ending.
             {
@@ -1026,7 +1047,8 @@ namespace SEIDR.Doc
             }
             else
             {
-                lines = content.SplitOnString(_MetaData.LineEndDelimiter);
+                lines = FormatHelper.DelimiterHelper.EnumerateSplits(content, _MetaData.LineEndDelimiter, _MetaData.AllowQuotedNewLine, _MetaData, SkipEmpty: !IncludeNullRecords).ToArray();
+                //lines = content.SplitOnString(_MetaData.LineEndDelimiter);
             }
             return lines;
         }

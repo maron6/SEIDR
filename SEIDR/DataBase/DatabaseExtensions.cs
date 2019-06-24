@@ -15,6 +15,13 @@ namespace SEIDR.DataBase
     /// </summary>
     public static class DatabaseExtensions
     {
+        public static Doc.DataTableDoc<Doc.TypedDataRecord> PullSchema(this DatabaseManager manager, string tableName, string Schema = null)        
+        {
+            if (Schema == null)
+                Schema = manager.DefaultSchema;
+            var dt = manager.ExecuteText("SELECT TOP 0 * FROM [" + Schema + "].[" + tableName + "] WITH (NOLOCK);").Tables[0];
+            return new Doc.DataTableDoc<Doc.TypedDataRecord>(dt);
+        }
         /// <summary>
         /// Converts the DataTable from the specified index of the dataset into a List of <typeparamref name="RT"/>
         /// </summary>

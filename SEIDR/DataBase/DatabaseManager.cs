@@ -1071,6 +1071,15 @@ namespace SEIDR.DataBase
             }
             else if (paramObj == null)
                 return;            
+            if(paramObj is Doc.IDataRecord)
+            {
+                Doc.IDataRecord r = paramObj as Doc.IDataRecord;
+                foreach(var col in r.Columns)
+                {
+                    extraKeys[col.ColumnName] = r[col];
+                }
+                paramObj = new { };
+            }
             ParameterStore.FillParameterCollection(cmd); 
             if (cmd.Parameters.Count == 0) //No parameters to fill.
                 return;
@@ -1092,7 +1101,12 @@ namespace SEIDR.DataBase
                         if (o == null)
                             e[l.Key] = DBNull.Value;
                         else
-                            e[l.Key] = l.Value.Invoke(o, null) ?? DBNull.Value;
+                        {
+                            object temp = l.Value.Invoke(o, null) ?? DBNull.Value;
+                            if (temp is Doc.DataItem)
+                                temp = ((Doc.DataItem)temp).Value;
+                            e[l.Key] = temp;
+                        }
                     });
                     foreach (SqlParameter p in col)
                     {
@@ -1102,7 +1116,12 @@ namespace SEIDR.DataBase
                         if (!e.ContainsKey(k))
                             p.Value = null; //Not in dictionary - default parameter value
                         else
-                            p.Value = e[k] ?? DBNull.Value;
+                        {
+                            object temp = e[k] ?? DBNull.Value;
+                            if (temp is Doc.DataItem)
+                                temp = ((Doc.DataItem)temp).Value;
+                            p.Value = temp;
+                        }
                     }
                 });
                 Methods[MKey] = m;
@@ -1132,9 +1151,19 @@ namespace SEIDR.DataBase
                     string Key = param.ParameterName.Substring(1); //Remove '@'
                     MethodInfo mi;
                     if (!ignore.Contains(Key) && propDict.TryGetValue(Key, out mi))
-                        param.Value = mi.Invoke(paramObj, null) ?? DBNull.Value;
+                    {
+                        object temp = mi.Invoke(paramObj, null) ?? DBNull.Value;
+                        if (temp is Doc.DataItem)
+                            temp = ((Doc.DataItem)temp).Value;
+                        param.Value = temp;
+                    }
                     else if (extraKeys.ContainsKey(Key))
-                        param.Value = extraKeys[Key] ?? DBNull.Value;
+                    {
+                        object temp = extraKeys[Key] ?? DBNull.Value;
+                        if (temp is Doc.DataItem)
+                            temp = ((Doc.DataItem)temp).Value;
+                        param.Value = temp;
+                    }
                     else
                         param.Value = null; //Default
                 }

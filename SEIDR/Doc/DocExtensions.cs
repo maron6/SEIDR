@@ -577,5 +577,89 @@ namespace SEIDR.Doc
         {
             return encodingType.GetBytes(check).StartsWithByteSet(startSet);           
         }
+        /// <summary>
+        /// Returns an empty DataTable, with columns populated based on the source DocRecordColumnCollection.
+        /// </summary>
+        /// <param name="TableName"></param>
+        /// <param name="recordColumns"></param>
+        /// <returns></returns>
+        public static System.Data.DataTable GetEmptyTable(this DocRecordColumnCollection recordColumns, string TableName = null)
+        {
+            System.Data.DataTable dc;
+            if (TableName == null)
+                dc = new System.Data.DataTable();
+            else
+                dc = new System.Data.DataTable(TableName);
+            foreach (var col in recordColumns)
+            {
+                Type t;
+                switch (col.DataType)
+                {
+                    case DocRecordColumnType.Tinyint:
+                        t = typeof(byte);
+                        break;
+                    case DocRecordColumnType.Smallint:
+                        t = typeof(short);
+                        break;
+                    case DocRecordColumnType.Int:
+                        t = typeof(int);
+                        break;
+                    case DocRecordColumnType.Bigint:
+                        t = typeof(long);
+                        break;
+                    case DocRecordColumnType.Money:
+                    case DocRecordColumnType.Decimal:
+                        t = typeof(decimal);
+                        break;
+                    case DocRecordColumnType.Double:
+                        t = typeof(double);
+                        break;
+                    case DocRecordColumnType.Date:
+                    case DocRecordColumnType.DateTime:
+                        t = typeof(DateTime);
+                        break;
+                    case DocRecordColumnType.Bool:
+                        t = typeof(bool);
+                        break;
+                    case DocRecordColumnType.Unknown:
+                    case DocRecordColumnType.Varchar:
+                    default:
+                        t = typeof(string);
+                        break;
+                }
+                dc.Columns.Add(col.ColumnName, t);
+            }
+            return dc;
+        }
+        /// <summary>
+        /// Converts an IEnumerable set of DataRecords into a DataTableDoc.
+        /// </summary>
+        /// <typeparam name="DT"></typeparam>
+        /// <param name="dataRecords"></param>
+        /// <returns></returns>
+        public static DataTableDoc<DT> ToDataTableDoc<DT>(this IEnumerable<DT> dataRecords) where DT: IDataRecord, new()
+        {
+            var f = dataRecords.FirstOrDefault();
+            if (f == null)
+                return null;
+            DataTableDoc<DT> n = new DataTableDoc<DT>(f.Columns.GetEmptyTable());
+            foreach(var record in dataRecords)
+            {
+                n.AddRecord(record);
+            }
+            return n;
+        }
+        /// <summary>
+        /// Returns a page of the DocReader as though it were a DataTable
+        /// </summary>
+        /// <typeparam name="DT"></typeparam>
+        /// <param name="source"></param>
+        /// <param name="page"></param>
+        /// <returns></returns>
+        public static DataTableDoc<DT> GetDataTableDocPage<DT>(this DocReader<DT> source, int page)
+            where DT:IDataRecord, new()
+        {
+            return source.GetPage(page).ToDataTableDoc();
+        }
     }
 }

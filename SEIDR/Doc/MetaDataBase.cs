@@ -23,6 +23,103 @@ namespace SEIDR.Doc
             TrustPreamble = trust;
             return this;
         }
+        /// <summary>
+        /// Sets whether or not to allow a reader or writer to include null as a record.
+        /// </summary>
+        public bool AllowNullRecords { get; set; } = false;
+        /// <summary>
+        /// Sets whether or not to allow a reader or writer to include null as a record.
+        /// </summary>
+        /// <param name="allowNull"></param>
+        /// <returns></returns>
+        public MetaDataBase SetAllowNullRecords (bool allowNull)
+        {
+            AllowNullRecords = allowNull;
+            return this;
+        }
+        /// <summary>
+        /// Character to use for escaping quotes when splitting lines/columns.
+        /// </summary>
+        public char QuoteEscape = '\\';
+        public MetaDataBase SetQuoteEscape(char escape)
+        {
+            QuoteEscape = escape;
+            return this;
+        }
+        /// <summary>
+        /// Cleans quotes out from a value, unless they're escaped or in the middle of a line.
+        /// <para>Quotes that were escaped will have their escape removed.</para>
+        /// </summary>
+        /// <param name="source"></param>
+        /// <returns></returns>
+        public string CleanQuotes(string source)
+        {
+            if (string.IsNullOrEmpty(TextQualifier))
+                return source;
+            StringBuilder sb = new StringBuilder();
+            int current = 0;            
+            int finish = source.Length;
+            if(source.StartsWith(TextQualifier))            
+                current = TextQualifier.Length;            
+            if (source.EndsWith(TextQualifier) && source[source.Length - TextQualifier.Length - 1] != QuoteEscape)
+                finish -= TextQualifier.Length;
+            int nextQuote = source.IndexOf(TextQualifier, current);
+            while (current < finish)
+            {
+                if(nextQuote == -1)
+                {
+                    sb.Append(source.Substring(current, finish - current));
+                    break;
+                }
+                if (source[nextQuote - 1] == QuoteEscape)
+                    sb.Append(source.Substring(current, nextQuote - 1 - current));
+                else
+                    sb.Append(source.Substring(current, nextQuote - current));
+                sb.Append(TextQualifier);
+                current = nextQuote + TextQualifier.Length;
+                nextQuote = source.IndexOf(TextQualifier, current);                
+                if (nextQuote == finish)
+                {
+                    //at the last quote, which ends the string value. Drop that one, unless preceded by a quote escape.
+                    sb.Append(source.Substring(current, finish - current));
+                    break; 
+                }
+            }
+            return sb.ToString();
+        }
+        /// <summary>
+        /// Escape the quotes within a string.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <returns></returns>
+        public string EscapeQuoteValues(string source)
+        {
+            if (string.IsNullOrEmpty(TextQualifier))
+                return source;
+            int nextQuote = source.IndexOf(TextQualifier);
+            if (nextQuote < 0)
+                return source;
+            int fromPosition = 0;
+            StringBuilder sb = new StringBuilder(source.Length);
+            while(nextQuote >= 0)
+            {
+                sb.Append(source, fromPosition, nextQuote - fromPosition);
+                if (source[nextQuote - 1] != QuoteEscape)
+                    sb.Append(QuoteEscape);
+                sb.Append(TextQualifier);
+                fromPosition = nextQuote + TextQualifier.Length;
+                nextQuote = source.IndexOf(TextQualifier, fromPosition);                
+            }
+            if (fromPosition < source.Length)
+                sb.Append(source.Substring(fromPosition));
+            return sb.ToString();
+        }
+        public bool AllowQuoteEscape { get; set; }
+        public MetaDataBase SetAllowQuoteEscape(bool allow)
+        {
+            AllowQuoteEscape = allow;
+            return this;
+        }
 
         /// <summary>
         /// Perform basic checks to make sure meta Data is valid.
@@ -972,6 +1069,34 @@ namespace SEIDR.Doc
             result.Configure(colSet, WriteMode, content);
             //result.SetParsedContent(content);
             return result;
+        }
+        /// <summary>
+        /// Formats a string for a null record.
+        /// </summary>
+        /// <returns></returns>
+        public string FormatNullRecord()
+        {
+            StringBuilder sb = new StringBuilder();
+            switch (Format)
+            {
+                case DocRecordFormat.BSON:
+                    return FileEncoding.GetString(new byte[] { 0, 0, 0, 0 });
+                case DocRecordFormat.FIX_WIDTH:
+                case DocRecordFormat.RAGGED_RIGHT:
+                    if (LineEndDelimiter != null)
+                    {
+                        var colSource = GetRecordColumnInfos(null as string);
+                        sb.Append(' ', colSource.MaxLength);
+                    }
+                    CheckAddLineDelimiter(sb);
+                    break;
+                case DocRecordFormat.VARIABLE_WIDTH:
+                case DocRecordFormat.DELIMITED:
+                default:
+                    CheckAddLineDelimiter(sb);
+                    break;
+            }
+            return sb.ToString();
         }
         protected string FormatBSON(IDataRecord record, bool IncludeLineEndDelimiter)
         {

@@ -4,6 +4,7 @@ using System.IO;
 using SEIDR.Doc;
 using System.Collections.Generic;
 using Microsoft.CSharp;
+using System.Linq;
 
 namespace SEIDR.Test
 {
@@ -905,12 +906,47 @@ LineNumber|Description
             }
         }
         [TestMethod]
+        public void TestQuoteEscape()
+        {
+            var md = new DocMetaData(TEST_FOLDER, "bomCheck.txt", "BC").SetAllowQuoteEscape(true);
+            string toEscapeNoChange = "test\\\" quote|Read\".";       
+            string toEscapeWithChange = "test\" quote|Read\".";
+            string escaped = "test\\\" quote|Read\\\".";
+            Assert.AreEqual(escaped, md.EscapeQuoteValues(toEscapeNoChange));
+            Assert.AreEqual(escaped, md.EscapeQuoteValues(toEscapeWithChange));
+            var s = Doc.FormatHelper.DelimiterHelper.EnumerateSplits(toEscapeWithChange, '|', true, md, false).ToArray();
+            Assert.AreEqual(1, s.Length);
+            Assert.AreEqual("test\" quote|Read\".", s[0]);
+            s = Doc.FormatHelper.DelimiterHelper.EnumerateSplits(toEscapeNoChange, '|', true, md, false).ToArray();
+            Assert.AreEqual(2, s.Length);
+            Assert.AreEqual("test\\\" quote", s[0]);
+            //Quote cleanup - remove text qualification and any text qualifier escapes.
+            string clean = md.CleanQuotes(toEscapeNoChange);
+            Assert.AreEqual(toEscapeWithChange, clean);
+            clean = md.CleanQuotes(toEscapeWithChange);
+            Assert.AreEqual(toEscapeWithChange, clean);
+
+            //Outer quotes removed - should be same as above two
+            clean = md.CleanQuotes('"' + toEscapeNoChange + '"');
+            Assert.AreEqual(toEscapeWithChange, clean);
+            clean = md.CleanQuotes('"' + toEscapeWithChange + '"');
+            Assert.AreEqual(toEscapeWithChange, clean);
+
+
+            clean = md.CleanQuotes('"' + toEscapeNoChange + '\\' + '"');
+            Assert.AreEqual(toEscapeWithChange + '"', clean);
+
+
+        }
+        [TestMethod]
         public void MultiRecordTest()
         {
             PrepDirectory(true);
             var input = GetFile("TestFiles", "MultiRecordIn.txt");
             var mrmd = new MultiRecordDocMetaData(input.FullName, "mrm");
-            mrmd.SetDelimiter(',').SetMultiLineEndDelimiters("\r", "\n", "\r\n");
+            mrmd.SetDelimiter(',')
+                .SetMultiLineEndDelimiters("\r", "\n", "\r\n")
+                .SetTrustPreamble(false);
             var c0 = mrmd.CreateCollection("0"); //Key Column already included by default            
             c0.AddColumn("Desc");
             c0.AddColumn("WorkDate", dataType: DocRecordColumnType.Date);

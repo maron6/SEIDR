@@ -626,7 +626,12 @@ namespace SEIDR.Doc
         }
         void IDataRecord.Configure(DocRecordColumnCollection owner, bool? canWrite, IList<object> parsedContent)
         {
-            var parseList = parsedContent.Select(c => c?.ToString()).ToList();
+            var parseList = parsedContent.Select(c => 
+            {
+                if (c == null || c is DBNull)
+                    return null;
+                return c.ToString();                
+            }).ToList();
             Configure(owner, canWrite, parseList);
         }
         #endregion

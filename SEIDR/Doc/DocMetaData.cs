@@ -134,7 +134,7 @@ namespace SEIDR.Doc
         /// <param name="DirectoryPath"></param>
         /// <param name="FileName"></param>
         /// <param name="alias"></param>
-        public DocMetaData(string DirectoryPath, string FileName, string alias = null)
+        public DocMetaData(string DirectoryPath, string FileName, string alias)
             :this(Path.Combine(DirectoryPath, FileName), alias)
         {
 
@@ -286,7 +286,7 @@ namespace SEIDR.Doc
         }
 
         /// <summary>
-        /// Adds basic columns to be delimited by <see cref="Delimiter"/>.
+        /// Adds basic columns, position determined by order.
         /// </summary>
         /// <param name="columnNames"></param>
         /// <returns></returns>

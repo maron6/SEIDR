@@ -12,6 +12,7 @@ namespace SEIDR.Doc
     /// </summary>
     public class DocRecordColumnCollection : IEnumerable<DocRecordColumnInfo>
     {
+
         /// <summary>
         /// Using IRecord info containing the following columns at minimum:
         /// <para>ColumnName (or Name)</para>        

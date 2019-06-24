@@ -8,6 +8,7 @@ namespace SEIDR.Doc
 {
     public class TypedDataRecord : IDataRecord
     {
+        
         string IDataRecord.this[int Position] { get => this[Position]; set => SetValue(Position, value); }
         string IDataRecord.this[string Column] { get => this[Column]; set => SetValue(Column, value); }
         string IDataRecord.this[IRecordColumnInfo column] { get => this[column.Position]; set => SetValue(column.Position, value); }
@@ -32,7 +33,7 @@ namespace SEIDR.Doc
                     throw new ArgumentException("Column not found", nameof(Column));
                 return content[col.Position];
             }
-        }        
+        }                
         public void SetValue(int Position, object value) => SetValue(Columns[Position], value);
         /// <summary>
         /// Sets the value in the internal content array.

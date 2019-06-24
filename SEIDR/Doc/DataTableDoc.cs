@@ -13,6 +13,25 @@ namespace SEIDR.Doc
     /// <typeparam name="DT"></typeparam>
     public class DataTableDoc<DT> : IEnumerable<DT> where DT:IDataRecord, new()
     {
+        #region casting
+        /// <summary>
+        /// Allow casting a DataTable as a DataTableDoc
+        /// </summary>
+        /// <param name="source"></param>
+        public static explicit operator DataTableDoc<DT>(System.Data.DataTable source)
+        {
+            return new DataTableDoc<DT>(source);
+        }
+        /// <summary>
+        /// Allow using a DataTableDoc as a <see cref="System.Data.DataTable"/>, by returning the underlying source object.
+        /// </summary>
+        /// <param name="source"></param>
+        public static implicit operator System.Data.DataTable(DataTableDoc<DT> source)
+        {
+            return source.source;
+        }
+        #endregion
+        
         public DocRecordColumnCollection ColumnSet { get; private set; }
         System.Data.DataTable source;
         /// <summary>
@@ -34,16 +53,17 @@ namespace SEIDR.Doc
             {
                 object o;
                 if (record.TryGet(col, out o))
-                    v[col] = o;
+                    v[col] = o ?? DBNull.Value;
                 else
                     v[col] = DBNull.Value;
             }
             dr.ItemArray = v;
         }
-        public DataTableDoc(System.Data.DataTable dtSource)
+        
+        public static DocRecordColumnCollection GetColumnCollection(string Alias, System.Data.DataColumnCollection dataColumns)
         {
-            ColumnSet = new DocRecordColumnCollection(dtSource.TableName);
-            foreach(System.Data.DataColumn col in dtSource.Columns)
+            var ColumnSet = new DocRecordColumnCollection(Alias);
+            foreach (System.Data.DataColumn col in dataColumns)
             {
                 DocRecordColumnType colType = DocRecordColumnType.Unknown;
                 switch (Type.GetTypeCode(col.DataType))
@@ -84,6 +104,11 @@ namespace SEIDR.Doc
                 }
                 ColumnSet.AddColumn(col.ColumnName, col.MaxLength, true, false, colType);
             }
+            return ColumnSet;
+        }
+        public DataTableDoc(System.Data.DataTable dtSource)
+        {
+            ColumnSet = GetColumnCollection(dtSource.TableName, dtSource.Columns);
             source = dtSource;
         }
         public IEnumerator<DT> GetEnumerator()

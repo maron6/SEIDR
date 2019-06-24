@@ -172,8 +172,12 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public override DocRecordColumnCollection GetRecordColumnInfos(string DocLine)
         {
+            DocRecordColumnCollection res;
             if (string.IsNullOrEmpty(DocLine))
-                return null;
+            {                
+                if (ColumnSets.TryGetValue(DEFAULT_KEY, out res))
+                    return res;
+            }
             bool exact = true;
             string k;
             IEnumerable<KeyValuePair<string, DocRecordColumnCollection>> kvSearch = ColumnSets;
@@ -212,7 +216,6 @@ namespace SEIDR.Doc
                     return kv.Value;
                 }
             }
-            DocRecordColumnCollection res;
             if (ColumnSets.TryGetValue(DEFAULT_KEY, out res))
                 return res;
             return null;
@@ -303,7 +306,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// No support for headers in MultiRecord. SKip lines with <see cref="MetaDataBase.SkipLines"/> if needed.
         /// </summary>
-        public override bool HeaderConfigured => false;
+        public override bool HeaderConfigured => ColumnSets.HasMinimumCount(0);
         /// <summary>
         /// Confirm that underlying column information is valid.
         /// </summary>

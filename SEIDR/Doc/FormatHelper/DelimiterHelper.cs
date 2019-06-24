@@ -24,9 +24,18 @@ namespace SEIDR.Doc.FormatHelper
             string textQual = metaData.TextQualifier;
             List<string> result = new List<string>();
             int Position = 0;
-            int nextTextQual = -1;
+            int nextTextQual = -1;            
             if (CheckTextQualifier && !string.IsNullOrEmpty(textQual))
+            {
                 nextTextQual = content.IndexOf(textQual);
+                if (metaData.AllowQuoteEscape)
+                {
+                    while (nextTextQual > 0 && content[nextTextQual - 1] == metaData.QuoteEscape)
+                    {
+                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                    }
+                }
+            }
             int textQualCount = 0;
             int lastPositionEnd = 0;
             int nextRowDelim = content.IndexOfAny(delimiterList);
@@ -37,7 +46,7 @@ namespace SEIDR.Doc.FormatHelper
                 {
                     textQualCount = 0;
                     int fromPosition = Position;
-                    string val = content.Substring(Position, nextRowDelim - Position);
+                    string val = content.Substring(Position, nextRowDelim - Position);                    
                     if (delimiterList.Length == 1)
                     {
                         Position = nextRowDelim + delimiterList[0].Length;
@@ -83,14 +92,54 @@ namespace SEIDR.Doc.FormatHelper
                 textQualCount++;
                 int quotePosition = nextTextQual + textQual.Length;
                 nextTextQual = content.IndexOf(textQual, quotePosition);
+                if (metaData.AllowQuoteEscape)
+                {
+                    while (nextTextQual > 0 && content[nextTextQual - 1] == metaData.QuoteEscape)
+                    {
+                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                    }
+                }
                 nextRowDelim = content.IndexOfAny(delimiterList, quotePosition);
                 if(nextRowDelim < 0)
                 {
                     if (End)
                     {
-                        string val = content.Substring(Position);
-                        if (!SkipEmpty || !string.IsNullOrEmpty(val))
+                        bool matched = false;
+                        string val = null;
+                        if (nextTextQual > 0 && textQualCount % 2 == 1)
                         {
+                            //If we have an upcoming quote, and it's going to be the last quote, return the remainder of the string. 
+                            // e.g., '" something | bla bla | "end of line.' - rather than erroring here, because the text qualifier goes to the end, we return the last string.
+                            if (!metaData.AllowQuoteEscape && content.IndexOf(textQual, nextTextQual + textQual.Length) < 0)
+                            {
+                                val = content.Substring(Position);
+                                matched = true;
+                            }
+                            else if (metaData.AllowQuoteEscape)
+                            {
+                                while (nextTextQual > 0 && content[nextTextQual - 1] == metaData.QuoteEscape)
+                                {
+                                    nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                                }//check that next non-escaped text qual is the last one. If so, then we can just end the string.
+                                if (content.IndexOf(textQual, nextTextQual + textQual.Length) < 0)
+                                {
+                                    val = content.Substring(Position);
+                                    matched = true;
+                                }
+                            }
+                        }
+                        else if(nextTextQual < 0 && textQualCount %2 == 0)
+                        {
+                            val = content.Substring(Position);
+                            matched = true;
+                        }
+                        if(!matched)
+                        {
+                            string message = $"Missing Text Qualifier({textQual}) {(metaData.AllowQuoteEscape ? ", TextQualifier escape (" + metaData.QuoteEscape + ")," : string.Empty)} or delimiter ({ string.Join(",", delimiterList)}).";
+                            throw new Exception(message);
+                        }                        
+                        if (!SkipEmpty || !string.IsNullOrEmpty(val))
+                        { 
                             result.Add(val);
                             //emptyEnd = 0;
                         }
@@ -122,9 +171,26 @@ namespace SEIDR.Doc.FormatHelper
             int Position = 0;
             int nextTextQual = -1;
             if (CheckTextQualifier && !string.IsNullOrEmpty(textQual))
+            {
                 nextTextQual = content.IndexOf(textQual);
+                if (metaData.AllowQuoteEscape)
+                {
+                    while (nextTextQual > 0 && content[nextTextQual - 1] == metaData.QuoteEscape)
+                    {
+                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                    }
+                }
+            }
             int textQualCount = 0;
             int nextRowDelim = content.IndexOfAny(delimiterList);
+            if(nextRowDelim < 0)
+            {
+                yield return content;
+                /*If we originally had something like 'testSomething something\r\n' that only had a single delim, then when we get to here, the end position may have already removed 
+                 * the delimiter that we would check for here otherwise. So in that case, just return the original string.
+                */
+                yield break;
+            }
             while (true)
             {
                 if (nextTextQual == -1 || nextRowDelim < nextTextQual && textQualCount % 2 == 0)
@@ -159,13 +225,50 @@ namespace SEIDR.Doc.FormatHelper
                 textQualCount++;
                 int quotePosition = nextTextQual + textQual.Length;
                 nextTextQual = content.IndexOf(textQual, quotePosition);
+                if (metaData.AllowQuoteEscape)
+                {
+                    while (nextTextQual > 0 && content[nextTextQual - 1] == metaData.QuoteEscape)
+                    {
+                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                    }
+                }
                 nextRowDelim = content.IndexOfAny(delimiterList, quotePosition);
                 if (nextRowDelim < 0)
                 {
-
+                    if(nextTextQual > 0 && textQualCount % 2 == 1 )
+                    {
+                        //If we have an upcoming quote, and it's going to be the last quote, return the remainder of the string. 
+                        // e.g., '" something | bla bla | "end of line.' - rather than erroring here, because the text qualifier goes to the end, we return the last string.
+                        if (!metaData.AllowQuoteEscape && content.IndexOf(textQual, nextTextQual + textQual.Length) < 0)
+                        {                            
+                            yield return content.Substring(Position);
+                            break;
+                        }
+                        else if (metaData.AllowQuoteEscape)
+                        {
+                            while(nextTextQual > 0 && content[nextTextQual -1] == metaData.QuoteEscape)
+                            {
+                                nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                            }//check that next non-escaped text qual is the last one. If so, then we can just end the string.
+                            if (content.IndexOf(textQual, nextTextQual + textQual.Length) < 0)
+                            {
+                                yield return content.Substring(Position);
+                                break;
+                            }
+                        }
+                    }
+                    else if(nextTextQual < 0 &&  textQualCount % 2 == 0)
+                    {
+                        yield return content.Substring(Position);
+                        break; //we just got past the last quote. Ending line.
+                    }
+                    string message = $"Missing Text Qualifier({textQual}) {(metaData.AllowQuoteEscape ? ", TextQualifier escape (" + metaData.QuoteEscape + ")," : string.Empty)} or delimiter ({ string.Join(",", delimiterList)}).";                    
+                    throw new Exception(message);
+                    /*
                     if(!SkipEmpty || Position < content.Length)
                         yield return content.Substring(Position);
                     break;
+                    */
                 }
             }
             yield break;

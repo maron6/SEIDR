@@ -191,8 +191,14 @@ namespace SEIDR.Doc
             foreach (var rec in toWrite)
             {
                 if (rec == null)
-                    continue;
-                sw.Write(md.FormatRecord(rec, true));
+                {
+                    if (md.AllowNullRecords)
+                        sw.Write(md.FormatNullRecord());
+                    else
+                        continue;
+                }
+                else
+                    sw.Write(md.FormatRecord(rec, true));
             }
         }
         /// <summary>
@@ -212,8 +218,14 @@ namespace SEIDR.Doc
             foreach (var line in Lines)
             {
                 if (line == null)
-                    continue;
-                sw.Write(line + md.LineEndDelimiter ?? string.Empty);
+                {
+                    if (md.AllowNullRecords)
+                        sw.Write(md.FormatNullRecord());
+                    else
+                        continue;
+                }
+                else
+                    sw.Write(line + md.LineEndDelimiter ?? string.Empty);
             }
         }
 
@@ -227,8 +239,14 @@ namespace SEIDR.Doc
             foreach (var line in Lines)
             {
                 if (line == null)
-                    continue;
-                sw.Write(line + md.LineEndDelimiter ?? string.Empty);
+                {
+                    if (md.AllowNullRecords)
+                        sw.Write(md.FormatNullRecord());
+                    else
+                        continue;
+                }
+                else
+                    sw.Write(line + md.LineEndDelimiter ?? string.Empty);
             }
         }
         /// <summary>
@@ -238,7 +256,11 @@ namespace SEIDR.Doc
         public void AddRecord(string record)
         {
             if (string.IsNullOrEmpty(record))
+            {
+                if (md.AllowNullRecords)
+                    sw.Write(md.FormatNullRecord());
                 return;
+            }
             var rc = md.ParseRecord(false, record);
             sw.Write(md.FormatRecord(rc, true));
         }
