@@ -12,10 +12,50 @@ namespace SEIDR.Test
     public class DocReaderTest: TestBase
     {
         [TestMethod]
+        public void DBBulkTest()
+        {
+            const int RECORDCOUNT = 300 * 300; //0:00:00.1434453, down from 0:00:03.442483 
+            //Bson file is ~60% of size, in addition to having typed metadata
+            DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
+            write
+                .SetHasHeader(false)
+                .SetFormat(DocRecordFormat.SBSON)
+                //.SetLineEndDelimiter(Environment.NewLine + Environment.NewLine)
+                .SetFileAccess(FileAccess.ReadWrite);
+            write.AddColumn("SimpleTest", DataType: DocRecordColumnType.Int);
+            write.AddColumn("DateCheck", DataType: DocRecordColumnType.DateTime);            
+            //write.SetPageSize(50_000);
+
+
+            DocMetaData delimitedCopy = new DocMetaData(TEST_FOLDER, "Test.bson.dat", "d");
+            delimitedCopy.SetHasHeader(false)
+                .SetFormat(DocRecordFormat.DELIMITED)
+                .SetDelimiter('|')
+                .SetFileAccess(FileAccess.Write);
+            delimitedCopy.CopyDetailedColumnCollection(write);
+            using (DocWriter w = new DocWriter(write))
+            {
+                for (int i = 0; i < RECORDCOUNT; i++)
+                {
+                    var r = write.GetBasicTypedDataRecord();
+                    r.SetValue("SimpleTest", i);
+                    r.SetValue("DateCheck", DateTime.Now);                    
+                    w.AddRecord(r);
+                }
+            }
+            DataBase.DatabaseConnection conn = new DataBase.DatabaseConnection(@".\sqlexpress", "MIMIR");
+            var mgr = new DataBase.DatabaseManager(conn);
+            using (var read = new DocReader<TypedDataRecord>(write))
+            using(var dbHelp = new DocDatabaseLoader("BulkCopyTest", mgr))
+            {
+                dbHelp.BulkLoadRecords(read);
+            }
+        }
+        [TestMethod]
         public void TypedBSONTest()
         {
-            //const int RECORDCOUNT = 3000 * 3000; //0:02:53.1901146
-            const int RECORDCOUNT = 300 * 300; //0:00:03.442483 
+            const int RECORDCOUNT = 3000 * 3000; //0:02:53.1901146
+            //const int RECORDCOUNT = 300 * 300; //0:00:03.442483 
             //Bson file is ~60% of size, in addition to having typed metadata
             DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
             write

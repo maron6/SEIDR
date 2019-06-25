@@ -15,6 +15,13 @@ namespace SEIDR.DataBase
     /// </summary>
     public static class DatabaseExtensions
     {
+        /// <summary>
+        /// Uses a SELECT TOP 0 * to pull data set information into a DataTable (underlying a DataTableDoc)
+        /// </summary>
+        /// <param name="manager"></param>
+        /// <param name="tableName"></param>
+        /// <param name="Schema"></param>
+        /// <returns></returns>
         public static Doc.DataTableDoc<Doc.TypedDataRecord> PullSchema(this DatabaseManager manager, string tableName, string Schema = null)        
         {
             if (Schema == null)

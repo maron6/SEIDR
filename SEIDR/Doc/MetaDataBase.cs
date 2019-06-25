@@ -41,6 +41,11 @@ namespace SEIDR.Doc
         /// Character to use for escaping quotes when splitting lines/columns.
         /// </summary>
         public char QuoteEscape = '\\';
+        /// <summary>
+        /// Sets the character for escaping the TextQualifier.
+        /// </summary>
+        /// <param name="escape"></param>
+        /// <returns></returns>
         public MetaDataBase SetQuoteEscape(char escape)
         {
             QuoteEscape = escape;
@@ -49,12 +54,13 @@ namespace SEIDR.Doc
         /// <summary>
         /// Cleans quotes out from a value, unless they're escaped or in the middle of a line.
         /// <para>Quotes that were escaped will have their escape removed.</para>
+        /// <para>NOTE: This only does anything if <see cref="AllowQuoteEscape"/> is true (default = false)</para>
         /// </summary>
         /// <param name="source"></param>
         /// <returns></returns>
         public string CleanQuotes(string source)
         {
-            if (string.IsNullOrEmpty(TextQualifier))
+            if (string.IsNullOrEmpty(TextQualifier) || !AllowQuoteEscape)
                 return source;
             StringBuilder sb = new StringBuilder();
             int current = 0;            
@@ -89,12 +95,13 @@ namespace SEIDR.Doc
         }
         /// <summary>
         /// Escape the quotes within a string.
+        /// /// <para>NOTE: This only does anything if <see cref="AllowQuoteEscape"/> is true (default = false)</para>
         /// </summary>
         /// <param name="source"></param>
         /// <returns></returns>
         public string EscapeQuoteValues(string source)
         {
-            if (string.IsNullOrEmpty(TextQualifier))
+            if (string.IsNullOrEmpty(TextQualifier) || !AllowQuoteEscape)
                 return source;
             int nextQuote = source.IndexOf(TextQualifier);
             if (nextQuote < 0)
@@ -641,14 +648,19 @@ namespace SEIDR.Doc
                     }
                     if (x + position > record.Length)
                         x = record.Length - position; //Number of characters to read                                                                
-                    split[i] = record.Substring(position, x);
+                    split[i] = CleanQuotes(record.Substring(position, x));
                     position += x + y;
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
                 else
                 {
-                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    //split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+
+                    var source = FormatHelper.DelimiterHelper.EnumerateSplits(record, Delimiter.ToString(), true, this, false);
+                    split = (from string s in source
+                            select CleanQuotes(s)).ToArray();                    
+                    
                     if (ThrowExceptionColumnCountMismatch)
                     {
                         if (split.Length < Columns.Count)
@@ -737,14 +749,19 @@ namespace SEIDR.Doc
                     }
                     if (x + position > record.Length)
                         x = record.Length - position; //Number of characters to read                                                                
-                    split[i] = record.Substring(position, x);
+                    split[i] = CleanQuotes(record.Substring(position, x));
                     position += x + y;
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
                 else
                 {
-                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    //split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+
+                    var source = FormatHelper.DelimiterHelper.EnumerateSplits(record, Delimiter.ToString(), true, this, false);
+                    split = (from string s in source
+                             select CleanQuotes(s)).ToArray();
+
                     if (ThrowExceptionColumnCountMismatch)
                     {
                         if (split.Length < Columns.Count)
@@ -840,14 +857,20 @@ namespace SEIDR.Doc
                     }
                     if (x + position > record.Length)
                         x = record.Length - position; //Number of characters to read                                                                
-                    split[i] = record.Substring(position, x);
+                    split[i] = CleanQuotes(record.Substring(position, x));
                     position += x + y;
                     if (ThrowExceptionColumnCountMismatch && i == Columns.Count - 1 && position < record.Length)
                         throw new ColumnOverflowException(record.Length - position, Columns.Count, record.Length);
                 }
                 else
                 {
-                    split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+                    //split = record.SplitOutsideQuotes(Delimiter.Value, TextQualifier);
+
+                    var source = FormatHelper.DelimiterHelper.EnumerateSplits(record, Delimiter.ToString(), true, this, false);
+                    split = (from string s in source
+                             select CleanQuotes(s)).ToArray();
+                    //Note that CleanQuotes does nothing if QuoteEscape isn't turned on.
+
                     if (ThrowExceptionColumnCountMismatch)
                     {
                         if (split.Length < Columns.Count)
@@ -944,7 +967,7 @@ namespace SEIDR.Doc
                             sb.Append(TextQualifier);
                             col.TextQualify = true; //force text qualify in the column going forward.
                         }
-                        sb.Append(s);
+                        sb.Append(EscapeQuoteValues(s));
                         if (col.TextQualify)
                             sb.Append(TextQualifier);
                         if (idx < Last)
@@ -966,7 +989,7 @@ namespace SEIDR.Doc
                             sb.Append(TextQualifier);
                             col.TextQualify = true; //force text qualify in the column going forward.
                         }
-                        sb.Append(s); //if col == null, then this is going to be empty string.
+                        sb.Append(EscapeQuoteValues(s)); //if col == null, then this is going to be empty string.
                         if (col.TextQualify)
                             sb.Append(TextQualifier);
                     }
@@ -1181,7 +1204,7 @@ namespace SEIDR.Doc
                             sb.Append(TextQualifier);
                             col.TextQualify = true; //force text qualify in the column going forward.
                         }
-                        sb.Append(s);
+                        sb.Append(EscapeQuoteValues(s));
                         if (col.TextQualify)
                             sb.Append(TextQualifier);
                         if (idx < Columns.LastPosition)
@@ -1202,7 +1225,7 @@ namespace SEIDR.Doc
                         col.TextQualify = true; //force text qualify in the column going forward.
                     }
 
-                    sb.Append(s);
+                    sb.Append(EscapeQuoteValues(s));
                     if (col.TextQualify)
                         sb.Append(TextQualifier);
                     if (idx < Columns.LastPosition)

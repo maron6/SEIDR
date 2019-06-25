@@ -42,11 +42,27 @@ namespace SEIDR.Doc
         public DocMetaData GetMetaData(string DestinationFile)
         {
             DocMetaData n = new DocMetaData(DestinationFile);
+            n.CanWrite = true;
             n.CopyDetailedColumnCollection(ColumnSet);
             return n;
         }
-        public void AddRecord(IDataRecord record)
+        /// <summary>
+        /// Clear the rows in the underlying table.
+        /// </summary>
+        public void Clear()
         {
+            source.Rows.Clear();
+        }
+        /// <summary>
+        /// Number of rows in underlying table.
+        /// </summary>
+        public int RecordCount => source.Rows.Count;
+        /// <summary>
+        /// Number of columns in underlying table.
+        /// </summary>
+        public int ColumnCount => source.Columns.Count;
+        public void AddRecord(IDataRecord record)
+        {            
             var dr = source.NewRow();
             var v = new object[ColumnSet.Columns.Count];
             foreach(var col in ColumnSet.Columns)
@@ -58,6 +74,7 @@ namespace SEIDR.Doc
                     v[col] = DBNull.Value;
             }
             dr.ItemArray = v;
+            source.Rows.Add(dr);
         }
         
         public static DocRecordColumnCollection GetColumnCollection(string Alias, System.Data.DataColumnCollection dataColumns)

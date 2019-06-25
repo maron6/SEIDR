@@ -55,6 +55,7 @@
     <Compile Include="DataBase\ParamStore.cs" />
     <Compile Include="DataBase\Schema.cs" />
     <Compile Include="DateFormatter.cs" />
+    <Compile Include="Doc\DocDatabaseLoader.cs" />
     <Compile Include="Doc\FormatHelper\BSONHelper.cs" />
     <Compile Include="Doc\DataItem.cs" />
     <Compile Include="Doc\DataTableDoc.cs" />

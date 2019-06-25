@@ -152,6 +152,8 @@ namespace SEIDR.Doc
             if (content.Count > columnInfo.Position)
             {
                 result = content[columnInfo];
+                if (result != null)
+                    result = ((DataItem)result).Value;
                 return true;
             }
             result = null;

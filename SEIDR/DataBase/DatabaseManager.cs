@@ -183,7 +183,14 @@ namespace SEIDR.DataBase
         {
             return new SqlConnection(_conn.ConnectionString);
         }
-        
+        /// <summary>
+        /// Returns a copy of the connection string from the underly <see cref="DatabaseConnection"/>
+        /// </summary>
+        /// <returns></returns>
+        public string GetConnectionString()
+        {
+            return _conn.ConnectionString;
+        }
 
         DatabaseConnection _conn;
         /// <summary>
