@@ -904,6 +904,24 @@ namespace SEIDR.Doc
             ThrowExceptionColumnCountMismatch = throwMismatch;
             return this;
         }
+        public byte[] GetRecordByteSet(IDataRecord record)
+        {
+            return FileEncoding.GetBytes(FormatRecord(record, true));
+        }      
+        public byte[] GetRecordByteSet(IEnumerable<IDataRecord> recordList)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach(var rec in recordList)
+            {
+                sb.Append(FormatRecord(rec, true));
+            }
+            return FileEncoding.GetBytes(sb.ToString());
+        }
+        public virtual int CheckByteCount(IDataRecord record)
+        {
+            return FileEncoding.GetByteCount(FormatRecord(record, true)); 
+            //Can override this to be more efficient in DocMetaData, but here we might need the string for getting column set.
+        }
         #endregion
         /// <summary>
         /// Maps DocRecord to a string for writing out into a file.

@@ -334,6 +334,104 @@ namespace SEIDR.Doc
                 return default;
             throw new Exception("Unable to get value.");
         }
+        public string FormatValue(object o)
+        {
+            if (o == null)
+                return null;
+            if (!Array)
+            {
+                if (Format != null)
+                {
+                    if (o is DateTime)
+                    {
+                        return ((DateTime)o).ToString(Format);
+                    }
+                    if(o is DateTime?)
+                    {
+                        return ((DateTime?)o).Value.ToString(Format);
+                    }
+                }
+                return o.ToString();
+            }
+            switch (DataType)
+            {
+                case DocRecordColumnType.Date:
+                case DocRecordColumnType.DateTime:
+                    if(o is DateTime[])
+                    {
+                        var t = ((DateTime[])o).Select(dt => FormatValue(dt));
+                        return string.Join(ArrayDelimiter, t);
+                    }
+                    if (o is DateTime?[])
+                    {
+                        var t = ((DateTime?[])o).Select(dt => FormatValue(dt));
+                        return string.Join(ArrayDelimiter, t);
+                    }
+                    if (Format == null)
+                        return o.ToString();
+                    if (o is DateTime)
+                        return ((DateTime)o).ToString(Format);                    
+                    return (o as DateTime?).Value.ToString(Format);
+                case DocRecordColumnType.Tinyint:
+                    if (o is byte[])
+                    {
+                        return string.Join(ArrayDelimiter, ((byte[])o).Select(i => i.ToString()));
+                    }
+                    if (o is byte?[])
+                    {
+                        return string.Join(ArrayDelimiter, ((byte?[])o).Select(i => i.ToString()));
+                    }
+                    break;
+                case DocRecordColumnType.Smallint:
+                    if (o is short[])
+                    {
+                        return string.Join(ArrayDelimiter, ((short[])o).Select(i => i.ToString()));
+                    }
+                    if (o is short?[])
+                    {
+                        return string.Join(ArrayDelimiter, ((short?[])o).Select(i => i.ToString()));
+                    }
+                    break;
+                case DocRecordColumnType.Int:
+                    if(o is int[])
+                    {
+                        return string.Join(ArrayDelimiter, ((int[])o).Select(i => i.ToString()));
+                    }
+                    if (o is int?[])
+                    {
+                        return string.Join(ArrayDelimiter, ((int?[])o).Select(i => i.ToString()));
+                    }
+                    break;
+                case DocRecordColumnType.Bigint:
+                    if (o is long[])
+                    {
+                        return string.Join(ArrayDelimiter, ((long[])o).Select(i => i.ToString()));
+                    }
+                    if (o is long?[])
+                    {
+                        return string.Join(ArrayDelimiter, ((long?[])o).Select(i => i.ToString()));
+                    }
+                    break;
+                case DocRecordColumnType.Bool:
+                    if (o is bool[])
+                    {
+                        return string.Join(ArrayDelimiter, ((bool[])o).Select(i => i.ToString()));
+                    }
+                    if (o is bool?[])
+                    {
+                        return string.Join(ArrayDelimiter, ((bool?[])o).Select(i => i.ToString()));
+                    }
+                    break;
+                default:
+                    if (o is string[])
+                    {
+                        return string.Join(ArrayDelimiter, (string[])o);
+                    }
+                    break;
+
+            }
+            return o.ToString();
+        }
         public bool CompareDataType(object o)
         {
             var tInfo = o.GetType();

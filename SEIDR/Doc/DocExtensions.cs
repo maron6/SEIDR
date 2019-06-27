@@ -661,5 +661,19 @@ namespace SEIDR.Doc
         {
             return source.GetPage(page).ToDataTableDoc();
         }
+        /// <summary>
+        /// Gets an object instance for a type that implements IDataRecord using the source column collection.
+        /// </summary>
+        /// <typeparam name="DT"></typeparam>
+        /// <param name="sourceColumns"></param>
+        /// <param name="dataSource"></param>
+        /// <returns></returns>
+        public static DT GetRecord<DT>(this DocRecordColumnCollection sourceColumns, params object[] dataSource)
+            where DT:IDataRecord, new()
+        {            
+            DT ret = new DT();
+            ret.Configure(sourceColumns, true, dataSource);
+            return ret;            
+        }
     }
 }

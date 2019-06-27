@@ -24,5 +24,10 @@ namespace SEIDR.Doc
         bool HasColumn(string ColumnName);
         bool TryGet(DocRecordColumnInfo columnInfo, out object result);
         void Configure(DocRecordColumnCollection owner, bool? canWrite, IList<object> parsedContent);
+        /// <summary>
+        /// ID for data record from its source (if provided).
+        /// <para>Should be zero-based, but usage depends on source that populates the record.</para>        
+        /// </summary>
+        long? ID { get; }
     }
 }

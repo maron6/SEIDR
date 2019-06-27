@@ -4,13 +4,14 @@ using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SEIDR.Doc.DocEditor;
 
 namespace SEIDR.Doc
 {
     /// <summary>
     /// Read/write class for use with DocQueries, DocReader, and DocWriter
     /// </summary>
-    public class DocRecord: DynamicObject, IRecord, IDataRecord
+    public class DocRecord: DynamicObject, IRecord, IDataRecord, DocEditor.IDetailDataRecord
     {
         #region hashing
         static ulong GetRollingHash(string content)
@@ -644,6 +645,7 @@ namespace SEIDR.Doc
         /// If true, indicates that there was an early line terminator in delimited mode. (e.g. Column meta data indicates that there should be columns 1, 2, 3. But DocRecord only has data for columns 1 and 2)
         /// </summary>
         public bool MissingData => Content.Count < Columns.Count;
+
         /// <summary>
         /// Gets/sets the column using Column name. Uses the column collection's default alias
         /// <para>Can only set the column if <see cref="CanWrite"/> is true.</para>
@@ -943,6 +945,20 @@ namespace SEIDR.Doc
             this[Columns.GetBestMatch(columnName)] = value.ToString();
             return this;
         }
+
+        long? _ID;
+        public long? ID => _ID;
+        void IDetailDataRecord.SetID(long ID)
+        {
+            _ID = ID;
+        }
+
+        void IDetailDataRecord.ClearID()
+        {
+            _ID = null;
+        }
+
+
         #endregion
 
     }

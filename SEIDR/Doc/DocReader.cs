@@ -83,6 +83,8 @@ namespace SEIDR.Doc
         public DocReader(string alias, string Directory, string FileName, char? Delimiter = null, string LineEnd = null, int? pageSize = null)
             : this(alias, Path.Combine(Directory, FileName), Delimiter, LineEnd, pageSize) { }
 
+
+        /*
         /// <summary>
         /// Gets the DocRecords from the page.
         /// </summary>
@@ -106,13 +108,13 @@ namespace SEIDR.Doc
                     {
                         System.Diagnostics.Debug.WriteLine("Last Line of page - Skipping empty record.");
                         return;
-                    }*/
+                    }// /
                 }
                 LineRecords.Add(rec);
             }, 1, 1);
             CurrentPage = LineRecords;
             return LineRecords;
-        }
+        } */
     }
 
     /// <summary>
@@ -1071,6 +1073,14 @@ namespace SEIDR.Doc
         {
             if (pageNumber == lastPage && CurrentPage != null && cached)
                 return CurrentPage;
+            long offset = 0;
+            if(pageNumber > 0)
+            {
+                for(int i = 0; i < pageNumber; i++)
+                {
+                    offset += Pages[i].RecordCount;
+                }
+            }
             //var lines = GetPageLines(pageNumber);
             var LineRecords = new ReadType[Pages[pageNumber].RecordCount];
             //List<ReadType> LineRecords = new List<ReadType>(Pages[pageNumber].RecordCount);            
@@ -1080,7 +1090,12 @@ namespace SEIDR.Doc
                 GetPageLines(pageNumber).ForEachIndex((line, idx) =>
                 {
                     var rec = _MetaData.ParseRecord<ReadType>(line);
+                    if (rec is DocEditor.IDetailDataRecord)
+                    {
+                        (rec as DocEditor.IDetailDataRecord).SetID(offset + idx);                        
+                    }
                     LineRecords[idx] = rec;
+
                 });
 
                 CurrentPage = new List<ReadType>(LineRecords);
@@ -1092,6 +1107,11 @@ namespace SEIDR.Doc
                 line =>
             {
                 var rec = _MetaData.ParseRecord<ReadType>(line.Item1);
+
+                if (rec is DocEditor.IDetailDataRecord)
+                {
+                    (rec as DocEditor.IDetailDataRecord).SetID(offset + line.Item2);
+                }
                 LineRecords[line.Item2] = rec; //maintain original index.
             });
             

@@ -30,8 +30,19 @@ namespace SEIDR.Doc
         {
             return source.source;
         }
+        /// <summary>
+        /// Allow using a DataTableDoc as a DocRecordColumn collection by returning the underlying column set
+        /// </summary>
+        /// <param name="source"></param>
+        public static implicit operator DocRecordColumnCollection(DataTableDoc<DT> source)
+        {
+            return source.ColumnSet;
+        }
         #endregion
         
+        /// <summary>
+        /// Underlying column set built by parsing DataColumn information from the source dataTable.
+        /// </summary>
         public DocRecordColumnCollection ColumnSet { get; private set; }
         System.Data.DataTable source;
         /// <summary>
@@ -76,10 +87,57 @@ namespace SEIDR.Doc
             dr.ItemArray = v;
             source.Rows.Add(dr);
         }
+        public void AddRecord(IDataRecord record, DocWriterMap columnMappings)
+        {
+            if (columnMappings is null || columnMappings.MapData.Count == 0)
+            {
+                AddRecord(record);
+                return;
+            }
+            var map = columnMappings.MapData;
+            if (map.Exists(m => m.Key >= ColumnSet.Count))
+                throw new ArgumentException("Column Mappings goes out of range for DataTable columns.", nameof(columnMappings));
+            
+            var dr = source.NewRow();
+            var v = new object[ColumnSet.Columns.Count];
+
+            for (int idx = 0; idx <= ColumnSet.Count; idx++)
+            {
+                DocRecordColumnInfo col = null;                
+                if (map.ContainsKey(idx))
+                    col = map[idx] ?? ColumnSet[idx];
+                else 
+                    col = ColumnSet[idx];
+                
+                object o;
+                if (record.TryGet(col, out o))
+                    v[idx] = o ?? DBNull.Value;
+                else
+                    v[idx] = DBNull.Value;
+            }
+            dr.ItemArray = v;
+            source.Rows.Add(dr);
+        }
+        /// <summary>
+        /// Gets a basic record set, which is NOT attached to this object, but does have the same column collection.
+        /// </summary>
+        /// <returns></returns>
+        public DT GetBasicRecord() => ColumnSet.GetRecord<DT>();                    
+        /// <summary>
+        /// Removes a column from both the underlying table's columnset, and the underlying DocRecord Column set.
+        /// </summary>
+        /// <param name="columnName"></param>
+        /// <returns></returns>
+        public DataTableDoc<DT> RemoveColumn(DocRecordColumnInfo columnName)
+        {
+            source.Columns.Remove(columnName);
+            ColumnSet.RemoveColumn(columnName);
+            return this;
+        }
         
         public static DocRecordColumnCollection GetColumnCollection(string Alias, System.Data.DataColumnCollection dataColumns)
         {
-            var ColumnSet = new DocRecordColumnCollection(Alias);
+            var ColumnSet = new DocRecordColumnCollection(Alias);            
             foreach (System.Data.DataColumn col in dataColumns)
             {
                 DocRecordColumnType colType = DocRecordColumnType.Unknown;
@@ -130,11 +188,31 @@ namespace SEIDR.Doc
         }
         public IEnumerator<DT> GetEnumerator()
         {
+            long idx = 0;
             foreach(System.Data.DataRow row in source.Rows)
             {
                 DT v = new DT();
                 v.Configure(ColumnSet, false, row.ItemArray);
+
+                if (v is DocEditor.IDetailDataRecord)
+                {
+                    (v as DocEditor.IDetailDataRecord).SetID(idx ++);
+                }
                 yield return v;
+            }
+        }
+        public DT this[int rowID]
+        {
+            get
+            {
+                DT v = new DT();
+                var r = source.Rows[rowID];
+                v.Configure(ColumnSet, false, r.ItemArray);
+                if (v is DocEditor.IDetailDataRecord)
+                {
+                    (v as DocEditor.IDetailDataRecord).SetID(rowID);
+                }
+                return v;
             }
         }
 

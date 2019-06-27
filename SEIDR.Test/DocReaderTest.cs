@@ -82,10 +82,12 @@ namespace SEIDR.Test
                 for (int i = 0; i < RECORDCOUNT; i++)
                 {
                     var r = write.GetBasicTypedDataRecord();
-                    r.SetValue("LineNumber", i);
-                    r.SetValue("TimeStamp", DateTime.Now);
+                    //r.SetValue("LineNumber", i);
+                    r["LineNumber"] = i;
+                    //r.SetValue("TimeStamp", DateTime.Now);
+                    r["TimeStamp"] = DateTime.Now;
                     if (i % 2 == 0)
-                        r.SetValue("NOTE", "Bla bla Note # " + i);
+                        r["NOTE"] = "Bla bla Note # " + i;
                     
                     int x = i % 3;
                     var b = new bool[x];
@@ -93,7 +95,8 @@ namespace SEIDR.Test
                     {
                         b[bidx] = i % 2 == 0 ? true : false;
                     }
-                    r.SetValue("DataSet", b);
+                    r["DataSet"] = b;
+                    //r.SetValue("DataSet", b);
                     w.AddRecord(r);
                 }
             }
@@ -104,8 +107,8 @@ namespace SEIDR.Test
                 Assert.AreEqual(RECORDCOUNT, read.RecordCount); //Missing one record with array mode...
                 read.ForEachIndex((r, idx) =>
                 {
-                    Assert.AreEqual(idx, r["LineNumber"]);                    
-                    Assert.AreNotEqual(default(DateTime), r["TimeStamp"]);
+                    Assert.AreEqual(idx, (int)r["LineNumber"]);                    
+                    Assert.AreNotEqual(default(DateTime), (DateTime)r["TimeStamp"]); 
                     if (idx % 2 == 0)
                         Assert.IsNotNull(r["NOTE"].Value);
                     else

@@ -3,16 +3,64 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SEIDR.Doc.DocEditor;
 
 namespace SEIDR.Doc
 {
-    public class TypedDataRecord : IDataRecord
+    public class TypedDataRecord : IDataRecord, IDetailDataRecord
     {
-        
-        string IDataRecord.this[int Position] { get => this[Position]; set => SetValue(Position, value); }
-        string IDataRecord.this[string Column] { get => this[Column]; set => SetValue(Column, value); }
-        string IDataRecord.this[IRecordColumnInfo column] { get => this[column.Position]; set => SetValue(column.Position, value); }
-        string IDataRecord.this[DocRecordColumnInfo column] { get => this[column]; set => SetValue(column.Position, value); }
+
+        long? _ID;
+        public long? ID => _ID;
+        void IDetailDataRecord.SetID(long ID)
+        {
+            _ID = ID;
+        }
+
+        void IDetailDataRecord.ClearID()
+        {
+            _ID = null;
+        }
+        internal int? PageID { get; set; }
+        string IDataRecord.this[int Position]
+        {
+            get
+            {
+                var col = Columns[Position];
+                var d = this[Position].Value;
+                return col.FormatValue(d);
+            }
+            set => SetValue(Position, value);
+        }
+        string IDataRecord.this[string Column]
+        {
+            get
+            {
+                var col = Columns.GetBestMatch(Column);
+                var d = this[Column].Value;
+                return col.FormatValue(d);
+                
+            }
+            set => SetValue(Column, value);
+        }
+        string IDataRecord.this[IRecordColumnInfo column]
+        {
+            get
+            {
+                var col = Columns[column.Position];
+                var d = this[column.Position].Value;
+                return col.FormatValue(d);
+            }
+            set => SetValue(column.Position, value);
+        }
+        string IDataRecord.this[DocRecordColumnInfo column]
+        {
+            get
+            {
+                return column.FormatValue(this[column].Value);                
+            }
+            set => SetValue(column.Position, value);
+        }
         string IDataRecord.this[string Column, string Alias] { get => this[Column, Alias]; set => SetValue(Column, value, Alias); }
 
         public DataItem this[int Position]
@@ -23,6 +71,17 @@ namespace SEIDR.Doc
                     content.SetWithExpansion(Position, new DataItem(null, DocRecordColumnType.NUL), new DataItem(null, DocRecordColumnType.NUL));
                 return content[Position];
             }
+            set
+            {
+                if (value.DataType != DocRecordColumnType.NUL)
+                {
+                    if (Columns[Position].DataType != value.DataType && Columns[Position].DataType != DocRecordColumnType.Unknown)
+                    {
+                        throw new ArgumentException("Argument data type does not match expected: " + Columns[Position].DataType);
+                    }
+                }
+                content.SetWithExpansion(Position, value, new DataItem(null, DocRecordColumnType.NUL));
+            }
         }
         public DataItem this[string Column, string Alias = null]
         {
@@ -32,6 +91,18 @@ namespace SEIDR.Doc
                 if (col == null)
                     throw new ArgumentException("Column not found", nameof(Column));
                 return content[col.Position];
+            }
+            set
+            {
+                var col = Columns.GetBestMatch(Column, Alias);
+                if (value.DataType != DocRecordColumnType.NUL && col.DataType != DocRecordColumnType.Unknown)
+                {                    
+                    if (col.DataType != value.DataType)
+                    {
+                        throw new ArgumentException("Argument data type does not match expected: " + col.DataType);
+                    }
+                }
+                content.SetWithExpansion(col.Position, value, new DataItem(null, DocRecordColumnType.NUL));
             }
         }                
         public void SetValue(int Position, object value) => SetValue(Columns[Position], value);

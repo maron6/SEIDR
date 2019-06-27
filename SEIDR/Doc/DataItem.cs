@@ -37,6 +37,196 @@ namespace SEIDR.Doc
                 DataType = type;
             }
         }
+        #region implicit Reverse - Compare DataItem's type versus TypedRecord column before adding
+        public static implicit operator DataItem(int item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Int);
+            return o;
+        }
+        public static implicit operator DataItem(int? item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Int);
+            return o;
+        }
+        public static implicit operator DataItem(int[] item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Int);
+            return o;
+        }
+        public static implicit operator DataItem(int?[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Int);
+            return o;
+        }
+
+        public static implicit operator DataItem(long item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Bigint);
+            return o;
+        }
+        public static implicit operator DataItem(long? item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Bigint);
+            return o;
+        }
+        public static implicit operator DataItem(long[] item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Bigint);
+            return o;
+        }
+        public static implicit operator DataItem(long?[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Bigint);
+            return o;
+        }
+        public static implicit operator DataItem(short item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Smallint);
+            return o;
+        }
+        public static implicit operator DataItem(short? item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Smallint);
+            return o;
+        }
+
+        public static implicit operator DataItem(short[] item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Smallint);
+            return o;
+        }
+        public static implicit operator DataItem(short?[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Smallint);
+            return o;
+        }
+        public static implicit operator DataItem(byte item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Tinyint);
+            return o;
+        }
+        public static implicit operator DataItem(byte? item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Tinyint);
+            return o;
+        }
+        public static implicit operator DataItem(byte[] item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Tinyint);
+            return o;
+        }
+        public static implicit operator DataItem(byte?[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Tinyint);
+            return o;
+        }
+        public static implicit operator DataItem(bool item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Bool);
+            return o;
+        }
+        public static implicit operator DataItem(bool? item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Bool);
+            return o;
+        }
+        public static implicit operator DataItem(bool[] item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Bool);
+            return o;
+        }
+        public static implicit operator DataItem(bool?[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Bool);
+            return o;
+        }
+        public static implicit operator DataItem(DateTime item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.DateTime);
+            return o;
+        }
+        public static implicit operator DataItem(DateTime? item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.DateTime);
+            return o;
+        }
+        public static implicit operator DataItem(DateTime[] item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.DateTime);
+            return o;
+        }
+        public static implicit operator DataItem(DateTime?[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.DateTime);
+            return o;
+        }
+        public static implicit operator DataItem(string item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Varchar);
+            return o;
+        }
+        public static implicit operator DataItem(string[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Varchar);
+            return o;
+        }
+        #endregion
         #region IMPLICIT  
         public static implicit operator int(DataItem item)
         {
@@ -59,6 +249,7 @@ namespace SEIDR.Doc
                 return default;
             throw new Exception("DataType does not match int.");
         }
+        
         public static implicit operator int?(DataItem item)
         {
             if (item.DataType == DocRecordColumnType.NUL)
@@ -412,7 +603,12 @@ namespace SEIDR.Doc
             }
             throw new Exception("Data Type does not match string[]");
         }
-
+        public override int GetHashCode()
+        {
+            if (Value == null)
+                return base.GetHashCode();
+            return Value.GetHashCode();
+        }
         public override bool Equals(object obj)
         {
             if (Value == null && obj == null)
