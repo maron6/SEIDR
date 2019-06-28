@@ -335,9 +335,10 @@ namespace SEIDR.Doc
             throw new Exception("Unable to get value.");
         }
         public string FormatValue(object o)
-        {
+        {            
             if (o == null)
                 return null;
+            string s;
             if (!Array)
             {
                 if (Format != null)
@@ -351,7 +352,10 @@ namespace SEIDR.Doc
                         return ((DateTime?)o).Value.ToString(Format);
                     }
                 }
-                return o.ToString();
+                s = o.ToString();
+                if (NullIfEmpty && string.IsNullOrEmpty(s))
+                    return null;
+                return s;
             }
             switch (DataType)
             {
@@ -430,8 +434,16 @@ namespace SEIDR.Doc
                     break;
 
             }
-            return o.ToString();
+            s = o.ToString();
+            if (NullIfEmpty && string.IsNullOrEmpty(s))
+                return null;
+            return s;
         }
+        /// <summary>
+        /// Check if the object's type is compatible with the column meta data.
+        /// </summary>
+        /// <param name="o"></param>
+        /// <returns></returns>
         public bool CompareDataType(object o)
         {
             var tInfo = o.GetType();

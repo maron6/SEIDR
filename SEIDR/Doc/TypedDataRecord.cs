@@ -10,6 +10,27 @@ namespace SEIDR.Doc
     public class TypedDataRecord : IDataRecord, IDetailDataRecord
     {
 
+        #region Implicits
+        /// <summary>
+        /// Convert TypedDataRecord into a dictionary
+        /// </summary>
+        /// <param name="record"></param>
+        public static implicit operator Dictionary<string, object>(TypedDataRecord record)
+        {
+            return record.Columns.ToDictionary(c => c.ColumnName, c => record.content[c.Position]?.Value);
+        }
+
+        /// <summary>
+        /// Convert TypedDataRecord into a dictionary
+        /// </summary>
+        /// <param name="record"></param>
+        public static implicit operator Dictionary<string, DataItem>(TypedDataRecord record)
+        {
+            return record.Columns.ToDictionary(c => c.ColumnName, c => record.content[c.Position]);
+        }
+        
+        #endregion
+
         long? _ID;
         public long? ID => _ID;
         void IDetailDataRecord.SetID(long ID)
@@ -230,6 +251,19 @@ namespace SEIDR.Doc
             if (content.Count > columnInfo.Position)
             {
                 result = content[columnInfo];
+                if (result != null)
+                    result = ((DataItem)result).Value;
+                return true;
+            }
+            result = null;
+            return false;
+        }
+        public bool TryGet(string colName, out object result, string alias = null)
+        {
+            var col = Columns.GetBestMatch(colName, alias);            
+            if (col != null && content.Count > col.Position)
+            {
+                result = content[col];
                 if (result != null)
                     result = ((DataItem)result).Value;
                 return true;

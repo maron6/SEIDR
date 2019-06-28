@@ -72,19 +72,49 @@ namespace SEIDR.Doc
         /// Number of columns in underlying table.
         /// </summary>
         public int ColumnCount => source.Columns.Count;
+        /// <summary>
+        /// Updates the value of a row.
+        /// </summary>
+        /// <param name="record"></param>
+        /// <param name="rowID"></param>
+        /// <param name="map"></param>
+        public void SetRecord(IDataRecord record, int rowID, DocWriterMap map = null)
+        {
+            var row = source.Rows[rowID];
+            var v = new object[ColumnSet.Columns.Count];
+            for (int idx = 0; idx <= ColumnSet.Count; idx++)
+            {
+                DocRecordColumnInfo col = null;
+                if (map != null && map.MapData.ContainsKey(idx))
+                    col = map.MapData[idx] ?? ColumnSet[idx];
+                else
+                    col = ColumnSet[idx];
+
+                object o;
+                if (record.HasColumn(col.OwnerAlias, col.ColumnName)
+                    && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
+                    v[idx] = o ?? DBNull.Value;
+                else
+                    v[idx] = null; //Typically allows using any default value from table, rather than an explicit null
+            }
+            row.ItemArray = v;            
+        }
+        /// <summary>
+        /// Adds a record ot this table.
+        /// </summary>
+        /// <param name="record"></param>
         public void AddRecord(IDataRecord record)
         {            
             var dr = source.NewRow();
             var v = new object[ColumnSet.Columns.Count];
             foreach(var col in ColumnSet.Columns)
             {
-                object o;
-                
-                if (record.HasColumn(col.ColumnName) 
-                    && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
+                object o;                                
+                if (record.HasColumn(col.OwnerAlias, col.ColumnName)
+     && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
                     v[col] = o ?? DBNull.Value;
                 else
-                    v[col] = DBNull.Value;
+                    v[col] = null; //Typically allows using any default value from table, rather than an explicit null
             }
             dr.ItemArray = v;
             source.Rows.Add(dr);
@@ -112,10 +142,11 @@ namespace SEIDR.Doc
                     col = ColumnSet[idx];
                 
                 object o;
-                if (record.TryGet(col, out o))
+                if (record.HasColumn(col.OwnerAlias, col.ColumnName)
+                    && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
                     v[idx] = o ?? DBNull.Value;
                 else
-                    v[idx] = DBNull.Value;
+                    v[idx] = null; //Typically allows using any default value from table, rather than an explicit null
             }
             dr.ItemArray = v;
             source.Rows.Add(dr);

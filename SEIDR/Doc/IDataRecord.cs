@@ -22,6 +22,7 @@ namespace SEIDR.Doc
         /// <param name="ColumnName"></param>
         /// <returns></returns>
         bool HasColumn(string ColumnName);
+        bool TryGet(string ColumnName, out object result, string alias =null);
         bool TryGet(DocRecordColumnInfo columnInfo, out object result);
         void Configure(DocRecordColumnCollection owner, bool? canWrite, IList<object> parsedContent);
         /// <summary>

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -114,6 +116,29 @@ namespace SEIDR.Doc
             return this;
         }
         /// <summary>
+        /// Overrides all column mappings on the underlying bulk copier.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <returns></returns>
+        public DocDatabaseLoader SetColumnMappings(params DocRecordColumnInfo[] source)
+        {
+            return SetColumnMappings(source.AsEnumerable());
+        }
+        /// <summary>
+        /// Overrides all column mappings on the underlying bulk copier.
+        /// </summary>
+        /// <param name="colSource"></param>
+        /// <returns></returns>
+        public DocDatabaseLoader SetColumnMappings(IEnumerable<DocRecordColumnInfo> colSource)
+        {
+            BulkCopy.ColumnMappings.Clear();
+            foreach(var col in colSource)
+            {
+                BulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            }
+            return this;
+        }
+        /// <summary>
         /// Clear column mappings
         /// </summary>
         public void ClearColumnMappings()
@@ -163,7 +188,32 @@ namespace SEIDR.Doc
         {
             if (tableData.Rows.Count == 0)
                 return;
-            BulkCopy.WriteToServer(tableData);
+            try
+            {
+                BulkCopy.WriteToServer(tableData);
+            }
+            catch (SqlException ex)
+            {
+                //https://stackoverflow.com/questions/10442686/received-an-invalid-column-length-from-the-bcp-client-for-colid-6
+                if (ex.Message.Contains("Received an invalid column length from the bcp client for colid"))
+                {
+                    string pattern = @"\d+";
+                    System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(ex.Message.ToString(), pattern);
+                    var index = Convert.ToInt32(match.Value) - 1;
+
+                    FieldInfo fi = typeof(SqlBulkCopy).GetField("_sortedColumnMappings", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var sortedColumns = fi.GetValue(BulkCopy);
+                    var items = (Object[])sortedColumns.GetType().GetField("_items", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(sortedColumns);
+
+                    FieldInfo itemdata = items[index].GetType().GetField("_metadata", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var metadata = itemdata.GetValue(items[index]);
+
+                    var column = metadata.GetType().GetField("column", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(metadata);
+                    var length = metadata.GetType().GetField("length", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(metadata);
+                    throw new Exception(String.Format("Column: {0} contains data with a length greater than: {1}", column, length), ex);
+                }
+                throw;
+            }
         }
         ~DocDatabaseLoader()
         {

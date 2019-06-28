@@ -239,6 +239,10 @@ namespace SEIDR.Doc
             string val = this[col];
             return col.TryGet(val, out result);
         }
+        bool IDataRecord.TryGet(string column, out object result, string alias)
+        {
+            return TryGet(column, out result, alias, -1);
+        }
         /// <summary>
         /// Tries to get an the object associated with the value.
         /// <para>Data type will match that of the specified column via TryParse. If you just want the string value - use the <see cref="GetBestMatch(string, string, int)"/> instead.</para>
