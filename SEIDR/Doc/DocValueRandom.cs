@@ -51,7 +51,7 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public DateTime GetDateTime(int yearFrom, int monthFrom = 1, int DayFrom = 1, int yearThrough = 1, int monthThrough = 12, int DayThrough = 31)
         {
-            var MaxDays = new int[] { 31, 28 /* Ignore leap years*/, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+            var MaxDays = new int[] { 0, 31, 28 /* Ignore leap years*/, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
             if (yearThrough < yearFrom)
                 yearThrough = yearFrom + yearThrough;
             int year = r.Next(yearFrom, yearThrough);
@@ -126,6 +126,11 @@ namespace SEIDR.Doc
                     day = r.Next(1, MaxDays[month]);
                 }
             }
+            if (month > 12)
+                month = 1 + (month % 12);
+            if (day > MaxDays[month])
+                day = 1 + (day % MaxDays[month]);
+
             return new DateTime(year, month, day);
 
 
