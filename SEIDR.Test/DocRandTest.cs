@@ -25,6 +25,15 @@ namespace SEIDR.Test
 
         }
         [TestMethod]
+        public void percentCheckTest()
+        {
+            for(int i = 0; i < 10000; i++)
+            {
+                Assert.IsTrue(r.PercentCheck(100));
+                Assert.IsFalse(r.PercentCheck(0));
+            }            
+        }
+        [TestMethod]
         public void RandomString()
         {
             string phonePattern = "([1-9]{3})[1-9]{3}-[1-9]{4}@@"; //Phone pattern + @@
@@ -38,6 +47,10 @@ namespace SEIDR.Test
 
             string ssnPatternRegexAssert = @"[1-57-9][0-9]{2}\-[0-9]{2}\-[1-9][0-9]{3}";
             Assert.IsTrue(s.Like(ssnPatternRegexAssert, false));
+
+            string escapePattern = @"@[1-2]\{2}";
+            s = r.GetString(escapePattern);
+            Assert.IsTrue(s.Like(escapePattern, false));
         }
     }
 }

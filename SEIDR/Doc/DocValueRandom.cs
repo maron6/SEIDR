@@ -10,7 +10,12 @@ namespace SEIDR.Doc
     {
         Random r = new Random();
 
-        public bool CoinToss(int percent)
+        /// <summary>
+        /// Uses <see cref="Random"/> to provide a bool value of true <paramref name="percent"/>% of the time, and false the rest.
+        /// </summary>
+        /// <param name="percent">Integer value between 0 and 100 (inclusive). 0 will always be false, and 100 will always be true.</param>
+        /// <returns></returns>
+        public bool PercentCheck(int percent)
         {
             if (percent.Between(0, 100))
                 return r.Next(0, 100) < percent;
@@ -29,7 +34,7 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public DateTime? GetDateTimeNullable(int PercentNull, int yearFrom, int monthFrom = 1, int DayFrom = 1, int yearThrough = 1, int monthThrough = 12, int DayThrough = 31)
         {
-            if (CoinToss(PercentNull))
+            if (PercentCheck(PercentNull))
                 return null;
             return GetDateTime(yearFrom, monthFrom, DayFrom, yearThrough, monthThrough, DayThrough);
         }
@@ -128,7 +133,7 @@ namespace SEIDR.Doc
 
         public decimal? GetMoney(int percentNull, int dollarMin, int dollarMax)
         {
-            if (CoinToss(percentNull))
+            if (PercentCheck(percentNull))
                 return null;
             return GetMoney(dollarMin, dollarMax);
         }
@@ -144,7 +149,7 @@ namespace SEIDR.Doc
         }
         public decimal? GetDecimal(int percentNull, decimal min, decimal max, int round = 8)
         {
-            if (CoinToss(percentNull))
+            if (PercentCheck(percentNull))
                 return null;
             return GetDecimal(min, max, round);
         }
@@ -164,11 +169,32 @@ namespace SEIDR.Doc
                 x += (decimal)r.NextDouble();
             return decimal.Round(x, round);
         }
+        /// <summary>
+        /// Gets a random string from the provided list, or null <paramref name="percentNull"/>% of the time.
+        /// </summary>
+        /// <param name="percentNull"></param>
+        /// <param name="possibleValueList"></param>
+        /// <returns></returns>
+        public string GetString(int percentNull, params string[] possibleValueList)
+        {
+            if (PercentCheck(percentNull) || possibleValueList.Length == 0)
+                return null;
+            return possibleValueList[r.Next(0, possibleValueList.Length)];
+        }
+        /// <summary>
+        /// Gets a random string based on regex derived rules. <para>E.g. '@[1-2]{1,2}' can return one of the following values: 
+        /// @1, @2, @11, @12, @21, @22</para>
+        /// <para>'@[1-24]{2}' could return one of the following: @11, @12, @14, @21, @22, @24, @41, @42, @44</para>
+        /// <para>'@[1-2]{2}-1 could return one of the following: @11-1, @12-1, @21-1, @22-1</para>
+        /// <para>'@[1-2]\{2} COuld return one of the following: @1{2}, @2{2}</para>
+        /// </summary>
+        /// <param name="pattern"></param>
+        /// <param name="percentNull"></param>
+        /// <returns></returns>
         public string GetString(string pattern, int percentNull = 0)
         {
-            if (CoinToss(percentNull))
-                return null;
-            string outWork = string.Empty;
+            if (PercentCheck(percentNull))
+                return null;            
             string temp = "", parse = "";
             int from = -1, through;
             bool inSet = false;
@@ -177,7 +203,6 @@ namespace SEIDR.Doc
             StringBuilder sb = new StringBuilder();
             for(int i= 0; i < pattern.Length; i++)
             {
-                char tempChar = pattern[i];
                 if (inSet)
                 {
                     if(pattern[i] == ']')
@@ -300,7 +325,6 @@ namespace SEIDR.Doc
                     {
                         sb.Append(temp);
                     }
-                    temp = "";
                 }
                 temp = pattern[i].ToString();
             }

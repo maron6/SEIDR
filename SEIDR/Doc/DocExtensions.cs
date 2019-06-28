@@ -675,5 +675,53 @@ namespace SEIDR.Doc
             ret.Configure(sourceColumns, true, dataSource);
             return ret;            
         }
+        /// <summary>
+        /// Maps the data from a record to a new record with a different underlying column collection.
+        /// <para>Data is mapped based on ColumnName.</para>
+        /// </summary>
+        /// <typeparam name="DT"></typeparam>
+        /// <param name="record"></param>
+        /// <param name="newColumns">New ColumnSet to associate metadata for the returning record.</param>        
+        /// <returns></returns>
+        public static DT Map<DT>(this DT record, DocRecordColumnCollection newColumns)
+            where DT: IDataRecord, new()
+        {
+            DT ret = new DT();
+            ret.Configure(newColumns, true, default);
+            foreach(var col in record.Columns)
+            {
+                if (ret.HasColumn(col.ColumnName))
+                    ret[col.ColumnName] = record[col];
+            }
+            return ret;
+        }
+        /// <summary>
+        /// Maps the data from a record to a new record with a different underlying column collection.
+        /// <para>Data is mapped based on ColumnName, unless the source record's column is mapped to a column from the destination.</para>
+        /// </summary>
+        /// <typeparam name="DT"></typeparam>
+        /// <param name="record"></param>
+        /// <param name="newColumns">New ColumnSet to associate metadata for the returning record.</param>        
+        /// <param name="map">Allows mapping a column/position from <paramref name="record"/> to a named column in <paramref name="newColumns"/>.</param>
+        /// <returns></returns>
+        public static DT Map<DT>(this DT record, DocRecordColumnCollection newColumns, DocWriterMap map)
+            where DT : IDataRecord, new()
+        {
+            if (map == null || map.MapData.Count == 0)
+                return record.Map(newColumns);
+            DT ret = new DT();
+            ret.Configure(newColumns, true, default);
+            foreach (var col in record.Columns)
+            {
+                if(map.MapData.ContainsKey(col.Position))
+                {
+                    var tempcol = map.MapData[col.Position];
+                    ret[tempcol.ColumnName] = record[col];
+                }
+                else if (ret.HasColumn(col.ColumnName))
+                    ret[col.ColumnName] = record[col];
+            }
+            return ret;
+        }
     }
 }
