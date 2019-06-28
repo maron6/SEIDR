@@ -54,8 +54,8 @@ namespace SEIDR.Test
         [TestMethod]
         public void TypedBSONTest()
         {
-            const int RECORDCOUNT = 3000 * 3000; //0:02:53.1901146
-            //const int RECORDCOUNT = 300 * 300; //0:00:03.442483 
+            //const int RECORDCOUNT = 3000 * 3000; //0:02:53.1901146
+            const int RECORDCOUNT = 300 * 300; //0:00:03.442483 
             //Bson file is ~60% of size, in addition to having typed metadata
             DocMetaData write = new DocMetaData(TEST_FOLDER, "Test.bson", "Test.bson");
             write
@@ -107,7 +107,9 @@ namespace SEIDR.Test
                 Assert.AreEqual(RECORDCOUNT, read.RecordCount); //Missing one record with array mode...
                 read.ForEachIndex((r, idx) =>
                 {
-                    Assert.AreEqual(idx, (int)r["LineNumber"]);                    
+                    Assert.AreEqual(idx, (int)r["LineNumber"]);
+                    int test = r["LineNumber"] * 2;
+                    Assert.AreEqual(idx * 2, test);
                     Assert.AreNotEqual(default(DateTime), (DateTime)r["TimeStamp"]); 
                     if (idx % 2 == 0)
                         Assert.IsNotNull(r["NOTE"].Value);

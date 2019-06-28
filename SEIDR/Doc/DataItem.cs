@@ -42,6 +42,595 @@ namespace SEIDR.Doc
                 DataType = type;
             }
         }
+        #region math operators
+        public static DataItem operator +(DataItem item, double val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem(Convert.ToDecimal(val) + (decimal)item.Value, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem(val + (double)item.Value, item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value + (long)val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value + (int)val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value + (short)val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value + (byte)val, item.DataType);
+                case DocRecordColumnType.Unknown:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Varchar:
+                    return new DataItem(item.Value.ToString() + val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support + operator.");
+            }
+        }
+        public static DataItem operator +(DataItem item, decimal val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem(val + (decimal)item.Value, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem(Convert.ToDouble(val) + (double)item.Value, item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value + (long)val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value + (int)val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value + (short)val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value + (byte)val, item.DataType);
+                case DocRecordColumnType.Unknown:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Varchar:
+                    return new DataItem(item.Value.ToString() + val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support + operator.");
+            }
+        }
+        public static DataItem operator +(DataItem item, long val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem(val + (decimal)item.Value, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem(Convert.ToDouble(val) + (double)item.Value, item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value + val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value + val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value + (short)val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value + (byte)val, item.DataType);
+                case DocRecordColumnType.Unknown:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Varchar:
+                    return new DataItem(item.Value.ToString() + val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support + operator.");
+            }
+        }
+        public static DataItem operator +(DataItem item, int val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem(val + (decimal)item.Value, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem(Convert.ToDouble(val) + (double)item.Value, item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value + val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value + val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value + (short)val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value + (byte)val, item.DataType);
+                case DocRecordColumnType.Unknown:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Varchar:
+                    return new DataItem(item.Value.ToString() + val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support + operator.");
+            }
+        }
+        public static DataItem operator +(DataItem item, short val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem(val + (decimal)item.Value, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem(Convert.ToDouble(val) + (double)item.Value, item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value + val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value + val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value + val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value + (byte)val, item.DataType);
+                case DocRecordColumnType.Unknown:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Varchar:
+                    return new DataItem(item.Value.ToString() + val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support + operator.");
+            }
+        }
+
+        public static DataItem operator +(DataItem item, byte val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem(val + (decimal)item.Value, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem(Convert.ToDouble(val) + (double)item.Value, item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value + val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value + val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value + val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value + val, item.DataType);
+                case DocRecordColumnType.Unknown:
+                case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Varchar:
+                    return new DataItem(item.Value.ToString() + val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support + operator.");
+            }
+        }
+        public static DataItem operator -(DataItem item, double val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value - Convert.ToDecimal(val), item.DataType);                
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value - Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value - val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value - val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value - val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value - val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support - operator.");
+            }
+        }
+
+        public static DataItem operator -(DataItem item, decimal val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value - val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value - Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value - val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value - val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value - val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value - val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support - operator.");
+            }
+        }
+        public static DataItem operator -(DataItem item, long val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value - val, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(-val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value - Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value - val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value - val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value - val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value - val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support - operator.");
+            }
+        }
+        public static DataItem operator -(DataItem item, int val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value - val, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(-val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value - Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value - val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value - val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value - (short)val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value - val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support - operator.");
+            }
+        }
+
+        public static DataItem operator -(DataItem item, short val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value - val, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(-val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value - Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value - val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value - val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value - val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value - val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support - operator.");
+            }
+        }
+        public static DataItem operator -(DataItem item, byte val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value - val, item.DataType);
+                case DocRecordColumnType.DateTime:
+                case DocRecordColumnType.Date:
+                    return new DataItem(((DateTime)item.Value).AddDays(-val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem( (double)item.Value-Convert.ToDouble(val) , item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value - val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value - val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value - val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value - val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support - operator.");
+            }
+        }
+
+
+
+        public static DataItem operator *(DataItem item, double val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value * Convert.ToDecimal(val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value * Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value * val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value * val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value * val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value * val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support * operator.");
+            }
+        }
+
+        public static DataItem operator *(DataItem item, decimal val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value * val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value * Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value * val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value * val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value * val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value * val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support * operator.");
+            }
+        }
+        public static DataItem operator *(DataItem item, long val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value * val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value * Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value * val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value * val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value * val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value * val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support * operator.");
+            }
+        }
+        public static DataItem operator *(DataItem item, int val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value * val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value * Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value * val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value * val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value * (short)val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value * val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support * operator.");
+            }
+        }
+
+        public static DataItem operator *(DataItem item, short val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value * val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value * Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value * val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value * val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value * val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value * val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support * operator.");
+            }
+        }
+        public static DataItem operator *(DataItem item, byte val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value * val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value * Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value * val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value * val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value * val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value * val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support * operator.");
+            }
+        }
+        public static DataItem operator /(DataItem item, double val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value / Convert.ToDecimal(val), item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value / Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value / val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value / val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value / val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value / val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support / operator.");
+            }
+        }
+
+        public static DataItem operator /(DataItem item, decimal val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value / val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value / Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value / val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value / val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value / val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value / val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support / operator.");
+            }
+        }
+        public static DataItem operator /(DataItem item, long val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value / val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value / Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value / val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value / val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value / val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value / val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support / operator.");
+            }
+        }
+        public static DataItem operator /(DataItem item, int val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value / val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value / Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value / val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value / val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value / (short)val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value / val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support / operator.");
+            }
+        }
+
+        public static DataItem operator /(DataItem item, short val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value / val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value / Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value / val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value / val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value / val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value / val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support / operator.");
+            }
+        }
+        public static DataItem operator /(DataItem item, byte val)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                throw new ArgumentNullException(nameof(item));
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Decimal:
+                    return new DataItem((decimal)item.Value / val, item.DataType);
+                case DocRecordColumnType.Double:
+                    return new DataItem((double)item.Value / Convert.ToDouble(val), item.DataType);
+                case DocRecordColumnType.Bigint:
+                    return new DataItem((long)item.Value / val, item.DataType);
+                case DocRecordColumnType.Int:
+                    return new DataItem((int)item.Value / val, item.DataType);
+                case DocRecordColumnType.Smallint:
+                    return new DataItem((short)item.Value / val, item.DataType);
+                case DocRecordColumnType.Tinyint:
+                    return new DataItem((byte)item.Value / val, item.DataType);
+                default:
+                    throw new ArgumentException("DataItem's data type does not support / operator.");
+            }
+        }
+
+        #endregion
         #region implicit Reverse - Compare DataItem's type versus TypedRecord column before adding
         public static implicit operator DataItem(int item)
         {

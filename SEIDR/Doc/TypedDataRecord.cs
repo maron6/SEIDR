@@ -22,6 +22,18 @@ namespace SEIDR.Doc
             _ID = null;
         }
         internal int? PageID { get; set; }
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+            for(int i = 0; i < Columns.Count; i++)
+            {
+                if(i < content.Count)
+                    sb.Append(Columns[i].FormatValue(content[i]?.Value));
+                if (i < Columns.Count - 1)
+                    sb.Append('|');                
+            }
+            return sb.ToString();
+        }
         string IDataRecord.this[int Position]
         {
             get
