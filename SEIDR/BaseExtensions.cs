@@ -810,10 +810,15 @@
         public static int IndexOfAny(this string value, IEnumerable<string> words, int start, out string Chosen, bool CaseInsensitive)
         {
             Chosen = null;
+            
             int i = value.Length + 1;
             foreach(var w in words)
             {
-                int wi = value.ToUpper().IndexOf(w.ToUpper(), start);
+                int wi = -1;
+                if (CaseInsensitive)
+                    wi = value.IndexOf(w, start, StringComparison.OrdinalIgnoreCase);
+                else
+                    wi = value.IndexOf(w, start, StringComparison.Ordinal);                
                 if (wi < 0)
                     continue;
                 if (wi < i)

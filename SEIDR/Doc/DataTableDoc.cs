@@ -79,7 +79,9 @@ namespace SEIDR.Doc
             foreach(var col in ColumnSet.Columns)
             {
                 object o;
-                if (record.TryGet(col, out o))
+                
+                if (record.HasColumn(col.ColumnName) 
+                    && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
                     v[col] = o ?? DBNull.Value;
                 else
                     v[col] = DBNull.Value;
