@@ -7,6 +7,10 @@ using SEIDR.Doc.DocEditor;
 
 namespace SEIDR.Doc
 {
+
+    /// <summary>
+    /// Data accessor helper for reading data from files or databases.
+    /// </summary>
     public class TypedDataRecord : IDataRecord, IDetailDataRecord
     {
 
@@ -28,7 +32,21 @@ namespace SEIDR.Doc
         {
             return record.Columns.ToDictionary(c => c.ColumnName, c => record.content[c.Position]);
         }
-        
+        /// <summary>
+        /// Converts a dictionary of DataItems into a TypedDataRecord that can be used to write.
+        /// </summary>
+        /// <param name="keyValues"></param>
+        public static implicit operator TypedDataRecord(Dictionary<string, DataItem> keyValues)
+        {
+            var colInfo = keyValues.Select(kv => new DocRecordColumnInfo(kv.Key, kv.Value.DataType)).ToList();
+            var col = new DocRecordColumnCollection(colInfo);
+            var record = new TypedDataRecord(col);
+            foreach(var c in col)
+            {
+                record[c] = keyValues[c.ColumnName];
+            }
+            return record;
+        }
         #endregion
 
         long? _ID;
@@ -197,7 +215,7 @@ namespace SEIDR.Doc
         /// <summary>
         /// Indicates whether or not the values can be modified.
         /// </summary>
-        public bool CanWrite { get; internal set; }
+        public bool CanWrite { get; internal set; } = true;
         /// <summary>
         /// Column information.
         /// </summary>

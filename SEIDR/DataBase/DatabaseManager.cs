@@ -318,6 +318,35 @@ namespace SEIDR.DataBase
         #endregion
         const int DEADLOCK_SLEEP = 3500;
         static PropertyInfo DatabaseObjectManagerInfo = typeof(DatabaseObject).GetProperty(nameof(DatabaseObject.Manager));
+
+        /// <summary>
+        /// Executes the command associated with the model. Any open transaction will attempt to commit on success.
+        /// <para>Builds a sql command using the helper model, and its connection.</para>
+        /// <para>If the helper model does not have an open connection, it will be opened first.</para>
+        /// </summary>
+        /// <param name="i"></param>
+        /// <returns></returns>
+        public SqlCommand GetSqlCommand(DatabaseManagerHelperModel i)
+        {
+            if (i.Connection == null)
+                i.SetConnection(_conn);
+            SqlConnection c = i.Connection;
+            //ToDo: Parameter store for procedure with the database connection?
+            string proc = $"[{ (i.Schema ?? _Schema)}].{i.Procedure}";
+            
+            if (i.IsRolledBack && i.Transaction != null)
+                throw new InvalidOperationException("Connection's Transaction has been rolled back - Model has not had Tran cleared yet.");
+            if (c.State == ConnectionState.Closed)
+                c.Open();
+            SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure };                
+            cmd.Connection = c;
+            cmd.CommandTimeout = _conn.CommandTimeout;
+            if (i.Transaction != null)
+                cmd.Transaction = i.Transaction;
+            FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
+            return cmd;                
+        }
+        
         /// <summary>
         /// Executes a SQL Command based on the ConnectionProcedureCallModel. 
         /// <para>If there's a transaction and <paramref name="CommitSuccess"/> is true, will commit the transaction on the model.</para>

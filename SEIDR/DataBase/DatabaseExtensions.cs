@@ -30,6 +30,41 @@ namespace SEIDR.DataBase
             return new Doc.DataTableDoc<Doc.TypedDataRecord>(dt);
         }
         /// <summary>
+        /// Pull schema for object with additional options. May require additional permissions compared to <see cref="PullSchema(DatabaseManager, string, string)"/>
+        /// </summary>
+        /// <param name="manager"></param>
+        /// <param name="tableName"></param>
+        /// <param name="skipIdent"></param>
+        /// <param name="skipComputed"></param>
+        /// <param name="Schema"></param>
+        /// <returns></returns>
+        public static Doc.DocRecordColumnCollection PullSchema(this DatabaseManager manager, string tableName, bool skipIdent = true, bool skipComputed = true, string Schema = null)
+        {
+            if (Schema == null)
+                Schema = manager.DefaultSchema;
+            string cmdText = "SELECT TYPE_NAME(SYSTEM_TYPE_ID) DataTypeName, * FROM sys.columns  WITH (NOLOCK) WHERE OBJECT_ID = OBJECT_ID([" + Schema + "].[" + tableName + "])";
+            if (skipIdent)
+                cmdText += " AND is_identity = 0";
+            if (skipComputed)
+                cmdText += " AND Is_computed = 0";
+            cmdText += " ORDER BY COLUMN_ID ASC";
+            var dt = new Doc.DataTableDoc<Doc.TypedDataRecord>(manager.ExecuteText(cmdText).Tables[0]);
+            Doc.DocRecordColumnCollection outCols = new Doc.DocRecordColumnCollection(tableName);
+            foreach(var record in dt)
+            {
+                Doc.DocRecordColumnType t;
+                if (!Enum.TryParse(record["DataTypeName"], true, out t))
+                    t = Doc.DocRecordColumnType.Unknown;
+                var col = new Doc.DocRecordColumnInfo(record["Name"], t);
+                if (t.In(Doc.DocRecordColumnType.Varchar, Doc.DocRecordColumnType.NVarchar, Doc.DocRecordColumnType.Unknown))
+                {
+                    col.MaxLength = record["max_length"];
+                }
+                outCols.AddColumn(col);
+            }
+            return outCols;
+        }
+        /// <summary>
         /// Converts the DataTable from the specified index of the dataset into a List of <typeparamref name="RT"/>
         /// </summary>
         /// <typeparam name="RT"></typeparam>

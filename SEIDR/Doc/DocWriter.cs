@@ -183,7 +183,7 @@ namespace SEIDR.Doc
 
         /// <summary>
         /// Writes the records out using ToString without validating that they match the column meta data of the writer.
-        /// <para>Null records will be ignored.</para>
+        /// <para>Null records will be ignored unless the meta data allows null records.</para>
         /// </summary>
         /// <param name="toWrite"></param>
         public void BulkWrite(IEnumerable<IDataRecord> toWrite)

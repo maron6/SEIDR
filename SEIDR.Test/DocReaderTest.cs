@@ -951,6 +951,30 @@ LineNumber|Description
             }
         }
         [TestMethod]
+        public void SQLDataReader_FileWriteTest()
+        {
+            var conn = new DataBase.DatabaseConnection(@".\sqlExpress", "MIMIR");
+            conn.ReadOnlyIntent = true; 
+            conn.CommandTimeout = 380;
+            var mgr = new DataBase.DatabaseManager(conn);
+            using (var help = mgr.GetBasicHelper())
+            {
+                help.QualifiedProcedure = "SEIDR.usp_Data_sl";
+                using (var cmd = mgr.GetSqlCommand(help))
+                using (DataReaderDoc doc = cmd.ExecuteReader())
+                //using(DataReaderDoc doc = mgr.GetSqlCommand(help)) //slightly slower than above, but less to maintain (don't need to manually dispose cmd after)
+                {
+                    var md = doc.GetMetaDataForFile(TEST_FOLDER, "DataReaderTest.Txt");
+                    md.SetDelimiter('|', DocRecordFormat.DELIMITED)
+                        .SetCanWrite(true);
+                    using (var w = new DocWriter(md))
+                    {
+                        w.BulkWrite(doc);
+                    }
+                }                
+            }
+        }
+        [TestMethod]
         public void TestQuoteEscape()
         {
             var md = new DocMetaData(TEST_FOLDER, "bomCheck.txt", "BC").SetAllowQuoteEscape(true);

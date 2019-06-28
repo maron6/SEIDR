@@ -417,6 +417,7 @@ namespace SEIDR.DataBase
                 throw new InvalidOperationException("Connection is closed.");
             if (Transaction == null)
                 throw new InvalidOperationException("No Transaction to roll back");
+            System.Diagnostics.Debug.WriteLine("Rolling back Transaction. Savepoint:" + savePoint);
             Transaction.Rollback(savePoint);
             Savepoint = savePoint;
             IsRolledBack = true;
@@ -436,6 +437,7 @@ namespace SEIDR.DataBase
                 throw new ArgumentException("SavePoint is empty", nameof(savePoint));
             if (Transaction == null)
                 throw new InvalidOperationException("No transaction to Save");
+            System.Diagnostics.Debug.WriteLine("Saving Transaction. Savepoint: " + savePoint);
             Transaction.Save(savePoint);
             Savepoint = savePoint;
         }

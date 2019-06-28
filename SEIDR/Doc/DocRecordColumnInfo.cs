@@ -196,6 +196,19 @@ namespace SEIDR.Doc
             Position = position;
         }
         /// <summary>
+        /// Construct column info with unknown position. (Determine in collection)
+        /// </summary>
+        /// <param name="Column"></param>
+        /// <param name="alias"></param>
+        /// <param name="type"></param>
+        public DocRecordColumnInfo(string Column, DocRecordColumnType type = DocRecordColumnType.Unknown, string alias = null)
+        {
+            ColumnName = Column;
+            OwnerAlias = alias;
+            Position = -1;
+            DataType = type;
+        }
+        /// <summary>
         /// Creates a new Doc Record Column Info record, includes specifying type of data.
         /// </summary>
         /// <param name="column"></param>

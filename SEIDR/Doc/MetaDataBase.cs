@@ -311,10 +311,10 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="delimiter"></param>
         /// <returns></returns>
-        public MetaDataBase SetDelimiter(char delimiter)
+        public MetaDataBase SetDelimiter(char delimiter, DocRecordFormat format = DocRecordFormat.DELIMITED)
         {
             Delimiter = delimiter;
-            return this;
+            return SetFormat(format);            
         }
         /// <summary>
         /// Sets the string that indicates end of records.

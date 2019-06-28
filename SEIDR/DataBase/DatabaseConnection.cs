@@ -236,8 +236,29 @@ namespace SEIDR.DataBase
                 if (!string.IsNullOrEmpty(_AN))
                     d += $"Application Name='{_AN}';";
                 if (ReadOnlyIntent)
-                    d += ";applicationintent=readonly";
+                    d += "ApplicationIntent=ReadOnly;";
+                if (_Drive != null)
+                    d = "Driver={" + _Drive + "};" + d;
                 return d;
+            }
+        }
+        string _Drive;
+        /// <summary>
+        /// SQL Server connection driver. E.g., 'Driver={SQL Server Native Client 11.0}'
+        /// </summary>
+        public string Driver
+        {
+            get => _Drive;
+            set
+            {
+                if(value != _Drive)
+                {
+                    if (string.IsNullOrEmpty(value))
+                        _Drive = null;
+                    else
+                        _Drive = value.Replace("{", "").Replace("}", "");
+                    _changed = true;
+                }
             }
         }
         const string ConnectionFormatTrusted = "Trusted_Connection=true;";        
