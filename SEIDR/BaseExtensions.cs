@@ -599,51 +599,7 @@
             }
             return true;
         }
-        #region between
-        /// <summary>
-        /// Returns true if <paramref name="x"/> is between <paramref name="a"/> and <paramref name="b"/>.
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <param name="inclusive">If true, will return true when <paramref name="x"/> is equal to <paramref name="a"/> or <paramref name="b"/>. Otherwise, will return false in these cases.</param>
-        /// <returns></returns>
-        public static bool Between(this int x, int a, int b, bool inclusive = true) => inclusive? x >= a && x <= b : x > a && x < b;
-        /// <summary>
-        /// Returns true if <paramref name="x"/> is between <paramref name="a"/> and <paramref name="b"/>.
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <param name="inclusive">If true, will return true when <paramref name="x"/> is equal to <paramref name="a"/> or <paramref name="b"/>. Otherwise, will return false in these cases.</param>
-        /// <returns></returns>
-        public static bool Between(this long x, long a, long b, bool inclusive = true) => inclusive ? x >= a && x <= b : x > a && x < b;
-        /// <summary>
-        /// Returns true if <paramref name="x"/> is between <paramref name="a"/> and <paramref name="b"/>.
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <param name="inclusive">If true, will return true when <paramref name="x"/> is equal to <paramref name="a"/> or <paramref name="b"/>. Otherwise, will return false in these cases.</param>
-        /// <returns></returns>
-        public static bool Between(this short x, short a, short b, bool inclusive = true) => inclusive ? x >= a && x <= b : x > a && x < b;
-        /// <summary>
-        /// Returns true if <paramref name="x"/> is between <paramref name="a"/> and <paramref name="b"/>.
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <param name="inclusive">If true, will return true when <paramref name="x"/> is equal to <paramref name="a"/> or <paramref name="b"/>. Otherwise, will return false in these cases.</param>
-        /// <returns></returns>
-        public static bool Between(this byte x, byte a, byte b, bool inclusive = true) => inclusive ? x >= a && x <= b : x > a && x < b;
-        #endregion
-        /// <summary>
-        /// Checks that there is any record in <paramref name="list"/> that matches <paramref name="check"/>. Returns early on finding a match.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="list"></param>
-        /// <param name="check"></param>
-        /// <returns></returns>
+    
         public static bool Exists<T>(this IEnumerable<T> list, Predicate<T> check)
         {
             foreach(T l in list)

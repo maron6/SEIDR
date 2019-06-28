@@ -21,6 +21,11 @@ namespace SEIDR.Doc
         /// Data Type associated with value.
         /// </summary>
         public DocRecordColumnType DataType { get; private set; }
+        public DataItem()
+        {
+            Value = null;
+            DataType = DocRecordColumnType.NUL;
+        }
         public DataItem(object val, DocRecordColumnType type)
         {
             if(val == null 
@@ -49,11 +54,13 @@ namespace SEIDR.Doc
             if (item == null)
                 o = new DataItem(item, DocRecordColumnType.NUL);
             else
-                o = new DataItem(item, DocRecordColumnType.Int);
+                o = new DataItem(item.Value, DocRecordColumnType.Int);
             return o;
         }
         public static implicit operator DataItem(int[] item)
         {
+            if (item == null)
+                return new DataItem(item, DocRecordColumnType.NUL);
             var o = new DataItem(item, DocRecordColumnType.Int);
             return o;
         }
@@ -61,7 +68,7 @@ namespace SEIDR.Doc
         {
             DataItem o;
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
+                o = new DataItem();
             else
                 o = new DataItem(item, DocRecordColumnType.Int);
             return o;
@@ -76,70 +83,64 @@ namespace SEIDR.Doc
         {
             DataItem o;
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
+                o = new DataItem();
             else
-                o = new DataItem(item, DocRecordColumnType.Bigint);
+                o = new DataItem(item.Value, DocRecordColumnType.Bigint);
             return o;
         }
         public static implicit operator DataItem(long[] item)
         {
+            if (item == null)
+                return new DataItem();
             var o = new DataItem(item, DocRecordColumnType.Bigint);
             return o;
         }
         public static implicit operator DataItem(long?[] item)
         {
-            DataItem o;
-            if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
-            else
-                o = new DataItem(item, DocRecordColumnType.Bigint);
-            return o;
+            //Null check in constructor
+            return new DataItem(item, DocRecordColumnType.Bigint);            
         }
         public static implicit operator DataItem(short item)
         {
-            var o = new DataItem(item, DocRecordColumnType.Smallint);
-            return o;
+            return new DataItem(item, DocRecordColumnType.Smallint);
+            
         }
         public static implicit operator DataItem(short? item)
         {
             DataItem o;
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
+                o = new DataItem();
             else
-                o = new DataItem(item, DocRecordColumnType.Smallint);
+                o = new DataItem(item.Value, DocRecordColumnType.Smallint);
             return o;
         }
 
         public static implicit operator DataItem(short[] item)
-        {
-            var o = new DataItem(item, DocRecordColumnType.Smallint);
-            return o;
+        {            
+            return new DataItem(item, DocRecordColumnType.Smallint);            
         }
         public static implicit operator DataItem(short?[] item)
         {
-            DataItem o;
-            if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
-            else
-                o = new DataItem(item, DocRecordColumnType.Smallint);
-            return o;
+            return new DataItem(item, DocRecordColumnType.Smallint);
+            
         }
         public static implicit operator DataItem(byte item)
         {
-            var o = new DataItem(item, DocRecordColumnType.Tinyint);
-            return o;
+            return new DataItem(item, DocRecordColumnType.Tinyint);            
         }
         public static implicit operator DataItem(byte? item)
         {
             DataItem o;
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
+                o = new DataItem();
             else
-                o = new DataItem(item, DocRecordColumnType.Tinyint);
+                o = new DataItem(item.Value, DocRecordColumnType.Tinyint);
             return o;
         }
         public static implicit operator DataItem(byte[] item)
         {
+            if (item == null)
+                return new DataItem();
             var o = new DataItem(item, DocRecordColumnType.Tinyint);
             return o;
         }
@@ -147,7 +148,7 @@ namespace SEIDR.Doc
         {
             DataItem o;
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
+                o = new DataItem();
             else
                 o = new DataItem(item, DocRecordColumnType.Tinyint);
             return o;
@@ -158,16 +159,15 @@ namespace SEIDR.Doc
             return o;
         }
         public static implicit operator DataItem(bool? item)
-        {
-            DataItem o;
+        {           
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
-            else
-                o = new DataItem(item, DocRecordColumnType.Bool);
-            return o;
+                return new DataItem(item, DocRecordColumnType.NUL);
+            return new DataItem(item.Value, DocRecordColumnType.Bool);            
         }
         public static implicit operator DataItem(bool[] item)
         {
+            if (item == null)
+                return new DataItem();
             var o = new DataItem(item, DocRecordColumnType.Bool);
             return o;
         }
@@ -180,51 +180,63 @@ namespace SEIDR.Doc
                 o = new DataItem(item, DocRecordColumnType.Bool);
             return o;
         }
+        public static implicit operator DataItem(decimal item)
+        {
+            return new DataItem(item, DocRecordColumnType.Decimal);
+        }
+        public static implicit operator DataItem(decimal? item)
+        {
+            if (item.HasValue)
+                return new DataItem(item.Value, DocRecordColumnType.Decimal);
+            return new DataItem();
+        }
+        public static implicit operator DataItem(decimal[] item)
+        {
+            if (item == null)
+                return new DataItem(null, DocRecordColumnType.NUL);
+            return new DataItem(item, DocRecordColumnType.Decimal);
+        }
+        public static implicit operator DataItem(decimal?[] item)
+        {
+            if (item == null)
+                return new DataItem(null, DocRecordColumnType.NUL);
+            return new DataItem(item, DocRecordColumnType.Decimal);
+        }
         public static implicit operator DataItem(DateTime item)
         {
             var o = new DataItem(item, DocRecordColumnType.DateTime);
             return o;
         }
         public static implicit operator DataItem(DateTime? item)
-        {
-            DataItem o;
+        {            
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
-            else
-                o = new DataItem(item, DocRecordColumnType.DateTime);
-            return o;
+                return new DataItem(item, DocRecordColumnType.NUL);
+            return new DataItem(item.Value, DocRecordColumnType.DateTime);            
         }
         public static implicit operator DataItem(DateTime[] item)
         {
-            var o = new DataItem(item, DocRecordColumnType.DateTime);
-            return o;
+            if (item == null)
+                return new DataItem(null, DocRecordColumnType.NUL);
+            return new DataItem(item, DocRecordColumnType.DateTime);            
         }
         public static implicit operator DataItem(DateTime?[] item)
         {
-            DataItem o;
+            
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
-            else
-                o = new DataItem(item, DocRecordColumnType.DateTime);
-            return o;
+                return new DataItem(item, DocRecordColumnType.NUL);
+            return new DataItem(item, DocRecordColumnType.DateTime);
         }
         public static implicit operator DataItem(string item)
-        {
-            DataItem o;
+        {            
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
-            else
-                o = new DataItem(item, DocRecordColumnType.Varchar);
-            return o;
+                return new DataItem(item, DocRecordColumnType.NUL);
+            return new DataItem(item, DocRecordColumnType.Varchar);            
         }
         public static implicit operator DataItem(string[] item)
-        {
-            DataItem o;
+        {            
             if (item == null)
-                o = new DataItem(item, DocRecordColumnType.NUL);
-            else
-                o = new DataItem(item, DocRecordColumnType.Varchar);
-            return o;
+                return new DataItem(item, DocRecordColumnType.NUL);
+            return new DataItem(item, DocRecordColumnType.Varchar);            
         }
         #endregion
         #region IMPLICIT  
