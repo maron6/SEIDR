@@ -542,7 +542,16 @@ namespace SEIDR.Doc
             //SetFormat();
             return col;
         }
-
+        /// <summary>
+        /// Force Columns to match their position in underlying list.
+        /// </summary>
+        public void CheckPositions()
+        {
+            for(int i= 0; i < Columns.Count; i++)
+            {
+                Columns[i].Position = i;
+            }
+        }
         internal void RemoveColumn(string alias, string ColumnName, int position = -1)
         {
             if (!HasColumn(alias, ColumnName, position))

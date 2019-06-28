@@ -27,7 +27,7 @@ namespace SEIDR.Doc
             get
             {
                 var col = Columns[Position];
-                var d = this[Position].Value;
+                var d = this[Position]?.Value;
                 return col.FormatValue(d);
             }
             set => SetValue(Position, value);
@@ -37,7 +37,7 @@ namespace SEIDR.Doc
             get
             {
                 var col = Columns.GetBestMatch(Column);
-                var d = this[Column].Value;
+                var d = this[Column]?.Value;
                 return col.FormatValue(d);
                 
             }
@@ -48,7 +48,7 @@ namespace SEIDR.Doc
             get
             {
                 var col = Columns[column.Position];
-                var d = this[column.Position].Value;
+                var d = this[column.Position]?.Value;
                 return col.FormatValue(d);
             }
             set => SetValue(column.Position, value);
@@ -57,7 +57,7 @@ namespace SEIDR.Doc
         {
             get
             {
-                return column.FormatValue(this[column].Value);                
+                return column.FormatValue(this[column]?.Value);                
             }
             set => SetValue(column.Position, value);
         }
@@ -73,14 +73,7 @@ namespace SEIDR.Doc
             }
             set
             {
-                if (value.DataType != DocRecordColumnType.NUL)
-                {
-                    if (Columns[Position].DataType != value.DataType && Columns[Position].DataType != DocRecordColumnType.Unknown)
-                    {
-                        throw new ArgumentException("Argument data type does not match expected: " + Columns[Position].DataType);
-                    }
-                }
-                content.SetWithExpansion(Position, value, new DataItem(null, DocRecordColumnType.NUL));
+                SetValue(Position, value?.Value);                
             }
         }
         public DataItem this[string Column, string Alias = null]
@@ -94,7 +87,9 @@ namespace SEIDR.Doc
             }
             set
             {
-                var col = Columns.GetBestMatch(Column, Alias);
+                //var col = Columns.GetBestMatch(Column, Alias);
+                SetValue(Column, value?.Value, Alias);
+                /*
                 if (value.DataType != DocRecordColumnType.NUL && col.DataType != DocRecordColumnType.Unknown)
                 {                    
                     if (col.DataType != value.DataType)
@@ -102,7 +97,7 @@ namespace SEIDR.Doc
                         throw new ArgumentException("Argument data type does not match expected: " + col.DataType);
                     }
                 }
-                content.SetWithExpansion(col.Position, value, new DataItem(null, DocRecordColumnType.NUL));
+                content.SetWithExpansion(col.Position, value, new DataItem(null, DocRecordColumnType.NUL));*/
             }
         }                
         public void SetValue(int Position, object value) => SetValue(Columns[Position], value);
@@ -192,7 +187,7 @@ namespace SEIDR.Doc
             CanWrite = canWrite ?? true;
             foreach(var col in Columns.Columns)
             {
-                if (col.Position > parsedContent.Count)
+                if (col.Position >= parsedContent.Count)
                     break;
                 SetValue(col, parsedContent[col], false);
             }
