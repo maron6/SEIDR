@@ -49,7 +49,13 @@ namespace SEIDR.Doc
             }
             bool HasMaxLength = cr1.HasColumn("MaxLength");
             bool LeftJustify = cr1.HasColumn("LeftJustify");
+            string dtypeName = "DataType";
             bool DataType = cr1.HasColumn("DataType");
+            if(!DataType && cr1.HasColumn("DataTypeName"))
+            {
+                DataType = true;
+                dtypeName = "DataTypeName";
+            }
             columnRecords.ForEachIndex((record, i) =>
             {
                 string name = record[colName];
@@ -65,7 +71,7 @@ namespace SEIDR.Doc
                     justify = false;
 
                 DocRecordColumnType t;
-                if (!DataType || !Enum.TryParse(record["DataType"], out t))
+                if (!DataType || !Enum.TryParse(record[dtypeName], true, out t))
                     t = DocRecordColumnType.Unknown;
                 if (ret.Columns.Count > pos)
                 {

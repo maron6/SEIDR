@@ -38,7 +38,7 @@ namespace SEIDR.DataBase
         /// <param name="skipComputed"></param>
         /// <param name="Schema"></param>
         /// <returns></returns>
-        public static Doc.DocRecordColumnCollection PullSchema(this DatabaseManager manager, string tableName, bool skipIdent = true, bool skipComputed = true, string Schema = null)
+        public static Doc.DocRecordColumnCollection PullSchema(this DatabaseManager manager, string tableName, bool skipComputed, bool skipIdent = true, string Schema = null)
         {
             if (Schema == null)
                 Schema = manager.DefaultSchema;
