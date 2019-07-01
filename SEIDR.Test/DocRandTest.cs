@@ -34,6 +34,22 @@ namespace SEIDR.Test
             }            
         }
         [TestMethod]
+        public void PercentDecimalPointTest()
+        {
+            int counter = 0;
+            const int LIMIT_COUNT = 10000000;
+            const double PERCENT = 7.05834;
+            const double EXPECTED = LIMIT_COUNT * PERCENT * .01;
+            const double VARIANCE = LIMIT_COUNT * .00010; //.001%
+            for (int i = 0; i < LIMIT_COUNT; i++)
+            {
+                if (r.PercentCheck(PERCENT))
+                    counter++;
+            }
+            Assert.IsTrue(counter.Between((int)(EXPECTED - VARIANCE), (int)(EXPECTED + VARIANCE)));
+        }
+
+        [TestMethod]
         public void RandomString()
         {
             string phonePattern = "([1-9]{3})[1-9]{3}-[1-9]{4}@@"; //Phone pattern + @@

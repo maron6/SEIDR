@@ -194,6 +194,27 @@ namespace SEIDR
         /// <param name="inclusiveLeft">If true, can return true when <paramref name="a"/> == <paramref name="value"/></param>
         /// <param name="inclusiveRight">If true, can return true when <paramref name="b"/> == <paramref name="value"/></param>
         /// <returns></returns>
+        public static bool Between(this double value, int a, int b, bool inclusiveLeft = true, bool inclusiveRight = true)
+        {
+            if (value < a)
+                return false;
+            if (!inclusiveLeft && a == value)
+                return false;
+            if (!inclusiveRight && b == value)
+                return false;
+            if (value > b)
+                return false;
+            return true;
+        }
+        /// <summary>
+        /// Checks that <paramref name="value"/> is between <paramref name="a"/> and <paramref name="b"/>
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <param name="inclusiveLeft">If true, can return true when <paramref name="a"/> == <paramref name="value"/></param>
+        /// <param name="inclusiveRight">If true, can return true when <paramref name="b"/> == <paramref name="value"/></param>
+        /// <returns></returns>
         public static bool Between<ET, N>(this ET value, N a, N b, bool inclusiveLeft = true, bool inclusiveRight = true) 
         {
             Type t = typeof(ET);

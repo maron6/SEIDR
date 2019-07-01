@@ -22,6 +22,23 @@ namespace SEIDR.Doc
             throw new ArgumentOutOfRangeException(nameof(percent));
         }
         /// <summary>
+        /// Uses <see cref="Random"/> to provide a bool value of true <paramref name="percent"/>% of the time, and false the rest.
+        /// </summary>
+        /// <param name="percent">Decimal value between 0 and 100 (inclusive). 0 will always be false, and 100 will always be true.</param>
+        /// <returns></returns>
+        public bool PercentCheck(double percent)
+        {
+            if (percent < 0 || percent > 100)
+                throw new ArgumentOutOfRangeException(nameof(percent));
+            int limit = 100;
+            while(percent != (int)percent)
+            {
+                limit *= 10;
+                percent *= 10;
+            }
+            return r.Next(0, limit) < percent;
+        }
+        /// <summary>
         /// Gets a random DateTime? object, which will be null <paramref name="PercentNull"/>% of the time.
         /// </summary>
         /// <param name="PercentNull"></param>
