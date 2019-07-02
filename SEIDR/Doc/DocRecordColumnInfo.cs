@@ -89,9 +89,14 @@ namespace SEIDR.Doc
                     TextQualify = false; //by default, don't text qualify dates/numerics/etc
             }
         }
-        
+        /// <summary>
+        /// Optional, additional meta Data to associate to a column.
+        /// <para>Defaults to null.</para>
+        /// </summary>
+        public Dictionary<string, string> ExtraMetaData { get; set; } = null;
         /// <summary>
         /// Optional formatting for certain data types.
+        /// <para>Currently only used for Date/DateTime</para>
         /// </summary>
         public string Format { get; set; } = null;
         /// <summary>

@@ -56,6 +56,11 @@ namespace SEIDR.Doc
                 DataType = true;
                 dtypeName = "DataTypeName";
             }
+            bool checkFormat = cr1.HasColumn("Format");
+            var extras = cr1.Columns.Where(c => c.ColumnName.NotIn("Name", "ColumnName", "Position",
+                "Index", "ID", "MaxLength", "LeftJustify", "DataType", "DataTypeName", "Format"));
+            bool checkExtra = extras.HasMinimumCount(1);
+
             columnRecords.ForEachIndex((record, i) =>
             {
                 string name = record[colName];
@@ -73,12 +78,27 @@ namespace SEIDR.Doc
                 DocRecordColumnType t;
                 if (!DataType || !Enum.TryParse(record[dtypeName], true, out t))
                     t = DocRecordColumnType.Unknown;
+                string format = null;
+                if (checkFormat)
+                    format = record["Format"];
+                Dictionary<string, string> emeta = null;
+                if (checkExtra)
+                {
+                    emeta = new Dictionary<string, string>();
+                    foreach(var extraCol in extras)
+                    {
+                        emeta[extraCol.ColumnName] = record[extraCol];
+                    }
+                }
+
                 if (ret.Columns.Count > pos)
                 {
                     ret.Columns[pos].ColumnName = name;
                     ret.Columns[pos].DataType = t;
                     ret.Columns[pos].LeftJustify = justify;
                     ret.Columns[pos].MaxLength = maxLen;
+                    ret.Columns[pos].Format = format;
+                    ret.Columns[pos].ExtraMetaData = emeta;
                 }
                 else 
                 {
@@ -86,7 +106,9 @@ namespace SEIDR.Doc
                     {
                         ret.AddColumn("COLUMN # " + ret.Columns.Count + 1); //1 based default name for columns.
                     }
-                    ret.AddColumn(name, maxLen, justify, dataType: t);
+                    var col = ret.AddColumn(name, maxLen, justify, dataType: t);
+                    col.Format = format;
+                    col.ExtraMetaData = emeta;
                 }
             });
             return ret;
@@ -143,20 +165,7 @@ namespace SEIDR.Doc
             return ret;
         }
         #endregion
-        string textQualifier = null;
-        [Obsolete("Use TextQualifier in MetaDataBase", true)]
-        /// <summary>
-        /// Text qualifier
-        /// </summary>
-        public string TextQualifier
-        {
-            get { return textQualifier; }
-            set
-            {
-                textQualifier = value ;
-                SetFormat();
-            }
-        } 
+
 
         /// <summary>
         /// Merges the two column collections and returns a new collection with the specified alias
@@ -376,49 +385,7 @@ namespace SEIDR.Doc
         public bool CanUseAsFixedWidth { get; private set; } = true;
         internal List<DocRecordColumnInfo> Columns { get; private set; }
    
-        [Obsolete("Formatting to MetaData", true)]
-        internal string format;
-        [Obsolete("Move Formatting to MetaData that will be used for reading or writing instead of column collection.", true)]
-        internal void SetFormat()
-        {
-            if (!Valid)
-                return;
 
-            Columns.Sort((a, b) =>
-            {
-                return a.Position.CompareTo(b.Position);
-            });
-            int last = LastPosition;
-            StringBuilder fmt = new StringBuilder();
-            for (int i = 0; i <= last; i++)
-            {
-                var col = this[i];
-                if (col == null)
-                {
-                    //fmt.Append(_Delimiter);
-                    continue;
-                }
-                if (false)// fixedWidthMode)
-                {
-                    int justify = col.LeftJustify ? -col.MaxLength.Value : col.MaxLength.Value;
-                    fmt.Append("{" + i + "," + justify + "}");
-                }
-                else
-                {
-                    if (col.TextQualify)
-                        fmt.Append(TextQualifier);
-
-                    fmt.Append("{" + i + "}");
-
-                    if (col.TextQualify)
-                        fmt.Append(TextQualifier);
-                    //if (i < last)
-                    //    fmt.Append(_Delimiter);
-                }
-            }
-            //fmt.Append(LineEndDelimiter);
-            format = fmt.ToString();
-        }
         internal void CheckSort()
         {
             Columns.Sort((a, b) =>
@@ -498,9 +465,9 @@ namespace SEIDR.Doc
         /// <returns></returns>
         public bool HasColumn(string SpecificAlias, string ColumnName, int Position = -1)
         {
-
+            //possible todo: Colname OrdinalCompare Case insensitive?
             return Columns.Exists(c => (c.OwnerAlias == SpecificAlias || SpecificAlias == null) && c.ColumnName == ColumnName && (Position < 0 || c.Position == Position));
-        }
+        }        
         /// <summary>
         /// Access columns by position. 
         /// </summary>
