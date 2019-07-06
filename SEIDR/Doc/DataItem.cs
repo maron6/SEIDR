@@ -769,6 +769,33 @@ namespace SEIDR.Doc
                 o = new DataItem(item, DocRecordColumnType.Bool);
             return o;
         }
+        public static implicit operator DataItem(Guid item)
+        {
+            var o = new DataItem(item, DocRecordColumnType.Guid);
+            return o;
+        }
+        public static implicit operator DataItem(Guid? item)
+        {
+            if (item == null)
+                return new DataItem(item, DocRecordColumnType.NUL);
+            return new DataItem(item.Value, DocRecordColumnType.Guid);
+        }
+        public static implicit operator DataItem(Guid[] item)
+        {
+            if (item == null)
+                return new DataItem();
+            var o = new DataItem(item, DocRecordColumnType.Guid);
+            return o;
+        }
+        public static implicit operator DataItem(Guid?[] item)
+        {
+            DataItem o;
+            if (item == null)
+                o = new DataItem(item, DocRecordColumnType.NUL);
+            else
+                o = new DataItem(item, DocRecordColumnType.Guid);
+            return o;
+        }
         public static implicit operator DataItem(decimal item)
         {
             return new DataItem(item, DocRecordColumnType.Decimal);
@@ -965,6 +992,48 @@ namespace SEIDR.Doc
             }
             throw new Exception("Data Type does not match byte?[]");
         }
+
+        public static implicit operator Guid(DataItem item)
+        {
+            switch (item.DataType)
+            {
+                case DocRecordColumnType.Guid:
+                    return (Guid)item.Value;
+            }
+            if (DEFAULT_NO_MATCH)
+                return default;
+            throw new Exception("DataType does not match Expected.");
+        }
+        public static implicit operator Guid?(DataItem item)
+        {
+            if (item.DataType == DocRecordColumnType.NUL)
+                return null;
+            return (Guid)item;
+        }
+
+        public static implicit operator Guid[](DataItem item)
+        {
+            if (item.Value is byte[])
+                return (Guid[])item.Value;
+            else if (item.Value is IList<Guid>)
+            {
+                var i = item.Value as IList<Guid>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match Guid[]");
+        }
+        public static implicit operator Guid?[](DataItem item)
+        {
+            if (item.Value is byte?[])
+                return (Guid?[])item.Value;
+            else if (item.Value is IList<Guid?>)
+            {
+                var i = item.Value as IList<Guid?>;
+                return i.ToArray();
+            }
+            throw new Exception("Data Type does not match Guid?[]");
+        }
+
         public static implicit operator short(DataItem item)
         {
             switch (item.DataType)
@@ -1265,6 +1334,10 @@ namespace SEIDR.Doc
                 case DocRecordColumnType.Money:
                     if (!CheckType<decimal>(ref o))
                         CheckType<decimal?>(ref o);
+                    break;
+                case DocRecordColumnType.Guid:
+                    if (!CheckType<Guid>(ref o))
+                        CheckType<Guid?>(ref o);
                     break;
                 default:
                     CheckType<string>(ref o);

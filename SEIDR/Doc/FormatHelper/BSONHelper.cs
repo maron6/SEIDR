@@ -157,6 +157,10 @@ namespace SEIDR.Doc
                     if(nullable)
                         return DecodeArray<DateTime?>(input, ref Position, format, ReadEncoding, l);
                     return DecodeArray<DateTime>(input, ref Position, format, ReadEncoding, l);
+                case DocRecordColumnType.Guid:
+                    if (nullable)
+                        return DecodeArray<Guid>(input, ref Position, format, ReadEncoding, l);
+                    return DecodeArray<Guid>(input, ref Position, format, ReadEncoding, l);
                 case DocRecordColumnType.Varchar:
                 case DocRecordColumnType.NVarchar:
                 case DocRecordColumnType.Unknown: //obj?
@@ -249,7 +253,26 @@ namespace SEIDR.Doc
             if (o == null)
                 return default;
             if(o is T)            
-                return (T)o;                            
+                return (T)o;     
+            //Non string encoded as string:
+            if(typeof(T) == typeof(Guid))
+            {
+                Guid g;
+                if(Guid.TryParse(o.ToString(), out g))
+                {
+                    o = g;
+                    return (T)o;
+                }
+            }
+            else if(typeof(T) == typeof(decimal))
+            {
+                decimal d;
+                if(decimal.TryParse(o.ToString(), out d))
+                {
+                    o = d;
+                    return (T)o;
+                }
+            }
             return default;
         }
         static object DecodeItem(byte[] input, ref int Position, DocRecordColumnType format, Encoding ReadEncoding, byte TypeHeader) //where V: class
@@ -296,6 +319,7 @@ namespace SEIDR.Doc
                 case DocRecordColumnType.NVarchar:
                 case DocRecordColumnType.Decimal:
                 case DocRecordColumnType.Money:
+                case DocRecordColumnType.Guid:
                     byteL = TypeHeader & TYPE_SPACER; //Last two bytes - will be a value between 00 and 11 (0-3), indicating i + 1 bytes to int (number of characters to read from bytes as a string)
                     int L = input[Position++]; //0 - just a single byte.
                     for(int i = 1; i <= byteL; i++)
@@ -331,11 +355,11 @@ namespace SEIDR.Doc
             }
 
             byte type = (byte)((int)encodeType << OFFSET);            
-            type |= 0b1000_0000;
+            type |= 0b1000_0000; //Flag as array
             if (nullable)
-                type |= 1;
+                type |= 1; //flag as nullable in options.
             work.Add(type);
-            L data = (L)value;
+            L data = (L)value;            
             work.AddRange(BitConverter.GetBytes(data.Count));
             foreach (T item in data)
             {
@@ -357,6 +381,7 @@ namespace SEIDR.Doc
                 case DocRecordColumnType.Unknown:
                 case DocRecordColumnType.Varchar:
                 case DocRecordColumnType.NVarchar:
+                case DocRecordColumnType.Guid:
                 case DocRecordColumnType.Money:
                 case DocRecordColumnType.Decimal:
                     {
@@ -480,6 +505,12 @@ namespace SEIDR.Doc
                             EncodeArray<DateTime?, DateTime?[]>(column.DataType, value, result, WriteEncoding, true);
                         else
                             EncodeArray<DateTime, DateTime[]>(column.DataType, value, result, WriteEncoding, false);
+                        break;
+                    case DocRecordColumnType.Guid: //Note: Item encoding is same as string essentially, but array itself should still be encoded as Guid[]/Guid?[]
+                        if (value is Guid?[])
+                            EncodeArray<Guid?, Guid?[]>(column.DataType, value, result, WriteEncoding, true);
+                        else
+                            EncodeArray<Guid, Guid[]>(column.DataType, value, result, WriteEncoding, false);
                         break;
                     case DocRecordColumnType.Unknown:
                     case DocRecordColumnType.Varchar:

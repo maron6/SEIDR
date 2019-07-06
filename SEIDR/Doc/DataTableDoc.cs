@@ -91,8 +91,8 @@ namespace SEIDR.Doc
                     col = ColumnSet[idx];
 
                 object o;
-                if (record.HasColumn(col.OwnerAlias, col.ColumnName)
-                    && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
+                var vcol = record.Columns.GetBestMatch(col.ColumnName);
+                if (vcol != null && record.TryGet(vcol, out o))
                     v[idx] = o ?? DBNull.Value;
                 else
                     v[idx] = null; //Typically allows using any default value from table, rather than an explicit null
@@ -109,9 +109,9 @@ namespace SEIDR.Doc
             var v = new object[ColumnSet.Columns.Count];
             foreach(var col in ColumnSet.Columns)
             {
-                object o;                                
-                if (record.HasColumn(col.OwnerAlias, col.ColumnName)
-     && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
+                object o;
+                var vcol = record.Columns.GetBestMatch(col.ColumnName);                
+                if (vcol != null && record.TryGet(vcol, out o))
                     v[col] = o ?? DBNull.Value;
                 else
                     v[col] = null; //Typically allows using any default value from table, rather than an explicit null
@@ -142,8 +142,8 @@ namespace SEIDR.Doc
                     col = ColumnSet[idx];
                 
                 object o;
-                if (record.HasColumn(col.OwnerAlias, col.ColumnName)
-                    && record.TryGet(record.Columns.GetBestMatch(col.ColumnName, col.OwnerAlias), out o))
+                var vcol = record.Columns.GetBestMatch(col.ColumnName);
+                if (vcol != null && record.TryGet(vcol, out o))
                     v[idx] = o ?? DBNull.Value;
                 else
                     v[idx] = null; //Typically allows using any default value from table, rather than an explicit null
@@ -205,9 +205,12 @@ namespace SEIDR.Doc
                         break;
                     case TypeCode.Int64:
                         colType = DocRecordColumnType.Bigint;
-                        break;
+                        break;                        
                     default:
-                        colType = DocRecordColumnType.Unknown;
+                        if (col.DataType == typeof(Guid))
+                            colType = DocRecordColumnType.Guid;
+                        else
+                            colType = DocRecordColumnType.Unknown;
                         break;
                 }
                 ColumnSet.AddColumn(col.ColumnName, col.MaxLength, true, false, colType);
@@ -218,6 +221,15 @@ namespace SEIDR.Doc
         {
             ColumnSet = GetColumnCollection(dtSource.TableName, dtSource.Columns);
             source = dtSource;
+        }
+        /// <summary>
+        /// Construct empty DataTableDoc using specified column info.
+        /// </summary>
+        /// <param name="columnInfo"></param>
+        public DataTableDoc(DocRecordColumnCollection columnInfo)
+        {
+            ColumnSet = columnInfo;
+            source = ColumnSet.GetEmptyTable();
         }
         public IEnumerator<DT> GetEnumerator()
         {

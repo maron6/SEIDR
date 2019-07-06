@@ -621,6 +621,9 @@ namespace SEIDR.Doc
                     case DocRecordColumnType.Bool:
                         t = typeof(bool);
                         break;
+                    case DocRecordColumnType.Guid:
+                        t = typeof(Guid);
+                        break;
                     case DocRecordColumnType.Unknown:
                     case DocRecordColumnType.Varchar:
                     default:

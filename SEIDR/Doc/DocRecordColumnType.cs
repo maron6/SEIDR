@@ -53,5 +53,6 @@ namespace SEIDR.Doc
         /// </summary>
         Money,
         Bool, 
+        Guid
     }
 }
