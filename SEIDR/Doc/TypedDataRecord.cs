@@ -160,7 +160,7 @@ namespace SEIDR.Doc
         /// <param name="RaiseColChanged"></param>
         protected void SetValue(DocRecordColumnInfo column, object value, bool RaiseColChanged = true)
         {
-            if (!CanWrite)
+            if (!CanWrite && RaiseColChanged)
                 throw new InvalidOperationException("Not allowed to write values.");
             DataItem x = null;
             DataItem n;
