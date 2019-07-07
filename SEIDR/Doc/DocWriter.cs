@@ -47,70 +47,12 @@ namespace SEIDR.Doc
             }
         }
         /// <summary>
-        /// Sets whether or not qualify listed columns as text when writing. Default is false.<para>Note: Ignored in FixedWidth</para>
-        /// </summary>
-        /// <param name="qualifying"></param>
-        /// <param name="columnsToQualify"></param>
-        public void SetTextQualify(bool qualifying, params int[] columnsToQualify)
-        {
-            foreach (var col in columnsToQualify)
-            {
-                Columns[col].TextQualify = qualifying;
-            }
-        }
-        /// <summary>
-        /// Changes the justification for listed columns. (Default is to leftJustify)
-        /// </summary>
-        /// <param name="leftJustify"></param>
-        /// <param name="columnsToJustify"></param>
-        public void SetJustification(bool leftJustify, params string[] columnsToJustify)
-        {
-            foreach (var col in columnsToJustify)
-            {
-                Columns[col].LeftJustify = leftJustify;
-            }
-        }
-        /// <summary>
-        /// Changes the justification for listed columns. (Default is to leftJustify)
-        /// </summary>
-        /// <param name="leftJustify"></param>
-        /// <param name="columnsToJustify"></param>
-        public void SetJustification(bool leftJustify, params int[] columnsToJustify)
-        {
-            foreach (var col in columnsToJustify)
-            {
-                Columns[col].LeftJustify = leftJustify;
-            }
-        }
-        /// <summary>
         /// Column meta Data
         /// </summary>
         public DocRecordColumnCollection Columns => md.Columns;
 
         
-        /// <summary>
-        /// Calls <see cref="AddDocRecord(DocRecord, IDictionary{int, DocRecordColumnInfo})> using the DocWriter's underlying dictionary.
-        /// </summary>
-        /// <param name="record"></param>
-        /// <param name="columnMapping"></param>
-        public void AddDocRecord(DocRecord record, DocWriterMap columnMapping)           
-        {
-            AddDocRecord(record, columnMapping.MapData);
-        }
-        //Note: for some reason, naming this method as 'AddRecord' messes up with name resolution for function, and calls to base class AddRecord doesn't work in DocSorter
-        /// <summary>
-        /// Adds the record to the file via streamWriter
-        /// </summary>
-        /// <param name="record"></param>
-        /// <param name="columnMapping">Optional mapping override. Positions can be set to null or ignored to use the default mapping. 
-        /// <para>Key should be the target position in the output file, value should be the column information from the source.
-        /// </para>
-        /// </param>
-        public void AddDocRecord(DocRecord record, IDictionary<int, DocRecordColumnInfo> columnMapping = null)
-        {
-            sw.Write(md.FormatRecord(record, true, columnMapping));
-            
-        }
+        
     }
     /// <summary>
     /// Helper using DocMetaData to wrap a StreamWriter and write metaData to a file
@@ -287,6 +229,32 @@ namespace SEIDR.Doc
         /// </summary>
         /// <param name="Lines"></param>
         public void BulkAdd(params string[] Lines) => BulkAdd(Lines);
+
+        /// <summary>
+        /// Calls <see cref="AddDocRecord(DocRecord, IDictionary{int, DocRecordColumnInfo})> using the DocWriter's underlying dictionary.
+        /// </summary>
+        /// <param name="record"></param>
+        /// <param name="columnMapping"></param>
+        public void AddDocRecord(DocRecord record, DocWriterMap columnMapping)
+        {
+            AddDocRecord(record, columnMapping.MapData);
+        }
+        //Note: for some reason, naming this method as 'AddRecord' messes up with name resolution for function, and calls to base class AddRecord doesn't work in DocSorter
+        /// <summary>
+        /// Adds the record to the file via streamWriter
+        /// </summary>
+        /// <param name="record"></param>
+        /// <param name="columnMapping">Optional mapping override. Positions can be set to null or ignored to use the default mapping. 
+        /// <para>Key should be the target position in the output file, value should be the column information from the source.
+        /// </para>
+        /// </param>
+        public void AddDocRecord(DocRecord record, IDictionary<int, DocRecordColumnInfo> columnMapping = null)
+        {
+            sw.Write(md.FormatRecord(record, true, columnMapping));
+
+        }
+
+
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 

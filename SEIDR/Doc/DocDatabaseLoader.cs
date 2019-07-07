@@ -139,6 +139,22 @@ namespace SEIDR.Doc
             return this;
         }
         /// <summary>
+        /// Overrides all column mappings on the underlying bulk copier.
+        /// </summary>
+        /// <param name="colSource"></param>
+        /// <param name="include">Function to return true if the column should be mapped.</param>
+        /// <returns></returns>
+        public DocDatabaseLoader SetColumnMappings(IEnumerable<DocRecordColumnInfo> colSource, Func<DocRecordColumnInfo, bool> include)
+        {
+            BulkCopy.ColumnMappings.Clear();
+            foreach (var col in colSource)
+            {
+                if(include(col))
+                    BulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            }
+            return this;
+        }
+        /// <summary>
         /// Clear column mappings
         /// </summary>
         public void ClearColumnMappings()

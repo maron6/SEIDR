@@ -49,6 +49,12 @@
         {
             return DateTime.FromOADate(value);
         }
+        public static T GetLoopedIndex<T>(this IList<T> source, int index)
+        {
+            if (source.Count == 0)
+                throw new ArgumentOutOfRangeException(nameof(source), "Source does not haver any indexes to loop.");
+            return source[index % source.Count];
+        }
         /// <summary>
         /// Map properties of map to the inheriting class instance, IT
         /// </summary>

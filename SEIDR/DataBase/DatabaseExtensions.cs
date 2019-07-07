@@ -22,7 +22,7 @@ namespace SEIDR.DataBase
         /// <param name="tableName"></param>
         /// <param name="Schema"></param>
         /// <returns></returns>
-        public static Doc.DataTableDoc<Doc.TypedDataRecord> PullSchema(this DatabaseManager manager, string tableName, string Schema = null)        
+        public static Doc.DataTableDoc<Doc.TypedDataRecord> PullSchemaDoc(this DatabaseManager manager, string tableName, string Schema = null)        
         {
             if (Schema == null)
                 Schema = manager.DefaultSchema;
@@ -30,7 +30,23 @@ namespace SEIDR.DataBase
             return new Doc.DataTableDoc<Doc.TypedDataRecord>(dt);
         }
         /// <summary>
-        /// Pull schema for object with additional options. May require additional permissions compared to <see cref="PullSchema(DatabaseManager, string, string)"/>
+        /// Pull schema for object with additional options, and returns a DataBaseDoc with that schema. 
+        /// <para>May require additional permissions compared to <see cref="PullSchemaDoc(DatabaseManager, string, string)"/>
+        /// </para>
+        /// </summary>
+        /// <param name="manager"></param>
+        /// <param name="tableName"></param>
+        /// <param name="skipIdent"></param>
+        /// <param name="skipComputed"></param>
+        /// <param name="Schema"></param>
+        /// <returns></returns>
+        public static Doc.DataTableDoc<Doc.TypedDataRecord> PullSchemaDoc(this DatabaseManager manager, string tableName, bool skipComputed, bool skipIdent = true, string Schema = null)
+        {
+            var cols = manager.PullSchema(tableName, skipComputed, skipIdent, Schema);
+            return new Doc.DataTableDoc<Doc.TypedDataRecord>(Doc.DocExtensions.GetEmptyTable(cols));
+        }
+        /// <summary>
+        /// Pull schema for object with additional options. May require additional permissions compared to <see cref="PullSchemaDoc(DatabaseManager, string, string)"/>
         /// </summary>
         /// <param name="manager"></param>
         /// <param name="tableName"></param>

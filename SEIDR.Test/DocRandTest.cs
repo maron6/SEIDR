@@ -48,6 +48,18 @@ namespace SEIDR.Test
             }
             Assert.IsTrue(counter.Between((int)(EXPECTED - VARIANCE), (int)(EXPECTED + VARIANCE)));
         }
+        [TestMethod]
+        public void RandomText()
+        {
+            string test = r.GetText(6000);
+            Assert.AreEqual(6000, test.Length);
+
+            test = r.GetText(12000);
+            Assert.AreEqual(12000, test.Length);
+
+            test = r.GetText(15);
+            Assert.AreEqual(15, test.Length);
+        }
 
         [TestMethod]
         public void RandomString()
