@@ -99,14 +99,25 @@ namespace SEIDR.Doc
             {
                 if (year == yearFrom)
                 {
+                    if (monthThrough < monthFrom)
+                        monthThrough = 1 + ((monthFrom + monthThrough) % 12);
                     month = r.Next(monthFrom, monthThrough + 1);
-                    if (DayThrough > MaxDays[month])
+                    if (DayThrough > MaxDays[month] || DayThrough < 1)
                         DayThrough = MaxDays[month];
                     if (month == monthThrough)
                     {
                         if (month == monthFrom)
+                        {
+                            if (DayThrough < DayFrom)
+                            {
+                                DayThrough = DayThrough + DayFrom;
+                                if(DayThrough > MaxDays[month])
+                                    DayThrough = MaxDays[month];
+                            }
                             day = r.Next(DayFrom, DayThrough);
+                        }
                         else
+
                             day = r.Next(1, DayThrough);
                     }
                     else if(month == monthFrom)
@@ -121,7 +132,7 @@ namespace SEIDR.Doc
                 else
                 {
                     month = r.Next(1, monthThrough + 1);
-                    if (DayThrough > MaxDays[month])
+                    if (DayThrough > MaxDays[month] || DayThrough < 1)
                         DayThrough = MaxDays[month];
                     if (month == monthThrough)
                     {
@@ -136,7 +147,7 @@ namespace SEIDR.Doc
             else if(year == yearFrom)
             {
                 month = r.Next(monthFrom, monthThrough + 1);
-                if (DayThrough > MaxDays[month])
+                if (DayThrough > MaxDays[month] || DayThrough < 1)
                     DayThrough = MaxDays[month];                
                 if (month == monthFrom)
                 {
@@ -150,7 +161,7 @@ namespace SEIDR.Doc
             else
             {
                 month = r.Next(1, monthThrough + 1);
-                if (DayThrough > MaxDays[month])
+                if (DayThrough > MaxDays[month] || DayThrough < 1)
                     DayThrough = MaxDays[month];
                 if (month == monthThrough)
                 {

@@ -862,11 +862,13 @@ namespace SEIDR.Doc
             {
                 case DocRecordColumnType.Smallint:
                 case DocRecordColumnType.Tinyint:
+                    return Convert.ToInt32(item.Value);
                 case DocRecordColumnType.Int:
                 case DocRecordColumnType.Bigint:
+                    return (int)item.Value;
                 case DocRecordColumnType.Decimal:
                 case DocRecordColumnType.Money:
-                    return (int)item.Value;
+                    return Convert.ToInt32((decimal)item.Value);
                 case DocRecordColumnType.Double:
                     return Convert.ToInt32((double)item.Value);
                 case DocRecordColumnType.Date:
@@ -946,13 +948,14 @@ namespace SEIDR.Doc
         {
             switch (item.DataType)
             {
-                case DocRecordColumnType.Smallint:
                 case DocRecordColumnType.Tinyint:
+                    return (byte)item.Value;
+                case DocRecordColumnType.Smallint:
                 case DocRecordColumnType.Int:
                 case DocRecordColumnType.Bigint:
                 case DocRecordColumnType.Decimal:
                 case DocRecordColumnType.Money:
-                    return (byte)item.Value;
+                    return Convert.ToByte(item.Value);
                 case DocRecordColumnType.Double:
                     return Convert.ToByte((double)item.Value);
                 case DocRecordColumnType.Date:
@@ -1038,13 +1041,15 @@ namespace SEIDR.Doc
         {
             switch (item.DataType)
             {
-                case DocRecordColumnType.Smallint:
                 case DocRecordColumnType.Tinyint:
+                    return Convert.ToByte(item.Value);
+                case DocRecordColumnType.Smallint:
+                    return (short)item.Value;
                 case DocRecordColumnType.Int:
                 case DocRecordColumnType.Bigint:
                 case DocRecordColumnType.Decimal:
                 case DocRecordColumnType.Money:
-                    return (short)item.Value;
+                    return Convert.ToInt16(item.Value);
                 case DocRecordColumnType.Double:
                     return Convert.ToInt16((double)item.Value);
                 case DocRecordColumnType.Date:

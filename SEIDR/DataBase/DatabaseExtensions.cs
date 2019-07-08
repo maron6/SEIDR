@@ -58,7 +58,7 @@ namespace SEIDR.DataBase
         {
             if (Schema == null)
                 Schema = manager.DefaultSchema;
-            string cmdText = "SELECT TYPE_NAME(SYSTEM_TYPE_ID) DataTypeName, * FROM sys.columns  WITH (NOLOCK) WHERE OBJECT_ID = OBJECT_ID([" + Schema + "].[" + tableName + "])";
+            string cmdText = "SELECT TYPE_NAME(SYSTEM_TYPE_ID) DataTypeName, * FROM sys.columns  WITH (NOLOCK) WHERE OBJECT_ID = OBJECT_ID('[" + Schema + "].[" + tableName + "]')";
             if (skipIdent)
                 cmdText += " AND is_identity = 0";
             if (skipComputed)
@@ -70,8 +70,13 @@ namespace SEIDR.DataBase
             {
                 Doc.DocRecordColumnType t;
                 if (!Enum.TryParse(record["DataTypeName"], true, out t))
-                    t = Doc.DocRecordColumnType.Unknown;
-                var col = new Doc.DocRecordColumnInfo(record["Name"], t);
+                {
+                    if (record["DataTypeName"] == "uniqueidentifier")
+                        t = Doc.DocRecordColumnType.Guid;
+                    else
+                        t = Doc.DocRecordColumnType.Unknown;
+                }                
+                var col = new Doc.DocRecordColumnInfo(record["name"], t);
                 if (t.In(Doc.DocRecordColumnType.Varchar, Doc.DocRecordColumnType.NVarchar, Doc.DocRecordColumnType.Unknown))
                 {
                     col.MaxLength = record["max_length"];
