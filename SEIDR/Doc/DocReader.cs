@@ -608,8 +608,8 @@ namespace SEIDR.Doc
                             new string[] { _MetaData.LineEndDelimiter }, 
                             false, _MetaData, skipLine, skipEmpty: !IncludeNullRecords);
                     startPosition += forward;
-                    skipLine = 0;                    
                 }
+                skipLine = 0;
                 return true; //re-read from the correct starting position instead of trying to mess with the list.
             }
             int headerCount = 0;
