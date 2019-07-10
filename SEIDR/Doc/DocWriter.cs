@@ -97,9 +97,13 @@ namespace SEIDR.Doc
         /// <para>Adding one line at a time, though, so should probably choose based on max size of a line </para>
         /// <para>May also need to consider whether you're writing locally or on a network.</para></param>
         public DocWriter(MD metaData, bool AppendIfExists = false, int bufferSize = 5000)
-        {
-            if (metaData.AccessMode == FileAccess.Read)
-                throw new ArgumentException("MetaData Access Mode is set to READ when passing to DocWriter.", nameof(metaData));
+        {            
+            if (!metaData.AccessMode.HasFlag(FileAccess.Write))
+            {
+                System.Diagnostics.Debug.WriteLine("Forcing Access mode to ReadWrite.");
+                metaData.SetFileAccess(FileAccess.ReadWrite);                    
+                //throw new ArgumentException("MetaData Access Mode is set to READ when passing to DocWriter.", nameof(metaData));
+            }
             if (!metaData.Valid)
                 throw new InvalidOperationException("MetaData is not in a valid state");
             md = metaData;

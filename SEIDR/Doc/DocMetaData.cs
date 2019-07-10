@@ -12,9 +12,31 @@ namespace SEIDR.Doc
     /// </summary>
     public sealed class DocMetaData : MetaDataBase, ISingleRecordTypeMetaData
     {
+        /// <summary>
+        /// Links the columns of this meta data directly to the passed column set. 
+        /// <para>
+        /// (Will point to the same object, so modifying columns on this meta data will affect any other objects using the same column collection)
+        /// </para>
+        /// </summary>
+        /// <param name="columnSet"></param>
+        /// <returns></returns>
         public override MetaDataBase LinkColumnSet(DocRecordColumnCollection columnSet)
         {
             Columns = columnSet;
+            return this;
+        }
+        /// <summary>
+        /// Undoes the logic of <see cref="LinkColumnSet(DocRecordColumnCollection)"/> by creating a new column collection internally, copying the current collection's columns into it, and then pointing to the new collection.
+        /// </summary>
+        /// <returns></returns>
+        public MetaDataBase UnlinkColumnSet()
+        {
+            var cols = new DocRecordColumnCollection(this.Alias);
+            foreach(var col in Columns)
+            {
+                cols.CopyColumnIntoCollection(col);
+            }
+            Columns = cols;
             return this;
         }
         /// <summary>
@@ -165,6 +187,10 @@ namespace SEIDR.Doc
         {
             Columns.CheckSort();
             StringBuilder fmt = new StringBuilder();
+            if(Format.In(DocRecordFormat.SBSON, DocRecordFormat.BSON))
+            {
+                return SBSONHelper.FormatColumnCollection(Columns, FileEncoding);
+            }
             for (int i = 0; i <= Columns.LastPosition; i++)
             {
                 var col = Columns.Columns[i];

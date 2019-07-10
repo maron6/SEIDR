@@ -635,7 +635,7 @@ namespace SEIDR.Doc
                             cols = FormatHelper.FixWidthHelper.InferColumnset(lines, md); //ToDo
                             break;
                         case DocRecordFormat.SBSON:
-                            checkOffSet = false;
+                            checkOffSet = false;//Note: header is going to be *mostly* human readable if available.
                             cols = SBSONHelper.InferColumnList(lines[headerCount], readCode, md.Alias, md.HasHeader);
                             break;
                         default:
@@ -782,6 +782,7 @@ namespace SEIDR.Doc
         }
         /// <summary>
         /// Basic constructor, no meta data configured yet.
+        /// <para>Will need to call <see cref="Configure(DocMetaData)"/> before using.</para>
         /// </summary>
         public DocReader()
         {
@@ -797,7 +798,11 @@ namespace SEIDR.Doc
             if (metaData == null)
                 throw new ArgumentNullException(nameof(metaData));
             if (!metaData.AccessMode.HasFlag(FileAccess.Read))
-                throw new ArgumentException(nameof(metaData), "Not Configured for read mode");
+            {
+                System.Diagnostics.Debug.WriteLine("Forcing Access mode to ReadWrite.");
+                metaData.SetFileAccess(FileAccess.ReadWrite);
+                //throw new ArgumentException(nameof(metaData), "Not Configured for read mode");
+            }
 
             Dispose();
             _MetaData = metaData;

@@ -188,6 +188,17 @@ namespace SEIDR.Doc
             }
             return ret;
         }
+        public static string FormatColumnCollection(DocRecordColumnCollection collection, Encoding WriteEncoding)
+        {            
+            List<byte> byteSet = new List<byte>();
+            foreach(var col in collection)
+            {
+                EncodeType(DocRecordColumnType.Varchar, col.ColumnName, byteSet, WriteEncoding);
+            }
+            var prefix = BitConverter.GetBytes(byteSet.Count);
+            byteSet.InsertRange(0, prefix);
+            return WriteEncoding.GetString(byteSet.ToArray());
+        }
         /// <summary>
         /// Format a typed object into a string based to a standard format.
         /// </summary>

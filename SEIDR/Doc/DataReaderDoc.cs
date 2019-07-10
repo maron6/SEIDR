@@ -25,6 +25,10 @@ namespace SEIDR.Doc
         {
             return new DataReaderDoc(cmd.ExecuteReader()) { cmd = cmd };
         }
+        public static implicit operator DocRecordColumnCollection(DataReaderDoc doc)
+        {
+            return doc.ColumnSet;
+        }
         SqlCommand cmd = null;
         SqlDataReader _reader;
         /// <summary>
@@ -69,7 +73,6 @@ namespace SEIDR.Doc
             }
             
         }
-        DocRecordColumnCollection columns;
         /// <summary>
         /// Dispose underlying reader.
         /// </summary>
