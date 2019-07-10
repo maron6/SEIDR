@@ -964,6 +964,37 @@ namespace SEIDR.Doc
 
 
         #endregion
+        /// <summary>
+        /// Represent object as list of key values. For debug purposes.
+        /// </summary>
+        public List<KeyValuePair<string, string>> KeyValues
+        {
+            get
+            {
+                var ret = new List<KeyValuePair<string, string>>();
+                foreach(var col in Columns)
+                {
+                    ret.Add(new KeyValuePair<string, string>(col.ColumnName, Content[col.Position]));
+                }
+                return ret;
+            }
+        }
+        /// <summary>
+        /// Represent object as list of key values, sorted by column name. For debug purposes.
+        /// </summary>
+        public List<KeyValuePair<string, string>> KeyValuesAlphabetical
+        {
+            get
+            {
+                var ret = new List<KeyValuePair<string, string>>();
+                foreach (var col in Columns.OrderBy(c => c.ColumnName))
+                {
+                    ret.Add(new KeyValuePair<string, string>(col.ColumnName, Content[col.Position]));
+                }
+                return ret;
+            }
+        }
+
 
     }
 }

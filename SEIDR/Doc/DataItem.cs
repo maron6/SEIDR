@@ -1247,24 +1247,10 @@ namespace SEIDR.Doc
                 return i.ToArray();
             }
             throw new Exception("Data Type does not match DateTime?[]");
-        }
+        }        
         public static implicit operator string(DataItem item)
         {
-            if (item.DataType == DocRecordColumnType.NUL)
-                return null;
-            if(item.DataType == DocRecordColumnType.Money)
-            {
-                decimal d = item;
-                return d.ToString("C");
-            }
-            if(item.DataType.In(DocRecordColumnType.Date, DocRecordColumnType.DateTime))
-            {
-                DateTime d = item;
-                if (item.DataType == DocRecordColumnType.Date)
-                    return d.ToShortDateString();
-                return d.ToString();
-            }
-            return item.Value.ToString();
+            return item.ToString();
         }
 
         public static implicit operator string[](DataItem item)
@@ -1293,12 +1279,26 @@ namespace SEIDR.Doc
             return Value.Equals(obj);
         }
         /// <summary>
-        /// Underlying value's ToString()
+        /// String representation of underlying object.
         /// </summary>
         /// <returns></returns>
         public override string ToString()
         {
-            return Value?.ToString();
+            if (DataType == DocRecordColumnType.NUL)
+                return null;
+            if (DataType == DocRecordColumnType.Money)
+            {
+                decimal d = this;
+                return d.ToString("C");
+            }
+            if (DataType.In(DocRecordColumnType.Date, DocRecordColumnType.DateTime))
+            {
+                DateTime d = this;
+                if (DataType == DocRecordColumnType.Date)
+                    return d.ToShortDateString();
+                return d.ToString();
+            }
+            return Value.ToString();
         }
         #endregion
         /// <summary>

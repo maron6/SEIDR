@@ -289,5 +289,38 @@ namespace SEIDR.Doc
             result = null;
             return false;
         }
+        /// <summary>
+        /// Represent object as list of key values. For debug purposes.
+        /// </summary>
+        public List<KeyValuePair<string, DataItem>> KeyValues
+        {
+            get
+            {
+                var ret = new List<KeyValuePair<string, DataItem>>(Columns.Count);
+                foreach (var col in Columns)
+                {
+                    ret.Add(new KeyValuePair<string, DataItem>(col.ColumnName, content[col.Position]));
+                }
+                return ret;
+            }
+        }
+        /// <summary>
+        /// Represent object as list of key values, sorted by column name. For debug purposes.
+        /// </summary>
+        public List<KeyValuePair<string, DataItem>> KeyValuesAlphabetical
+        {
+            get
+            {
+                var ret = new List<KeyValuePair<string, DataItem>>(Columns.Count);
+                //var ret = new Dictionary<string, DataItem>(Columns.Count); //Looks the same in debug, so just return a list with defined order.
+                foreach (var col in Columns.OrderBy(c => c.ColumnName))
+                {
+                    ret.Add(new KeyValuePair<string, DataItem>(col.ColumnName, content[col.Position]));
+                }
+                return ret;
+            }
+        }
+
+
     }
 }
