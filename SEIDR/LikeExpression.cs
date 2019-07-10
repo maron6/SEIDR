@@ -62,6 +62,8 @@ namespace SEIDR
         /// <returns>True if it passes the comparison, false otherwise</returns>
         public bool Compare(string line, string comparison)
         {
+            if (string.IsNullOrEmpty(comparison) || string.IsNullOrEmpty(line))
+                return line == comparison;
             /*
              * a%b -> ^a.+b&
              * a_b -> ^a.{1}?b&
@@ -106,6 +108,8 @@ namespace SEIDR
         /// <returns>True if line is LIKE comparison,  false otherwise</returns>
         public bool CompareWithCase(string line, string comparison)
         {
+            if (string.IsNullOrEmpty(comparison) || string.IsNullOrEmpty(line))
+                return line == comparison;
             if (!AllowRegex)
             {
                 foreach (char s in @"\.$^{[(|)*+?]}")
