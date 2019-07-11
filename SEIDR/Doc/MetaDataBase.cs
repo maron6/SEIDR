@@ -939,7 +939,8 @@ namespace SEIDR.Doc
                 return FormatRecord(record, IncludeLineEndDelimiter);
             }
             StringBuilder sb = new StringBuilder();
-            var Columns = record.Columns;
+            //var Columns = record.Columns;
+            var Columns = GetRecordColumnInfos(record) ?? record.Columns; //Prefer Columns from this meta data when possible, for formatting + Mapping purposes. (E.g., may be taking in a record that has more columns compared to what we want to write, or different date format)
             int Last = Columns.LastPosition.MaxOfComparison(columnMapping.Max(k => k.Key));
             for(int idx = 0; idx <= Last; idx++)             
             {
@@ -955,8 +956,15 @@ namespace SEIDR.Doc
                  *  col = null, s = string.Empty; //Mapping goes above original col count. Put blanks in between.
                  * }
                  */
-                if(col != null)
-                    s = record.GetBestMatch(col.ColumnName, col.OwnerAlias) ?? string.Empty;
+                if (col != null)
+                {
+                    object o;
+                    if (record.TryGet(col.ColumnName, out o, col.OwnerAlias))
+                        s = col.FormatValue(o) ?? string.Empty;
+                    else
+                        s = string.Empty;
+                    //s = record.GetBestMatch(col.ColumnName, col.OwnerAlias) ?? string.Empty;
+                }
 
                 if (FixWidthMode || RaggedRightMode)
                 {
@@ -1142,7 +1150,8 @@ namespace SEIDR.Doc
         protected string FormatBSON(IDataRecord record, bool IncludeLineEndDelimiter)
         {
             StringBuilder sb = new StringBuilder();
-            var Columns = record.Columns;
+            var Columns = GetRecordColumnInfos(record) ?? record.Columns; 
+            //Prefer column information from this meta Data when formatting to write.
             int len = 0;
             Columns.ForEachIndex((col, idx) =>
             {
@@ -1198,10 +1207,17 @@ namespace SEIDR.Doc
             if (Format == DocRecordFormat.SBSON)
                 return FormatBSON(record, IncludeLineEndDelimiter);
             StringBuilder sb = new StringBuilder();
-            var Columns = record.Columns;
+            //var Columns = record.Columns;
+            var Columns = GetRecordColumnInfos(record) ?? record.Columns; //Prefer column data from this metaData if possible for formatting purposes.
             Columns.ForEachIndex((col, idx) =>
-            {                
-                string s = record[col] ?? string.Empty;
+            {
+                object o;
+                string s;
+                if (record.TryGet(col, out o))
+                    s = col.FormatValue(o) ?? string.Empty;
+                else
+                    s = string.Empty;
+
                 if (FixWidthMode || RaggedRightMode)
                 {
                     if (RaggedRightMode && idx == Columns.LastPosition)
