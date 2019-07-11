@@ -171,6 +171,13 @@ namespace SEIDR.Doc
                 n = new DataItem(null, DocRecordColumnType.NUL);
                 content.SetWithExpansion(column.Position, n, n);
             }
+            else if(column.DataType <= DocRecordColumnType.NVarchar 
+                && column.NullIfEmpty
+                && value.ToString() == string.Empty)
+            {
+                n = new DataItem(null, DocRecordColumnType.NUL);
+                content.SetWithExpansion(column.Position, n, n);
+            }
             else
             {
                 if(column.Array)

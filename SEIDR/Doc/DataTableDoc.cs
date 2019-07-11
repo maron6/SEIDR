@@ -110,9 +110,16 @@ namespace SEIDR.Doc
             foreach(var col in ColumnSet.Columns)
             {
                 object o;
-                var vcol = record.Columns.GetBestMatch(col.ColumnName);                
-                if (vcol != null && record.TryGet(vcol, out o))
-                    v[col] = o ?? DBNull.Value;
+                var vcol = record.Columns.GetBestMatch(col.ColumnName);
+                if (vcol != null)
+                {
+                    if (vcol.DataType == DocRecordColumnType.NUL)
+                        v[col] = DBNull.Value;
+                    else if (record.TryGet(vcol, out o))
+                        v[col] = o ?? DBNull.Value;
+                    else
+                        v[col] = DBNull.Value;
+                }
                 else
                     v[col] = null; //Typically allows using any default value from table, rather than an explicit null
             }
@@ -143,8 +150,15 @@ namespace SEIDR.Doc
                 
                 object o;
                 var vcol = record.Columns.GetBestMatch(col.ColumnName);
-                if (vcol != null && record.TryGet(vcol, out o))
-                    v[idx] = o ?? DBNull.Value;
+                if (vcol != null)
+                {
+                    if (vcol.DataType == DocRecordColumnType.NUL)
+                        v[col] = DBNull.Value;
+                    else if (record.TryGet(vcol, out o))
+                        v[col] = o ?? DBNull.Value;
+                    else
+                        v[col] = DBNull.Value;
+                }
                 else
                     v[idx] = null; //Typically allows using any default value from table, rather than an explicit null
             }
