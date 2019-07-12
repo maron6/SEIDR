@@ -73,6 +73,16 @@ namespace SEIDR.Doc
         /// Number of records to go through before writing to the database when enumerating a file.
         /// </summary>
         public int BatchSize { get; private set; } = 5000;
+
+        /// <summary>
+        /// Gets or sets the Bulk Copy timeout of the underlying bulk copy object
+        /// </summary>
+        public int BulkCopyTimeout
+        {
+            get => BulkCopy.BulkCopyTimeout;
+            set => BulkCopy.BulkCopyTimeout = value;
+        }
+
         /// <summary>
         /// Sets the <see cref="BatchSize"/>
         /// </summary>

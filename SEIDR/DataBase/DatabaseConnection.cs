@@ -59,6 +59,26 @@ namespace SEIDR.DataBase
             
             if ( !dict.ContainsKey("COMMAND TIMEOUT") || !int.TryParse(dict["COMMAND TIMEOUT"], out conn.commandTimeout))
                 conn.commandTimeout = -1;
+            if (!dict.TryGetValue("DRIVER", out conn._Drive))
+                conn._Drive = null;
+            if (dict.ContainsKey("AUTOTRANSLATE"))
+            {
+                if (dict["AUTOTRANSLATE"].Equals("YES", System.StringComparison.OrdinalIgnoreCase))
+                    conn._autoTranslate = true;
+                else
+                    conn._autoTranslate = false;
+            }
+            if (dict.ContainsKey("ENCRYPT") && dict["ENCRYPT"].Equals("yes", System.StringComparison.OrdinalIgnoreCase))
+                conn._Encrypt = true;
+            if (dict.ContainsKey("LANGUAGE"))
+            {
+                conn._Language = dict["LANGUAGE"];
+            }
+            if (dict.ContainsKey("PROVIDER"))
+                conn._Provider = dict["PROVIDER"];
+            if (dict.ContainsKey("INTEGRATEDSECURITY"))
+                conn._security = dict["INTEGRATEDSECURITY"];
+
             conn.ReformatConnection();
             return conn;
         }
@@ -84,14 +104,19 @@ namespace SEIDR.DataBase
         [XmlIgnore]
         int commandTimeout = -1;
         /// <summary>
+        /// The default timeout for commands.
+        /// </summary>
+        public const int DEFAULT_COMMAND_TIMEOUT = 30;
+        /// <summary>
         /// If value is >= 0, will set the Command timeout in SQL commands when run by this class's RunCommand. Default is -1 (Does not change the command timeout).
         /// <para>Outisde of the class, returns 30 if the internal value is &lt; 0</para>
+        /// <para>NOTE: Not a part of the actual connection string.</para>
         /// </summary>
         public int CommandTimeout {
             get
             {
                 if (commandTimeout < 0)
-                    return 30;
+                    return DEFAULT_COMMAND_TIMEOUT;
                 return commandTimeout;
             }
             set
@@ -108,17 +133,13 @@ namespace SEIDR.DataBase
             get { return _AN; }
             set { _AN = value.Replace("'", ""); _changed = true; }
         }
-        /// <summary>
-        /// Default name for use in the connection manager
-        /// </summary>
-        [XmlIgnore]
-        public const string DEFAULT_NAME = "Default";
+     
         /// <summary>
         /// Constructor that does not set values.
         /// </summary>
         public DatabaseConnection() { _Server = null; DefaultCatalog = null; }
         /// <summary>
-        /// The database connected to if one is not specified
+        /// The database connected to if one is not specified (Master)
         /// </summary>
         [XmlIgnore]
         public const string DEFAULT_DBNAME = "MASTER";
@@ -239,7 +260,112 @@ namespace SEIDR.DataBase
                     d += "ApplicationIntent=ReadOnly;";
                 if (_Drive != null)
                     d = "Driver={" + _Drive + "};" + d;
+                if (_autoTranslate != null)
+                    d += "AutoTranslate=" + (_autoTranslate.Value ? "yes" : "no") + ";";
+                if (_Encrypt)
+                    d += "Encrypt=yes;";
+                if(_Language != null)                
+                    d = d + "Language=" + _Language + ";";
+                if (_Provider != null)
+                    d = d + "Provider=" + _Provider + ";";
+                if (_security != null)
+                    d = d + "IntegratedSecurity=" + _security + ";";
                 return d;
+            }
+        }
+        string _security;
+        /// <summary>
+        /// If set, adds an IntegratedSecurity property to the connection string.
+        /// </summary>
+        public string IntegratedSecurity
+        {
+            get => _security;
+            set
+            {
+                if(_security != value)
+                {
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        if (_security == null)
+                            return;
+                        _security = null;
+                    }
+                    else
+                        _security = value;
+                    _changed = true;
+                }
+            }
+        }
+        string _Provider = null;
+        /// <summary>
+        /// If set, adds a Provider to the connection string
+        /// </summary>
+        public string Provider
+        {
+            get => _Provider;
+            set
+            {
+                if(_Provider != value)
+                {
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        if (_Provider == null)
+                            return;
+                        _Provider = null;
+                    }
+                    else                    
+                        _Provider = value;
+
+                    _changed = true;                    
+                }
+            }
+        }
+        bool _Encrypt = false;
+        /// <summary>
+        /// If true, adds Encrypt to the connection string. Default: false
+        /// </summary>
+        public bool Encrypt
+        {
+            get => _Encrypt;
+            set
+            {
+                if(_Encrypt != value)
+                {
+                    _Encrypt = value;
+                    _changed = true;
+                }
+            }
+        }
+        string _Language = null;
+        /// <summary>
+        /// Optionally sets Language for the connection, for sys message results where applicable.
+        /// </summary>
+        public string Language
+        {
+            get => _Language;
+            set
+            {
+                if(_Language != value)
+                {
+                    _Language = value;
+                    _changed = true;
+                }
+            }
+        }
+        bool? _autoTranslate = null;
+        /// <summary>
+        /// Adds Auto Translate to connection string
+        /// </summary>
+        public bool? AutoTranslate
+        {
+            get => _autoTranslate;
+            set
+            {
+                if (_autoTranslate != value)
+                {
+                    _autoTranslate = value;
+                    _changed = true;
+                }
             }
         }
         string _Drive;
