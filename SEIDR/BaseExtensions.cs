@@ -624,6 +624,15 @@
             }
             return false;
         }
+        public static bool ContainsAnySubstring(this string value, params string[] matches)
+        {
+            foreach (var m in matches)
+            {
+                if (value.IndexOf(m) >= 0)
+                    return true;
+            }
+            return false;
+        }
         public static List<string> SplitByQualifier(this string value, string delimiter, string leftQualifier, string rightQualifier)
         {
             if (value == null)

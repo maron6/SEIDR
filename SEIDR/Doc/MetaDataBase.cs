@@ -1232,14 +1232,17 @@ namespace SEIDR.Doc
                     if(!col.MaxLength.HasValue || s.Length < col.MaxLength.Value || idx == Columns.LastPosition)
                     {
                         if (col.TextQualify)
-                            sb.Append(TextQualifier);
+                        {
+                            if (!s.StartsWith(TextQualifier))
+                                sb.Append(TextQualifier);
+                        }
                         else if (s.Contains(Delimiter.Value))
                         {
                             sb.Append(TextQualifier);
                             col.TextQualify = true; //force text qualify in the column going forward.
                         }
                         sb.Append(EscapeQuoteValues(s));
-                        if (col.TextQualify)
+                        if (col.TextQualify && !s.EndsWith(TextQualifier))
                             sb.Append(TextQualifier);
                         if (idx < Columns.LastPosition)
                             sb.Append(Delimiter.Value);
@@ -1252,7 +1255,10 @@ namespace SEIDR.Doc
                 else
                 {
                     if (col.TextQualify)
-                        sb.Append(TextQualifier);
+                    {
+                        if (!s.StartsWith(TextQualifier))
+                            sb.Append(TextQualifier);
+                    }
                     else if (s.Contains(Delimiter.Value))
                     {
                         sb.Append(TextQualifier);
@@ -1260,7 +1266,7 @@ namespace SEIDR.Doc
                     }
 
                     sb.Append(EscapeQuoteValues(s));
-                    if (col.TextQualify)
+                    if (col.TextQualify && !s.EndsWith(TextQualifier))
                         sb.Append(TextQualifier);
                     if (idx < Columns.LastPosition)
                         sb.Append(Delimiter.Value);
