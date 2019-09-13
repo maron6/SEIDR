@@ -340,7 +340,7 @@ namespace SEIDR.DataBase
                 c.Open();
             SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure };                
             cmd.Connection = c;
-            cmd.CommandTimeout = _conn.CommandTimeout;
+            cmd.CommandTimeout = i.CommandTimeout ?? _conn.CommandTimeout;
             if (i.Transaction != null)
                 cmd.Transaction = i.Transaction;
             FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
@@ -369,7 +369,7 @@ namespace SEIDR.DataBase
                 using (SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure })
                 {
                     cmd.Connection = c;
-                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    cmd.CommandTimeout = i.CommandTimeout ?? _conn.CommandTimeout;
                     if (i.Transaction != null)
                         cmd.Transaction = i.Transaction;
                     FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
@@ -431,11 +431,11 @@ namespace SEIDR.DataBase
                 using (SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure })
                 using (c = new SqlConnection(_conn.ConnectionString))
                 {
-                     try
+                    try
                     {
                         c.Open();
                         cmd.Connection = c;
-                        cmd.CommandTimeout = _conn.CommandTimeout;
+                        cmd.CommandTimeout = i.CommandTimeout ?? _conn.CommandTimeout;
                         FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
                         SqlDataAdapter sda = new SqlDataAdapter(cmd);
                    
@@ -547,7 +547,7 @@ namespace SEIDR.DataBase
                 using(SqlCommand cmd = new SqlCommand(proc) { CommandType = CommandType.StoredProcedure })
                 {
                     cmd.Connection = c;
-                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    cmd.CommandTimeout = i.CommandTimeout ?? _conn.CommandTimeout;
                     if (i.Transaction != null)
                         cmd.Transaction = i.Transaction;
                     FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
@@ -611,7 +611,7 @@ namespace SEIDR.DataBase
                 {
                     c.Open();
                     cmd.Connection = c;
-                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    cmd.CommandTimeout = i.CommandTimeout ?? _conn.CommandTimeout;
                     FillCommandParameters(cmd, i.ParameterMap, i.Parameters, i.PropertyIgnore.ToArray());
                 
                     rc = cmd.ExecuteNonQuery();
@@ -804,7 +804,7 @@ namespace SEIDR.DataBase
                 {
                     c.Open();
                     cmd.Connection = c;
-                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    cmd.CommandTimeout = i.CommandTimeout ?? _conn.CommandTimeout;
                     cmd.CommandType = CommandType.Text;
                     if (_conn.CommandTimeout >= 0)
                         cmd.CommandTimeout = _conn.CommandTimeout;
@@ -837,7 +837,7 @@ namespace SEIDR.DataBase
             {
                 cmd.CommandType = CommandType.Text;
                 if (_conn.CommandTimeout >= 0)
-                    cmd.CommandTimeout = _conn.CommandTimeout;
+                    cmd.CommandTimeout = i.CommandTimeout ?? _conn.CommandTimeout;
 
                 if (i.Transaction != null)
                     cmd.Transaction = i.Transaction;
@@ -1028,19 +1028,21 @@ namespace SEIDR.DataBase
         /// </summary>
         /// <param name="Key"></param>
         /// <param name="value">Value to filter on. Null is not allowed as a filter.</param>
-        /// <param name="TableOrView">Name of a table or view to select from on key = value. </param>
-        /// <param name="Page">Optional paging for view/Table. Only used if PageSize > 0</param>
+        /// <param name="TableOrView">Name of a table or view to select from on key = value.
+        /// <para>If there is no '.', the default schema for the database manager will be used.</para>
+        /// </param>
+        /// <param name="Page">Optional paging for view/Table. Only used if PageSize > 0. Option for SQL 2012 and later</param>
         /// <param name="PageSize">Optional size of pages for view/table. Only used if Page >= 0</param>
-        /// <para>If there is no '.', the default schema for the database manager will be used.</para></param>
+        /// 
         /// <returns></returns>
         public DataTable SelectWithKey(string Key, object value, string TableOrView, int Page = -1, int PageSize = -1)
         {
             if (value == null || value == DBNull.Value)
-                throw new ArgumentNullException("value");
+                throw new ArgumentNullException(nameof(value));
             if (string.IsNullOrWhiteSpace(Key))
-                throw new ArgumentException(nameof(Key), "Key must be non empty string");
+                throw new ArgumentException( "Key must be non empty string", nameof(Key));
             if (string.IsNullOrWhiteSpace(TableOrView))
-                throw new ArgumentException(nameof(TableOrView), "Table or view must be non empty string");
+                throw new ArgumentException("Table or view must be non empty string", nameof(TableOrView));
 
             DataTable dt = new DataTable();
             Key = Key.Replace("[", "").Replace("]", "");

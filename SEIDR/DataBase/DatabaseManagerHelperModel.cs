@@ -13,6 +13,15 @@ namespace SEIDR.DataBase
     /// </summary>
     public sealed class DatabaseManagerHelperModel : IDisposable
     {
+        int? _commandTimeout;
+        /// <summary>
+        /// Command timeout for procedure calls. If null (or less than 0), will use <see cref="DatabaseConnection.CommandTimeout"/>
+        /// </summary>
+        public int? CommandTimeout
+        {
+            get => _commandTimeout;
+            set => _commandTimeout = value < 0 ? null : value;
+        }
         /// <summary>
         /// Default value for <see cref="RetryOnDeadlock"/> when creating new HelperModels
         /// </summary>
@@ -89,7 +98,7 @@ namespace SEIDR.DataBase
             Procedure = null;
             _Schema = null;
             Parameters = new Dictionary<string, object>();
-            _PropertyIgnore = new List<string>();
+            PropertyIgnore = new List<string>();
         }
         public DatabaseManagerHelperModel(string UnqualifiedProcedure) : this()
         {
@@ -126,7 +135,7 @@ namespace SEIDR.DataBase
             this.Procedure = Procedure;
             this.Schema = Schema;
             this.Parameters = Keys ?? new Dictionary<string, object>();
-            _PropertyIgnore = new List<string>(Ignore);
+            PropertyIgnore = new List<string>(Ignore);
         }
         public DatabaseManagerHelperModel(string Procedure, string Schema, object mapObj, string[] ignore)
             :this(mapObj, Procedure, Schema, null, Ignore: ignore) { }
@@ -137,7 +146,7 @@ namespace SEIDR.DataBase
             ParameterMap = mapObj;
             this.QualifiedProcedure = QualifiedProcedure;            
             this.Parameters = new Dictionary<string, object>();
-            _PropertyIgnore = new List<string>();
+            PropertyIgnore = new List<string>();
         }
         public DatabaseManagerHelperModel(object mapObj, string Schema, string Procedure)
             :this(mapObj, Schema + "." + Procedure){}
@@ -154,7 +163,7 @@ namespace SEIDR.DataBase
         public void SetPropertyIgnore(params string[] PropertyList)
         {
             if(PropertyList != null)
-            	_PropertyIgnore = new List<string>(PropertyList);
+            	PropertyIgnore = new List<string>(PropertyList);
         }
         /// <summary>
         /// Removes existing parameter key/value pairs and sets it the provided Dictionary
@@ -232,7 +241,7 @@ namespace SEIDR.DataBase
         {
             get
             {
-                return "[" + (_Schema ?? "dbo") + "]." + _Procedure;
+                return "[" + (_Schema ?? "dbo") + "]." + _procedure;
             }
             set
             {
@@ -266,35 +275,29 @@ namespace SEIDR.DataBase
             }
         }
 
-        string _Procedure;
+        string _procedure;
         /// <summary>
         /// Procedure to be called. Quotes will be removed and the string surrounded with brackets.
         /// </summary>
         public string Procedure
         {
-            get { return _Procedure; }
+            get => _procedure;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                    _Procedure = null;
+                    _procedure = null;
                 else
                 {
-                    _Procedure = "[" + value.Replace("[", "").Replace("]", "").Replace("\"", "").Trim() + "]";
+                    _procedure = "[" + value.Replace("[", "").Replace("]", "").Replace("\"", "").Trim() + "]";
                 }
 
             }
         }
-        List<string> _PropertyIgnore = new List<string>();
+
         /// <summary>
         /// List of properties to ignore from the parameterMap (Ignored parameters will use the default value)
         /// </summary>
-        public List<string> PropertyIgnore
-        {
-            get
-            {
-                return _PropertyIgnore;
-            }
-        }
+        public List<string> PropertyIgnore { get; private set; } = new List<string>();
         /// <summary>
         /// Add/Get Key-Value pairs for SQL parameters - will override properties from <see cref="ParameterMap"/>
         /// <para>Any new keys will also be added to <see cref="PropertyIgnore"/></para>
@@ -318,8 +321,8 @@ namespace SEIDR.DataBase
                     key = key.Substring(1);
                 if (ParameterMap != null)
                 {
-                    _PropertyIgnore.Add(key);
-                    _PropertyIgnore = _PropertyIgnore.Distinct().ToList();
+                    PropertyIgnore.Add(key);
+                    PropertyIgnore = PropertyIgnore.Distinct().ToList();
                 }
                 Parameters[key] = value;
             }
@@ -331,7 +334,10 @@ namespace SEIDR.DataBase
         /// </para>
         /// </summary>
         public Dictionary<string, object> Parameters { get; private set; } = new Dictionary<string, object>();
-
+        /// <summary>
+        /// Uses the DatabaseConnection object to override the current connection.
+        /// </summary>
+        /// <param name="db"></param>
         public void SetConnection(DatabaseConnection db)
         {
             if (db == null)
@@ -340,6 +346,10 @@ namespace SEIDR.DataBase
             Connection = new SqlConnection(db.ConnectionString);
             IsRolledBack = false;
         }
+        /// <summary>
+        /// Uses the Connection associated with the passed DatabaseManager to override the current connection.
+        /// </summary>
+        /// <param name="dm"></param>
         public void SetConnection(DatabaseManager dm)
         {
             if (dm == null)
@@ -348,21 +358,31 @@ namespace SEIDR.DataBase
             Connection = dm.GetConnection();
             IsRolledBack = false;
         }
+        /// <summary>
+        /// Opens the underlying connection.
+        /// </summary>
         public void OpenConnection()
         {
             if (Connection == null)
                 throw new InvalidOperationException("Connection not set");
-            if (Connection.State == ConnectionState.Closed)
-            {
-                Connection.Open();
-                IsRolledBack = false;
-            }
+            if (Connection.State != ConnectionState.Closed)
+                return;
+            Connection.Open();
+            IsRolledBack = false;
         }
+        /// <summary>
+        /// Uses passed connection to update and then open the underlying connection.
+        /// </summary>
+        /// <param name="db"></param>
         public void OpenConnection(DatabaseConnection db)
         {
             SetConnection(db);
             OpenConnection();
         }
+        /// <summary>
+        /// Uses the connection of the passed database manager to update and then open the underlying connection.
+        /// </summary>
+        /// <param name="dm"></param>
         public void OpenConnection(DatabaseManager dm)
         {
             SetConnection(dm);
@@ -456,13 +476,19 @@ namespace SEIDR.DataBase
             Transaction.Dispose();
             Transaction = null;
         }
-        
-        public bool HasOpenTran { get { return Transaction != null; } }
+        /// <summary>
+        /// Check if this object has an open transaction.
+        /// </summary>
+        public bool HasOpenTran => Transaction != null;
+
         /// <summary>
         /// If true, there's an open connection which had a Transaction started, but has since rolled back.
         /// <para>If the transaction was rolled back to a savepoint, you may need to set this back to false before passing the model to a DatabaseManager again.</para>
         /// </summary>
         public bool IsRolledBack { get; set; } = false;
+        /// <summary>
+        /// Clear and dispose the underlying connection. If there is an open transaction, clears that first.
+        /// </summary>
         public void ClearConnection()
         {
             ClearTran();
@@ -484,11 +510,13 @@ namespace SEIDR.DataBase
             }
             IsRolledBack = false;
         }
+        /// <summary>
+        /// Dispose method dispose.
+        /// </summary>
         public void Dispose()
         {
             ClearTran();
-            if (Connection != null)
-                Connection.Dispose();
+            Connection?.Dispose();
         }
     }
 }

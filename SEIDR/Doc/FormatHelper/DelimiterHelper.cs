@@ -35,7 +35,10 @@ namespace SEIDR.Doc.FormatHelper
                         nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
                     }
                 }
-            }
+            } /*
+            ToDo: if !CheckTextQualifier || nextTextQual < 0 (really just nextTextQual < 0) then do a string.Split
+            Needs handling for skip lines to get the starting byte and number of remaining bytes
+            */
             int textQualCount = 0;
             int lastPositionEnd = 0;
             //int maxDelim = delimiterList.Max(del => del.Length);
@@ -179,20 +182,38 @@ namespace SEIDR.Doc.FormatHelper
             => EnumerateSplits(content, new string[] { delimiter.ToString() }, checkTextQualifier, metaData, SkipEmpty);
         public static IEnumerable<string> EnumerateSplits(string content, string[] delimiterList, bool CheckTextQualifier, MetaDataBase metaData, bool SkipEmpty)
         {
+            if (content == null)
+                throw new ArgumentNullException(nameof(content));
+            if (metaData == null)
+                throw new ArgumentNullException(nameof(metaData));
+            if (delimiterList == null)
+                throw new ArgumentNullException(nameof(delimiterList));
+            if (delimiterList.Length == 0)
+                throw new ArgumentException("Delimiter list is empty or null", nameof(delimiterList));
             string textQual = metaData.TextQualifier;
             int Position = 0;
             int nextTextQual = -1;
             if (CheckTextQualifier && !string.IsNullOrEmpty(textQual))
             {
-                nextTextQual = content.IndexOf(textQual);
+                nextTextQual = content.IndexOf(textQual, StringComparison.Ordinal);
                 if (metaData.AllowQuoteEscape)
                 {
                     while (nextTextQual > 0 && content[nextTextQual - 1] == metaData.QuoteEscape)
                     {
-                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length, StringComparison.Ordinal);
                     }
                 }
             }
+            if (nextTextQual < 0)
+            { 
+                //if no text qualifier logic to go through, should be faster to just run string.split
+                //Don't have to worry about starting or ending byte here either.
+                foreach (string section in content.Split(delimiterList,
+                    SkipEmpty ? StringSplitOptions.RemoveEmptyEntries : StringSplitOptions.None))
+                    yield return section;
+                yield break;
+            }
+
             int textQualCount = 0;
             int nextRowDelim = content.IndexOfAny(delimiterList);
             if(nextRowDelim < 0)
@@ -236,12 +257,12 @@ namespace SEIDR.Doc.FormatHelper
                 }
                 textQualCount++;
                 int quotePosition = nextTextQual + textQual.Length;
-                nextTextQual = content.IndexOf(textQual, quotePosition);
+                nextTextQual = content.IndexOf(textQual, quotePosition, StringComparison.Ordinal);
                 if (metaData.AllowQuoteEscape)
                 {
                     while (nextTextQual > 0 && content[nextTextQual - 1] == metaData.QuoteEscape)
                     {
-                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                        nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length, StringComparison.Ordinal);
                     }
                 }
                 nextRowDelim = content.IndexOfAny(delimiterList, quotePosition);
@@ -254,7 +275,7 @@ namespace SEIDR.Doc.FormatHelper
                     {
                         //If we have an upcoming quote, and it's going to be the last quote, return the remainder of the string. 
                         // e.g., '" something | bla bla | "end of line.' - rather than erroring here, because the text qualifier goes to the end, we return the last string.
-                        if (!metaData.AllowQuoteEscape && content.IndexOf(textQual, nextTextQual + textQual.Length) < 0)
+                        if (!metaData.AllowQuoteEscape && content.IndexOf(textQual, nextTextQual + textQual.Length, StringComparison.Ordinal) < 0)
                         {
                             if (len < 0)
                                 yield return content.Substring(Position);
@@ -266,9 +287,9 @@ namespace SEIDR.Doc.FormatHelper
                         {
                             while(nextTextQual > 0 && content[nextTextQual -1] == metaData.QuoteEscape)
                             {
-                                nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length);
+                                nextTextQual = content.IndexOf(textQual, nextTextQual + textQual.Length, StringComparison.Ordinal);
                             }//check that next non-escaped text qual is the last one. If so, then we can just end the string.
-                            if (content.IndexOf(textQual, nextTextQual + textQual.Length) < 0)
+                            if (content.IndexOf(textQual, nextTextQual + textQual.Length, StringComparison.Ordinal) < 0)
                             {
                                 if (len < 0)
                                     yield return content.Substring(Position);
@@ -280,10 +301,10 @@ namespace SEIDR.Doc.FormatHelper
                     }
                     else if(nextTextQual < 0 &&  textQualCount % 2 == 0)
                     {
-                            if (len < 0)
-                                yield return content.Substring(Position);
-                            else
-                                yield return content.Substring(Position, len);
+                        if (len < 0)
+                            yield return content.Substring(Position);
+                        else
+                            yield return content.Substring(Position, len);
                         break; //we just got past the last quote. Ending line.
                     }
                     string message = $"Missing Text Qualifier({textQual}) {(metaData.AllowQuoteEscape ? ", TextQualifier escape (" + metaData.QuoteEscape + ")," : string.Empty)} or delimiter ({ string.Join(",", delimiterList)}).";                    
@@ -297,12 +318,22 @@ namespace SEIDR.Doc.FormatHelper
             }
             yield break;
         }
+        /// <summary>
+        /// Infer column information for a delimited file
+        /// </summary>
+        /// <param name="ContentLine"></param>
+        /// <param name="metaData"></param>
+        /// <param name="CheckTextQualifier"></param>
+        /// <param name="startPosition"></param>
+        /// <returns></returns>
         public static List<DocRecordColumnInfo> InferColumnList(string ContentLine, MetaDataBase metaData, bool CheckTextQualifier, ref int startPosition)
         {
-            var valset = EnumerateSplits(ContentLine, metaData.Delimiter.Value, CheckTextQualifier, metaData, false);
+            if (metaData?.Delimiter == null)
+                throw new ArgumentException("Meta data null or missing delimiter.", nameof(metaData));
+            var valSet = EnumerateSplits(ContentLine, metaData.Delimiter.Value, CheckTextQualifier, metaData, false);
             List<DocRecordColumnInfo> colSet = new List<DocRecordColumnInfo>();
             int idx = 0;                        
-            foreach(var val in valset)
+            foreach(var val in valSet)
             {                
                 string colName;
                 if (metaData.HasHeader)
@@ -337,12 +368,12 @@ namespace SEIDR.Doc.FormatHelper
         {
             if (skipLines == 0)
                 return 0;
-            var encode = metaData.FileEncoding;
+            Encoding encode = metaData.FileEncoding;
             int position = 0, lineCounter = 0;
             string textQual = metaData.TextQualifier;
             int nextTextQual = -1;
             if (CheckTextQualifier && !string.IsNullOrEmpty(textQual))
-                nextTextQual = content.IndexOf(textQual);
+                nextTextQual = content.IndexOf(textQual, StringComparison.Ordinal);
             int textQualCount = 0;
             int nextRowDelim = content.IndexOfAny(delimiterList);
 
@@ -357,7 +388,7 @@ namespace SEIDR.Doc.FormatHelper
                         position = nextRowDelim + delimiterList[0].Length;
                     else
                     {
-                        foreach (var le in delimiterList)
+                        foreach (string le in delimiterList)
                         {
                             if (le == content.Substring(nextRowDelim, le.Length))
                             {
@@ -376,7 +407,7 @@ namespace SEIDR.Doc.FormatHelper
                 {
                     textQualCount++;
                     int quotePosition = nextTextQual + textQual.Length;
-                    nextTextQual = content.IndexOf(textQual, quotePosition);
+                    nextTextQual = content.IndexOf(textQual, quotePosition, StringComparison.Ordinal);
                     nextRowDelim = content.IndexOfAny(delimiterList, quotePosition);
                 }
             }

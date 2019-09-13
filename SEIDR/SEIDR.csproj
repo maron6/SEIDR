@@ -57,11 +57,7 @@
     <Compile Include="DateFormatter.cs" />
     <Compile Include="Doc\DataReaderDoc.cs" />
     <Compile Include="Doc\DocDatabaseLoader.cs" />
-    <Compile Include="Doc\DocEditor\DocPage.cs" />
-    <Compile Include="Doc\DocEditor\DocPageHeader.cs" />
     <Compile Include="Doc\DocEditor\IDetailDataRecord.cs" />
-    <Compile Include="Doc\DocEditor\IDocPageCollection.cs" />
-    <Compile Include="Doc\DocEditor\RecordStorageHelper.cs" />
     <Compile Include="Doc\DocValueRandom.cs" />
     <Compile Include="Doc\FormatHelper\BSONHelper.cs" />
     <Compile Include="Doc\DataItem.cs" />
