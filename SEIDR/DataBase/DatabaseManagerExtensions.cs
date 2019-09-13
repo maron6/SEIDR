@@ -50,9 +50,9 @@ namespace SEIDR.DataBase
             if (att == null)
                 return false;
             if (forOutParameter)
-                return att.ignoreReadOut;
+                return att.IgnoreReadOut;
 
-            return att.ignoreSet;
+            return att.IgnoreSet;
         }
     }
     /// <summary>
@@ -63,11 +63,11 @@ namespace SEIDR.DataBase
         /// <summary>
         /// Ignore setting the value in parameters when populating the SqlCommand's parameters if the direction to ignore is either <see cref="ParameterDirection.Input"/> or <see cref="ParameterDirection.InputOutput"/>
         /// </summary>
-        public bool ignoreSet { get; private set; } = false;
+        public bool IgnoreSet { get; private set; } = false;
         /// <summary>
         /// Ignore reading the output parameters of the SqlCommand after execution if the direction to ignore is <see cref="ParameterDirection.InputOutput"/>, <see cref="ParameterDirection.Output"/>, or <see cref="ParameterDirection.ReturnValue"/>
         /// </summary>
-        public bool ignoreReadOut { get; private set; } = false;
+        public bool IgnoreReadOut { get; private set; } = false;
         /// <summary>
         /// Tells DatabaseManager to ignore the parameter for the specified direction
         /// </summary>
@@ -76,13 +76,13 @@ namespace SEIDR.DataBase
         {
             if((directionToIgnore & DatabaseManagerExtensions.CheckOutput) != 0)
             {
-                ignoreReadOut = true;
+                IgnoreReadOut = true;
             }
             if((directionToIgnore 
                 & (ParameterDirection.Input | ParameterDirection.InputOutput))
                 != 0)
             {
-                ignoreSet = true;
+                IgnoreSet = true;
             }
         }
     }

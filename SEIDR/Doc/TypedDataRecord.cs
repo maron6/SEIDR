@@ -262,15 +262,18 @@ namespace SEIDR.Doc
         {
             return ((IDataRecord)this)[column, alias];
         }
-
+        /// <inheritdoc />
         public bool HasColumn(string alias, string Column)
         {
             return Columns.HasColumn(alias, Column);
         }
+
+        /// <inheritdoc />
         public bool HasColumn(string columnName)
         {
             return Columns.HasColumn(null, columnName, -1);
         }
+        /// <inheritdoc />
         public bool TryGet(DocRecordColumnInfo columnInfo, out object result)
         {
             if (content.Count > columnInfo.Position)
@@ -283,6 +286,7 @@ namespace SEIDR.Doc
             result = null;
             return false;
         }
+        /// <inheritdoc />
         public bool TryGet(string colName, out object result, string alias = null)
         {
             var col = Columns.GetBestMatch(colName, alias);            
@@ -327,7 +331,27 @@ namespace SEIDR.Doc
                 return ret;
             }
         }
+        /// <summary>
+        /// Attempts to map the object to a TypedDataRecord based on the passed set of columns and getter properties on the object.
+        /// <para>Note: affected by attributes such as <see cref="DataBase.DatabaseManagerIgnoreMappingAttribute"/> and <see cref="DataBase.DatabaseManagerFieldMappingAttribute"/></para>
+        /// </summary>
+        /// <param name="columnInfos"></param>
+        /// <param name="source"></param>
+        /// <returns></returns>
+        public static TypedDataRecord Map(DocRecordColumnCollection columnInfos, object source)
+        {
+            var props = DataBase.DatabaseManagerExtensions.GetGetters(source.GetType())
+                    .Where(s => columnInfos.Exists(c => c.ColumnName == s.Key));
 
+            TypedDataRecord ret = new TypedDataRecord(columnInfos);
+            foreach (var prop in props)
+            {
+                ret[prop.Key] = new DataItem(
+                    prop.Value.Invoke(source, parameters: null), 
+                    columnInfos[prop.Key].DataType);
+            }
+            return ret;
+        }
 
     }
 }
