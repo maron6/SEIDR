@@ -902,6 +902,16 @@ namespace SEIDR.DataBase
             return ex;
         }
 
+        /// <summary>
+        /// Call a procedure to select a single data record which matches to the return type {_}.
+        /// </summary>
+        /// <typeparam name="RT"></typeparam>
+        /// <param name="paramObj"></param>
+        /// <param name="suffix">String value to append at the end of the <see cref="SelectRowFormat"/> for the particular procedure we want to run, to allow a more context specific version call.</param>
+        /// <param name="Schema">Schema of procedure. If null, uses the <see cref="DefaultSchema"/> </param>
+        /// <param name="ignore"></param>
+        /// <param name="RequireSingle"></param>
+        /// <returns></returns>
         public RT SelectSingle<RT>(object paramObj = null, string suffix = null, string Schema = null, string[] ignore = null, bool RequireSingle = true)where RT: class, new()
         {
             string proc = (Schema ?? _Schema) + "." + CheckSuffix(string.Format(SelectRowFormat, typeof(RT).Name), suffix);

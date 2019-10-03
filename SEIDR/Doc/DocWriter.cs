@@ -67,6 +67,15 @@ namespace SEIDR.Doc
         {
             sw.Write(md.FormatRecord(record, true));
         }
+
+        public void AddRecord(IDataRecord record, DocWriterMap map)
+        {
+            sw.Write(md.FormatRecord(record, true, map.MapData));
+        }
+        public void AddRecord(IDataRecord record, IDictionary<int, DocRecordColumnInfo> map)
+        {
+            sw.Write(md.FormatRecord(record, true, map));
+        }
         /// <summary>
         /// True if the file being written to is being written with columns having fixed widths and positions.
         /// </summary>
