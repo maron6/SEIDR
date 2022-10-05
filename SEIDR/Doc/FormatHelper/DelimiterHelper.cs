@@ -43,6 +43,9 @@ namespace SEIDR.Doc.FormatHelper
             int lastPositionEnd = 0;
             //int maxDelim = delimiterList.Max(del => del.Length);
             int nextRowDelim = content.IndexOfAny(delimiterList);
+            bool firstEnd = nextRowDelim < 0;
+            if(firstEnd)
+                nextRowDelim = content.Length;
             startByte = 0;
             while (true)
             {
@@ -50,8 +53,12 @@ namespace SEIDR.Doc.FormatHelper
                 {
                     textQualCount = 0;
                     int fromPosition = Position;
-                    string val = content.Substring(Position, nextRowDelim - Position);                    
-                    if (delimiterList.Length == 1)
+                    string val = content.Substring(Position, nextRowDelim - Position);
+                    if (firstEnd)
+                    {
+                        Position = nextRowDelim;
+                    }
+                    else if (delimiterList.Length == 1)
                     {
                         Position = nextRowDelim + delimiterList[0].Length;
                     }
@@ -81,7 +88,7 @@ namespace SEIDR.Doc.FormatHelper
                     nextRowDelim = content.IndexOfAny(delimiterList, Position);
                     if (nextRowDelim < 0 || nextRowDelim == content.Length - 1)
                     {
-                        if (End)
+                        if (End && !firstEnd)
                         {
                             if (nextRowDelim >= 0)
                             {
