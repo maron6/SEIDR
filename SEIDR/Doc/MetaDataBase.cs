@@ -1084,7 +1084,7 @@ namespace SEIDR.Doc
             int position = 0;
             for (int i = 0; i < colSet.Columns.Count; i++)
             {
-                if(position > byteSet.Length)
+                if(position >= byteSet.Length)
                 {
                     if(AllowMissingColumns)
                         break;

@@ -637,6 +637,8 @@ namespace SEIDR.Doc
                         case DocRecordFormat.SBSON:
                             checkOffSet = false;//Note: header is going to be *mostly* human readable if available.
                             cols = SBSONHelper.InferColumnList(lines[headerCount], readCode, md.Alias, md.HasHeader);
+                            if (md.HasHeader)
+                                startOffset = SBSONHelper.GetSkipPosition(content, readCode, 1);
                             break;
                         default:
                             cols = FormatHelper.DelimiterHelper.InferColumnList(lines[headerCount], _MetaData, true, ref startOffset);
@@ -733,6 +735,10 @@ namespace SEIDR.Doc
                         headerCount++;
                         if (headerCount > lines.Count)
                             throw new Exception("Buffer too small to infer column set. Condsider increased buffer size or explicit column values.");
+                    }
+                    if(_MetaData.Format == DocRecordFormat.SBSON)
+                    {
+                        startOffset = SBSONHelper.GetSkipPosition(content, readCode, headerCount);
                     }
                 }
             }
